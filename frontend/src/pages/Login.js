@@ -23,6 +23,12 @@ function Login({ setIsAuthenticated }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!formData.device_id) {
+      toast.error('Device ID is required! See instructions above for how to get it.');
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -33,7 +39,13 @@ function Login({ setIsAuthenticated }) {
       }
     } catch (error) {
       const message = error.response?.data?.detail || 'Login failed. Please check your credentials.';
-      toast.error(message);
+      
+      // Show detailed error with better formatting
+      if (message.includes('Device ID') || message.includes('CAPTCHA') || message.includes('image verification')) {
+        toast.error(message, { duration: 10000 });
+      } else {
+        toast.error(message);
+      }
     } finally {
       setLoading(false);
     }
