@@ -122,7 +122,7 @@ function Login({ setIsAuthenticated }) {
 
             <div className="space-y-2">
               <Label htmlFor="device_id" className="text-slate-200 font-medium">
-                Device ID (Required for CAPTCHA bypass)
+                Device ID (Required - 32 characters)
               </Label>
               <Input
                 id="device_id"
@@ -130,21 +130,24 @@ function Login({ setIsAuthenticated }) {
                 type="text"
                 value={formData.device_id}
                 onChange={(e) => setFormData({ ...formData, device_id: e.target.value })}
-                className="bg-slate-800 border-slate-700 text-white font-mono"
+                className="bg-slate-800 border-slate-700 text-white font-mono text-sm"
                 placeholder="e.g. 97468314e9674207be4aa99b13f749c9"
+                maxLength={32}
               />
-              <div className="p-3 bg-cyan-500/10 border border-cyan-700/30 rounded-lg text-xs">
-                <p className="text-cyan-300 font-medium mb-1">📝 How to get your Device ID:</p>
-                <ol className="text-slate-300 space-y-1 list-decimal list-inside">
-                  <li>Login at <a href="https://app.webullbroker.com" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline">app.webullbroker.com</a></li>
-                  <li>Press F12 (Developer Tools) → Network tab</li>
-                  <li>Complete image verification & login</li>
-                  <li>Click any API request → Headers → Request Headers</li>
-                  <li>Find & copy the 'did' value (32-character hex)</li>
+              <div className="p-3 bg-cyan-500/10 border border-cyan-700/30 rounded-lg text-xs space-y-2">
+                <p className="text-cyan-300 font-medium">📝 How to get your Device ID (one-time setup):</p>
+                <ol className="text-slate-300 space-y-1 list-decimal list-inside ml-2">
+                  <li>Open <a href="https://app.webullbroker.com" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline hover:text-cyan-300">app.webullbroker.com</a> in Chrome/Firefox</li>
+                  <li>Press F12 → Network tab → Check "Preserve log"</li>
+                  <li>Login successfully (complete CAPTCHA if shown)</li>
+                  <li>In Network tab, click any request → Headers</li>
+                  <li>Under <strong>Request Headers</strong>, find & copy the <code className="bg-slate-700 px-1 rounded">did</code> value</li>
                 </ol>
-                <p className="text-amber-300 mt-2">
-                  ⚠️ Required due to Webull's CAPTCHA protection
-                </p>
+                <div className="mt-2 p-2 bg-amber-900/20 border border-amber-700/30 rounded">
+                  <p className="text-amber-300 text-xs">
+                    💡 <strong>New Method:</strong> Once you provide your DID, our system uses automated browser login (no more CAPTCHA!) Your credentials are never stored.
+                  </p>
+                </div>
               </div>
             </div>
 
