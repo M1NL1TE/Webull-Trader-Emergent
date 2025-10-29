@@ -184,15 +184,16 @@ function Login({ setIsAuthenticated }) {
               disabled={loading}
             >
               {loading ? (
-                <><span className="spinner mr-2"></span>Signing In...</>
+                <><span className="spinner mr-2"></span>Logging in via browser automation...</>
               ) : (
-                'Sign In'
+                'Sign In (Automated)'
               )}
             </Button>
           </form>
           
-          <div className="mt-6 text-center text-sm text-slate-400">
-            <p>Secure connection to Webull API</p>
+          <div className="mt-6 text-center text-xs text-slate-400 space-y-1">
+            <p>🔒 Secure automated login via Playwright</p>
+            <p>Your credentials are used once and never stored</p>
           </div>
         </CardContent>
       </Card>
