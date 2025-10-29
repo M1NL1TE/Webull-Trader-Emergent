@@ -150,14 +150,29 @@ async def login(request: LoginRequest):
         
         result = wb.login(request.username, request.password)
         
+        # Check if result is valid JSON
+        if not isinstance(result, dict):
+            raise HTTPException(
+                status_code=401, 
+                detail="Webull requires image verification. Please follow these steps:\n\n1. Login at https://app.webullbroker.com using Chrome/Firefox\n2. Open Developer Tools (F12)\n3. Go to Network tab\n4. Login successfully\n5. Find any API request and look for 'did' in Request Headers\n6. Copy the 'did' value and paste it in the Device ID field\n\nSee: https://github.com/tedchou12/webull/wiki/Workaround-for-Login"
+            )
+        
         if 'accessToken' not in result:
-            raise HTTPException(status_code=401, detail="Login failed. Check credentials.")
+            # Check for specific error messages
+            if 'msg' in result:
+                error_msg = result['msg']
+                if 'image verification' in error_msg.lower() or 'captcha' in error_msg.lower():
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Image verification required. You need to:\n1. Login via browser at https://app.webullbroker.com\n2. Extract your 'did' from browser DevTools\n3. Enter it in Device ID field"
+                    )
+            raise HTTPException(status_code=401, detail=f"Login failed: {result.get('msg', 'Check credentials')}")
         
         # Get trade token
         if not wb.get_trade_token(request.trade_pin):
             raise HTTPException(status_code=401, detail="Invalid trade PIN")
         
-        # Save session
+        # Save session including DID
         session_data = {
             'session_type': 'webull',
             'access_token': wb._access_token,
@@ -165,7 +180,8 @@ async def login(request: LoginRequest):
             'token_expire': wb._token_expire,
             'uuid': wb._uuid,
             'account_id': wb._account_id,
-            'is_paper': request.is_paper
+            'is_paper': request.is_paper,
+            'device_id': wb._did
         }
         await save_session(session_data)
         
@@ -174,9 +190,20 @@ async def login(request: LoginRequest):
             message="Login successful",
             session_id=session_data['uuid']
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Login error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        error_msg = str(e)
+        logger.error(f"Login error: {error_msg}")
+        
+        # Check for JSON decode errors
+        if "Expecting value" in error_msg or "JSON" in error_msg:
+            raise HTTPException(
+                status_code=401,
+                detail="Webull API returned invalid response (CAPTCHA required). You must:\n\n1. Login at https://app.webullbroker.com in a browser\n2. Open DevTools (F12) > Network tab\n3. Find any API request and copy the 'did' from Request Headers\n4. Paste the 'did' in the Device ID field above\n\nThis workaround bypasses image verification."
+            )
+        
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @api_router.post("/auth/restore")
 async def restore_session():
