@@ -6,7 +6,7 @@ Based on solution from: https://github.com/tedchou12/webull/issues/456
 
 import logging
 from typing import Optional, Dict
-from playwright.sync_api import sync_playwright, Page, Browser, BrowserContext, TimeoutError as PlaywrightTimeout
+from playwright.async_api import async_playwright, Page, Browser, BrowserContext, TimeoutError as PlaywrightTimeout
 
 logger = logging.getLogger(__name__)
 
