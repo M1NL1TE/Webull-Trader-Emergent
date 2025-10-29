@@ -109,16 +109,31 @@ function Login({ setIsAuthenticated }) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="device_id" className="text-slate-200">Device ID (Optional)</Label>
+              <Label htmlFor="device_id" className="text-slate-200 font-medium">
+                Device ID (Required for CAPTCHA bypass)
+              </Label>
               <Input
                 id="device_id"
                 data-testid="device-id-input"
                 type="text"
                 value={formData.device_id}
                 onChange={(e) => setFormData({ ...formData, device_id: e.target.value })}
-                className="bg-slate-800 border-slate-700 text-white"
-                placeholder="Leave blank for auto-generation"
+                className="bg-slate-800 border-slate-700 text-white font-mono"
+                placeholder="e.g. 97468314e9674207be4aa99b13f749c9"
               />
+              <div className="p-3 bg-cyan-500/10 border border-cyan-700/30 rounded-lg text-xs">
+                <p className="text-cyan-300 font-medium mb-1">📝 How to get your Device ID:</p>
+                <ol className="text-slate-300 space-y-1 list-decimal list-inside">
+                  <li>Login at <a href="https://app.webullbroker.com" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline">app.webullbroker.com</a></li>
+                  <li>Press F12 (Developer Tools) → Network tab</li>
+                  <li>Complete image verification & login</li>
+                  <li>Click any API request → Headers → Request Headers</li>
+                  <li>Find & copy the 'did' value (32-character hex)</li>
+                </ol>
+                <p className="text-amber-300 mt-2">
+                  ⚠️ Required due to Webull's CAPTCHA protection
+                </p>
+              </div>
             </div>
 
             <div className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
