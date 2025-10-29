@@ -41,18 +41,18 @@ class WebullPlaywrightAuth:
             "TokenExpire": None
         }
 
-    def start_browser(self):
+    async def start_browser(self):
         """Start Playwright browser with DID cookie set"""
         try:
-            self.playwright = sync_playwright().start()
-            self.browser = self.playwright.chromium.launch(headless=self.headless)
-            self.context = self.browser.new_context(
+            self.playwright = await async_playwright().start()
+            self.browser = await self.playwright.chromium.launch(headless=self.headless)
+            self.context = await self.browser.new_context(
                 user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
             )
-            self.page = self.context.new_page()
+            self.page = await self.context.new_page()
             
             # Set DID cookie BEFORE navigating to login - this bypasses CAPTCHA
-            self.page.context.add_cookies([{
+            await self.page.context.add_cookies([{
                 'name': 'web_did',
                 'value': self.did_value,
                 'domain': '.webull.com',
@@ -67,13 +67,13 @@ class WebullPlaywrightAuth:
             logger.error(f"Failed to start browser: {e}")
             return False
 
-    def close_browser(self):
+    async def close_browser(self):
         """Close browser and playwright"""
         try:
             if self.browser:
-                self.browser.close()
+                await self.browser.close()
             if self.playwright:
-                self.playwright.stop()
+                await self.playwright.stop()
             logger.info("Browser closed")
         except Exception as e:
             logger.error(f"Error closing browser: {e}")
