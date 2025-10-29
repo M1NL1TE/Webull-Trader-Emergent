@@ -131,7 +131,7 @@ class WebullPlaywrightAuth:
             logger.error(f"Login error: {e}")
             return False
 
-    def capture_tokens(self, timeout: int = 60):
+    async def capture_tokens(self, timeout: int = 60):
         """
         Intercept network responses to extract authentication tokens
         timeout: seconds to wait for tokens
@@ -167,7 +167,7 @@ class WebullPlaywrightAuth:
         poll_interval = 1000  # 1 second
         
         while elapsed < (timeout * 1000) and not self.tokens["AccessToken"]:
-            self.page.wait_for_timeout(poll_interval)
+            await self.page.wait_for_timeout(poll_interval)
             elapsed += poll_interval
 
         if self.tokens["AccessToken"]:
@@ -177,7 +177,7 @@ class WebullPlaywrightAuth:
             logger.error("❌ Timeout: AccessToken not captured")
             return None
 
-    def authenticate(self, login_timeout: int = 30, capture_timeout: int = 60):
+    async def authenticate(self, login_timeout: int = 30, capture_timeout: int = 60):
         """
         Complete authentication flow: start browser, login, capture tokens, close
         
@@ -190,29 +190,29 @@ class WebullPlaywrightAuth:
         """
         try:
             # Start browser
-            if not self.start_browser():
+            if not await self.start_browser():
                 return None
 
             # Perform login
-            if not self.login(timeout=login_timeout * 1000):
-                self.close_browser()
+            if not await self.login(timeout=login_timeout * 1000):
+                await self.close_browser()
                 return None
 
             # Capture tokens
-            tokens = self.capture_tokens(timeout=capture_timeout)
+            tokens = await self.capture_tokens(timeout=capture_timeout)
             
             # Close browser
-            self.close_browser()
+            await self.close_browser()
             
             return tokens
 
         except Exception as e:
             logger.error(f"Authentication failed: {e}")
-            self.close_browser()
+            await self.close_browser()
             return None
 
 
-def authenticate_webull_playwright(username: str, password: str, did: str) -> Optional[Dict]:
+async def authenticate_webull_playwright(username: str, password: str, did: str) -> Optional[Dict]:
     """
     Helper function to authenticate with Webull using Playwright
     
@@ -231,4 +231,4 @@ def authenticate_webull_playwright(username: str, password: str, did: str) -> Op
         headless=True  # Set to False to see browser
     )
     
-    return authenticator.authenticate(login_timeout=30, capture_timeout=60)
+    return await authenticator.authenticate(login_timeout=30, capture_timeout=60)
