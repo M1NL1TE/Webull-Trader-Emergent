@@ -24,27 +24,34 @@ function Login({ setIsAuthenticated }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.device_id) {
-      toast.error('Device ID is required! See instructions above for how to get it.');
+    if (!formData.device_id || formData.device_id.length !== 32) {
+      toast.error('Device ID must be exactly 32 characters! See instructions above for how to get it.');
       return;
     }
     
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API}/auth/login`, formData);
+      toast.info('Starting automated browser login... This may take 30-60 seconds.', { duration: 5000 });
+      
+      const response = await axios.post(`${API}/auth/login`, formData, {
+        timeout: 90000 // 90 second timeout for Playwright
+      });
+      
       if (response.data.success) {
-        toast.success('Login successful!');
+        toast.success('Login successful! Redirecting to dashboard...');
         setIsAuthenticated(true);
       }
     } catch (error) {
       const message = error.response?.data?.detail || 'Login failed. Please check your credentials.';
       
       // Show detailed error with better formatting
-      if (message.includes('Device ID') || message.includes('CAPTCHA') || message.includes('image verification')) {
+      if (message.includes('timeout')) {
+        toast.error('Login timed out. Please try again. If this persists, your DID may be expired.', { duration: 8000 });
+      } else if (message.includes('Device ID')) {
         toast.error(message, { duration: 10000 });
       } else {
-        toast.error(message);
+        toast.error(message, { duration: 8000 });
       }
     } finally {
       setLoading(false);
