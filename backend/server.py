@@ -142,69 +142,89 @@ def filter_options(wb, symbol, option_type):
 
 @api_router.post("/auth/login", response_model=LoginResponse)
 async def login(request: LoginRequest):
-    """Login to Webull"""
+    """Login to Webull using Playwright automation"""
     try:
-        wb = get_webull_instance(request.is_paper)
-        
-        if request.device_id:
-            wb._set_did(request.device_id)
-        
-        result = wb.login(request.username, request.password)
-        
-        # Check if result is valid JSON
-        if not isinstance(result, dict):
+        # Validate Device ID
+        if not request.device_id or len(request.device_id) != 32:
             raise HTTPException(
-                status_code=401, 
-                detail="Webull requires image verification. Please follow these steps:\n\n1. Login at https://app.webullbroker.com using Chrome/Firefox\n2. Open Developer Tools (F12)\n3. Go to Network tab\n4. Login successfully\n5. Find any API request and look for 'did' in Request Headers\n6. Copy the 'did' value and paste it in the Device ID field\n\nSee: https://github.com/tedchou12/webull/wiki/Workaround-for-Login"
+                status_code=400,
+                detail="Valid Device ID (32-character hex string) is required. See instructions on login page."
             )
         
-        if 'accessToken' not in result:
-            # Check for specific error messages
-            if 'msg' in result:
-                error_msg = result['msg']
-                if 'image verification' in error_msg.lower() or 'captcha' in error_msg.lower():
-                    raise HTTPException(
-                        status_code=401,
-                        detail="Image verification required. You need to:\n1. Login via browser at https://app.webullbroker.com\n2. Extract your 'did' from browser DevTools\n3. Enter it in Device ID field"
-                    )
-            raise HTTPException(status_code=401, detail=f"Login failed: {result.get('msg', 'Check credentials')}")
+        logger.info(f"Starting Playwright authentication for user: {request.username[:5]}...")
+        
+        # Use Playwright to authenticate and capture tokens
+        tokens = authenticate_webull_playwright(
+            username=request.username,
+            password=request.password,
+            did=request.device_id
+        )
+        
+        if not tokens or not tokens.get('AccessToken'):
+            raise HTTPException(
+                status_code=401,
+                detail="Login failed. Please check:\n1. Username and password are correct\n2. Device ID is valid (32-char hex from browser)\n3. No CAPTCHA appeared (DID should prevent this)\n\nIf CAPTCHA appears, you may need a fresh DID from a new browser login."
+            )
+        
+        logger.info("Playwright authentication successful, initializing Webull instance...")
+        
+        # Initialize Webull instance with captured tokens
+        wb = get_webull_instance(request.is_paper)
+        wb._set_did(request.device_id)
+        
+        # Use api_login with captured tokens
+        wb.api_login(
+            access_token=tokens['AccessToken'],
+            refresh_token=tokens['RefreshToken'],
+            uuid=tokens['UUID'],
+            token_expire=tokens.get('TokenExpire', '2099-01-01T00:00:00.000+0000')
+        )
         
         # Get trade token
+        logger.info("Getting trade token...")
         if not wb.get_trade_token(request.trade_pin):
             raise HTTPException(status_code=401, detail="Invalid trade PIN")
         
-        # Save session including DID
+        # Save session including tokens and DID
         session_data = {
             'session_type': 'webull',
-            'access_token': wb._access_token,
-            'refresh_token': wb._refresh_token,
-            'token_expire': wb._token_expire,
-            'uuid': wb._uuid,
+            'access_token': tokens['AccessToken'],
+            'refresh_token': tokens['RefreshToken'],
+            'token_expire': tokens.get('TokenExpire', '2099-01-01T00:00:00.000+0000'),
+            'uuid': tokens['UUID'],
             'account_id': wb._account_id,
             'is_paper': request.is_paper,
-            'device_id': wb._did
+            'device_id': request.device_id
         }
         await save_session(session_data)
         
+        logger.info("✅ Login successful!")
+        
         return LoginResponse(
             success=True,
-            message="Login successful",
-            session_id=session_data['uuid']
+            message="Login successful via Playwright automation",
+            session_id=tokens['UUID']
         )
+        
     except HTTPException:
         raise
     except Exception as e:
         error_msg = str(e)
         logger.error(f"Login error: {error_msg}")
         
-        # Check for JSON decode errors
-        if "Expecting value" in error_msg or "JSON" in error_msg:
+        # Provide helpful error messages
+        if "timeout" in error_msg.lower():
             raise HTTPException(
-                status_code=401,
-                detail="Webull API returned invalid response (CAPTCHA required). You must:\n\n1. Login at https://app.webullbroker.com in a browser\n2. Open DevTools (F12) > Network tab\n3. Find any API request and copy the 'did' from Request Headers\n4. Paste the 'did' in the Device ID field above\n\nThis workaround bypasses image verification."
+                status_code=408,
+                detail="Login timeout. The automated browser may have encountered an issue. Please try again."
+            )
+        elif "playwright" in error_msg.lower():
+            raise HTTPException(
+                status_code=500,
+                detail="Browser automation error. Please contact support if this persists."
             )
         
-        raise HTTPException(status_code=500, detail=error_msg)
+        raise HTTPException(status_code=500, detail=f"Login failed: {error_msg}")
 
 @api_router.post("/auth/restore")
 async def restore_session():
