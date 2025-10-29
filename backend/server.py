@@ -153,8 +153,8 @@ async def login(request: LoginRequest):
         
         logger.info(f"Starting Playwright authentication for user: {request.username[:5]}...")
         
-        # Use Playwright to authenticate and capture tokens
-        tokens = authenticate_webull_playwright(
+        # Use Playwright to authenticate and capture tokens (now async)
+        tokens = await authenticate_webull_playwright(
             username=request.username,
             password=request.password,
             did=request.device_id
