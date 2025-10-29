@@ -11,6 +11,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 import asyncio
 from my_webull import my_webull, my_paper_webull
+from webull_playwright_auth import authenticate_webull_playwright
 import talib
 import numpy as np
 import pandas as pd
