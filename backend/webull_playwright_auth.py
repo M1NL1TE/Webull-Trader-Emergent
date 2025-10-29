@@ -45,7 +45,13 @@ class WebullPlaywrightAuth:
         """Start Playwright browser with DID cookie set"""
         try:
             self.playwright = await async_playwright().start()
-            self.browser = await self.playwright.chromium.launch(headless=self.headless)
+            
+            # Use chromium (not chromium_headless_shell)
+            self.browser = await self.playwright.chromium.launch(
+                headless=True,
+                channel=None  # Use default chromium
+            )
+            
             self.context = await self.browser.new_context(
                 user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
             )
