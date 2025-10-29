@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException, BackgroundTasks
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -6,10 +6,15 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+from typing import List, Optional, Dict, Any
 import uuid
-from datetime import datetime, timezone
-
+from datetime import datetime, timezone, timedelta
+import asyncio
+from my_webull import my_webull, my_paper_webull
+import talib
+import numpy as np
+import pandas as pd
+import math
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -25,46 +30,458 @@ app = FastAPI()
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Global webull instance (will be set after login)
+wb_instance = None
+is_paper_trading = True
 
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
-    
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+# ===================== MODELS =====================
 
-# Add your routes to the router instead of directly to app
-@api_router.get("/")
-async def root():
-    return {"message": "Hello World"}
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+    trade_pin: str
+    is_paper: bool = True
+    device_id: Optional[str] = None
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
+class LoginResponse(BaseModel):
+    success: bool
+    message: str
+    session_id: Optional[str] = None
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
+class TradeRequest(BaseModel):
+    symbol: str
+    option_type: str  # 'call' or 'put'
+    trade_grade: str
+
+class SettingsUpdate(BaseModel):
+    auto_trading: Optional[bool] = None
+    profit_percentage: Optional[float] = None
+    loss_percentage: Optional[float] = None
+    sms_notifications: Optional[bool] = None
+
+# ===================== HELPER FUNCTIONS =====================
+
+def get_webull_instance(is_paper: bool = True):
+    """Get or create webull instance"""
+    global wb_instance, is_paper_trading
+    if wb_instance is None or is_paper_trading != is_paper:
+        wb_instance = my_paper_webull() if is_paper else my_webull()
+        is_paper_trading = is_paper
+    return wb_instance
+
+async def save_session(session_data: dict):
+    """Save Webull session to database"""
+    session_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+    await db.sessions.update_one(
+        {'session_type': 'webull'},
+        {'$set': session_data},
+        upsert=True
+    )
+
+async def get_session():
+    """Retrieve Webull session from database"""
+    return await db.sessions.find_one({'session_type': 'webull'})
+
+def get_rsi_grade(df):
+    """Calculate RSI grade from dataframe"""
+    rsi = talib.RSI(df['close'])
+    df_last = df.tail(1)
+    if rsi.iloc[-1] <= 30 and df_last['close'].iloc[-1] > df_last['open'].iloc[-1]:
+        return 'A+'
+    if rsi.iloc[-1] >= 70 and df_last['close'].iloc[-1] < df_last['open'].iloc[-1]:
+        return 'A+'
+    if (rsi.iloc[-2] > rsi.iloc[-1] and rsi.iloc[-1] < 30) or (rsi.iloc[-2] < rsi.iloc[-1] and rsi.iloc[-1] > 70):
+        return 'A'
+    return 'D'
+
+def get_macd_grade(df):
+    """Calculate MACD grade from dataframe"""
+    macd, macdsignal, macdhist = talib.MACD(df['close'])
+    if macd.iloc[-1] > macdsignal.iloc[-1] and macd.iloc[-2] < macdsignal.iloc[-2]:
+        return 'A+'
+    return 'D'
+
+def filter_options(wb, symbol, option_type):
+    """Filter options based on volume and strike price"""
+    current_date = datetime.now().date()
+    current_day = current_date.weekday()
     
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
+    min_days = 3 if current_day == 4 else 1
+    min_date = current_date + timedelta(days=min_days)
     
-    return status_checks
+    expiration_dates = wb.get_options_expiration_dates(symbol)
+    expiration_dates = [date for date in expiration_dates if datetime.strptime(date['date'], '%Y-%m-%d').date() >= min_date]
+    
+    if not expiration_dates:
+        return []
+    
+    expiration_date = expiration_dates[0]['date']
+    current_price = float(wb.get_quote(stock=symbol)['close'])
+    rounded_price = round(current_price)
+    
+    if option_type == 'call':
+        options = wb.get_options(stock=symbol, count=-1, direction='call', expireDate=expiration_date)
+        options = [opt for opt in options if rounded_price <= float(opt['strikePrice']) <= rounded_price + 5]
+        options.sort(key=lambda x: int(wb.get_option_quote(stock=symbol, optionId=x['call']['tickerId'])['data'][0]['volume']), reverse=True)
+        return options
+    else:
+        options = wb.get_options(stock=symbol, count=-1, direction='put', expireDate=expiration_date)
+        options = [opt for opt in options if rounded_price - 5 <= float(opt['strikePrice']) <= rounded_price]
+        options.sort(key=lambda x: int(wb.get_option_quote(stock=symbol, optionId=x['put']['tickerId'])['data'][0]['volume']), reverse=True)
+        return options
+
+# ===================== ROUTES =====================
+
+@api_router.post("/auth/login", response_model=LoginResponse)
+async def login(request: LoginRequest):
+    """Login to Webull"""
+    try:
+        wb = get_webull_instance(request.is_paper)
+        
+        if request.device_id:
+            wb._set_did(request.device_id)
+        
+        result = wb.login(request.username, request.password)
+        
+        if 'accessToken' not in result:
+            raise HTTPException(status_code=401, detail="Login failed. Check credentials.")
+        
+        # Get trade token
+        if not wb.get_trade_token(request.trade_pin):
+            raise HTTPException(status_code=401, detail="Invalid trade PIN")
+        
+        # Save session
+        session_data = {
+            'session_type': 'webull',
+            'access_token': wb._access_token,
+            'refresh_token': wb._refresh_token,
+            'token_expire': wb._token_expire,
+            'uuid': wb._uuid,
+            'account_id': wb._account_id,
+            'is_paper': request.is_paper
+        }
+        await save_session(session_data)
+        
+        return LoginResponse(
+            success=True,
+            message="Login successful",
+            session_id=session_data['uuid']
+        )
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/auth/restore")
+async def restore_session():
+    """Restore session from database"""
+    try:
+        session = await get_session()
+        if not session:
+            raise HTTPException(status_code=404, detail="No session found")
+        
+        wb = get_webull_instance(session.get('is_paper', True))
+        wb.api_login(
+            access_token=session['access_token'],
+            refresh_token=session['refresh_token'],
+            token_expire=session['token_expire'],
+            uuid=session['uuid']
+        )
+        
+        return {"success": True, "is_paper": session.get('is_paper', True)}
+    except Exception as e:
+        logger.error(f"Restore session error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/account")
+async def get_account():
+    """Get account information"""
+    try:
+        session = await get_session()
+        if not session:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        wb = get_webull_instance(session.get('is_paper', True))
+        wb.api_login(
+            access_token=session['access_token'],
+            refresh_token=session['refresh_token'],
+            token_expire=session['token_expire'],
+            uuid=session['uuid']
+        )
+        
+        account_info = wb.get_account()
+        return account_info
+    except Exception as e:
+        logger.error(f"Get account error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/positions")
+async def get_positions():
+    """Get current positions"""
+    try:
+        session = await get_session()
+        if not session:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        wb = get_webull_instance(session.get('is_paper', True))
+        wb.api_login(
+            access_token=session['access_token'],
+            refresh_token=session['refresh_token'],
+            token_expire=session['token_expire'],
+            uuid=session['uuid']
+        )
+        
+        positions = wb.get_positions()
+        return {"positions": positions}
+    except Exception as e:
+        logger.error(f"Get positions error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/orders")
+async def get_orders():
+    """Get current open orders"""
+    try:
+        session = await get_session()
+        if not session:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        wb = get_webull_instance(session.get('is_paper', True))
+        wb.api_login(
+            access_token=session['access_token'],
+            refresh_token=session['refresh_token'],
+            token_expire=session['token_expire'],
+            uuid=session['uuid']
+        )
+        
+        orders = wb.get_current_orders()
+        return {"orders": orders}
+    except Exception as e:
+        logger.error(f"Get orders error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/market/quote/{symbol}")
+async def get_market_quote(symbol: str):
+    """Get market quote for a symbol"""
+    try:
+        session = await get_session()
+        if not session:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        wb = get_webull_instance(session.get('is_paper', True))
+        wb.api_login(
+            access_token=session['access_token'],
+            refresh_token=session['refresh_token'],
+            token_expire=session['token_expire'],
+            uuid=session['uuid']
+        )
+        
+        quote = wb.get_quote(stock=symbol)
+        return quote
+    except Exception as e:
+        logger.error(f"Get quote error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/market/bars/{symbol}")
+async def get_market_bars(symbol: str, interval: str = 'm30', count: int = 140):
+    """Get market bars (candlestick data)"""
+    try:
+        session = await get_session()
+        if not session:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        wb = get_webull_instance(session.get('is_paper', True))
+        wb.api_login(
+            access_token=session['access_token'],
+            refresh_token=session['refresh_token'],
+            token_expire=session['token_expire'],
+            uuid=session['uuid']
+        )
+        
+        ticker_id = wb.get_ticker(symbol)
+        bars = wb.get_bars(symbol, ticker_id, interval, count, 1)
+        
+        # Convert DataFrame to dict for JSON serialization
+        bars_dict = bars.to_dict(orient='records')
+        return {"bars": bars_dict, "symbol": symbol}
+    except Exception as e:
+        logger.error(f"Get bars error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/analysis/signals/{symbol}")
+async def get_trading_signals(symbol: str):
+    """Get trading signals (RSI, MACD, etc.) for a symbol"""
+    try:
+        session = await get_session()
+        if not session:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        wb = get_webull_instance(session.get('is_paper', True))
+        wb.api_login(
+            access_token=session['access_token'],
+            refresh_token=session['refresh_token'],
+            token_expire=session['token_expire'],
+            uuid=session['uuid']
+        )
+        
+        ticker_id = wb.get_ticker(symbol)
+        df = wb.get_bars(symbol, ticker_id, 'm30', 140, 1)
+        
+        # Calculate indicators
+        rsi = talib.RSI(df['close'])
+        macd, signal, hist = talib.MACD(df['close'])
+        
+        rsi_grade = get_rsi_grade(df)
+        macd_grade = get_macd_grade(df)
+        
+        return {
+            "symbol": symbol,
+            "rsi": float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else None,
+            "rsi_grade": rsi_grade,
+            "macd": float(macd.iloc[-1]) if not pd.isna(macd.iloc[-1]) else None,
+            "macd_signal": float(signal.iloc[-1]) if not pd.isna(signal.iloc[-1]) else None,
+            "macd_grade": macd_grade,
+            "current_price": float(df['close'].iloc[-1])
+        }
+    except Exception as e:
+        logger.error(f"Get signals error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/trade/option")
+async def place_option_trade(request: TradeRequest):
+    """Place an option trade"""
+    try:
+        session = await get_session()
+        if not session:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        wb = get_webull_instance(session.get('is_paper', True))
+        wb.api_login(
+            access_token=session['access_token'],
+            refresh_token=session['refresh_token'],
+            token_expire=session['token_expire'],
+            uuid=session['uuid']
+        )
+        
+        account_info = wb.get_account()
+        account_value = float(account_info['accountMembers'][1]['value'])
+        
+        # Get filtered options
+        filtered_chain = filter_options(wb, request.symbol, request.option_type)
+        if not filtered_chain:
+            raise HTTPException(status_code=404, detail="No suitable options found")
+        
+        # Trade percentages based on grade
+        trade_grades = {
+            'A+': {'stop_loss_pct': 0.50, 'trade_pct': 0.2},
+            'A': {'stop_loss_pct': 0.47, 'trade_pct': 0.18},
+            'B+': {'stop_loss_pct': 0.44, 'trade_pct': 0.15},
+            'B': {'stop_loss_pct': 0.41, 'trade_pct': 0.15},
+            'C+': {'stop_loss_pct': 0.38, 'trade_pct': 0.12},
+            'C': {'stop_loss_pct': 0.35, 'trade_pct': 0.10},
+            'D+': {'stop_loss_pct': 0.30, 'trade_pct': 0.05},
+            'D': {'stop_loss_pct': 0.25, 'trade_pct': 0.05}
+        }
+        
+        trade_pct = trade_grades[request.trade_grade]['trade_pct']
+        
+        # Get option details
+        option_key = 'call' if request.option_type == 'call' else 'put'
+        option = filtered_chain[0][option_key]
+        option_quote = wb.get_option_quote(stock=request.symbol, optionId=option['tickerId'])
+        option_price = float(option_quote['data'][0]['askList'][0]['price'])
+        
+        # Calculate quantity
+        order_quantity = math.floor((account_value * trade_pct) / (option_price * 100))
+        
+        if order_quantity < 1:
+            raise HTTPException(status_code=400, detail="Insufficient funds for trade")
+        
+        # Place order
+        result = wb.place_order_option(
+            optionId=option['tickerId'],
+            lmtPrice=option_price,
+            stpPrice=str(option_price - 0.25),
+            action='BUY',
+            orderType='LMT',
+            enforce='GTC',
+            quant=order_quantity
+        )
+        
+        return {
+            "success": True,
+            "order": result,
+            "quantity": order_quantity,
+            "price": option_price,
+            "symbol": request.symbol,
+            "option_type": request.option_type
+        }
+    except Exception as e:
+        logger.error(f"Place trade error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.delete("/trade/order/{order_id}")
+async def cancel_order(order_id: str):
+    """Cancel an open order"""
+    try:
+        session = await get_session()
+        if not session:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        wb = get_webull_instance(session.get('is_paper', True))
+        wb.api_login(
+            access_token=session['access_token'],
+            refresh_token=session['refresh_token'],
+            token_expire=session['token_expire'],
+            uuid=session['uuid']
+        )
+        
+        result = wb.cancel_order(order_id)
+        return {"success": result}
+    except Exception as e:
+        logger.error(f"Cancel order error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/settings")
+async def get_settings():
+    """Get user settings"""
+    try:
+        settings = await db.settings.find_one({'user': 'default'})
+        if not settings:
+            # Return default settings
+            return {
+                "auto_trading": False,
+                "profit_percentage": 50.0,
+                "loss_percentage": 25.0,
+                "sms_notifications": False
+            }
+        return settings
+    except Exception as e:
+        logger.error(f"Get settings error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/settings")
+async def update_settings(settings: SettingsUpdate):
+    """Update user settings"""
+    try:
+        update_data = {k: v for k, v in settings.model_dump().items() if v is not None}
+        update_data['user'] = 'default'
+        
+        await db.settings.update_one(
+            {'user': 'default'},
+            {'$set': update_data},
+            upsert=True
+        )
+        
+        return {"success": True, "settings": update_data}
+    except Exception as e:
+        logger.error(f"Update settings error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Include the router in the main app
 app.include_router(api_router)
