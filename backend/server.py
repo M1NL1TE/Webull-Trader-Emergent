@@ -214,6 +214,11 @@ async def restore_session():
             raise HTTPException(status_code=404, detail="No session found")
         
         wb = get_webull_instance(session.get('is_paper', True))
+        
+        # Restore DID if available
+        if 'device_id' in session:
+            wb._set_did(session['device_id'])
+        
         wb.api_login(
             access_token=session['access_token'],
             refresh_token=session['refresh_token'],
