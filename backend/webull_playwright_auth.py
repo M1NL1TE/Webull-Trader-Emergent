@@ -78,7 +78,7 @@ class WebullPlaywrightAuth:
         except Exception as e:
             logger.error(f"Error closing browser: {e}")
 
-    def login(self, timeout: int = 30000):
+    async def login(self, timeout: int = 30000):
         """
         Automate login process
         timeout: milliseconds to wait for elements
@@ -88,12 +88,12 @@ class WebullPlaywrightAuth:
 
         try:
             logger.info("Navigating to login page...")
-            self.page.goto(self.LOGIN_URL, timeout=timeout)
-            self.page.wait_for_load_state("networkidle")
+            await self.page.goto(self.LOGIN_URL, timeout=timeout)
+            await self.page.wait_for_load_state("networkidle")
 
             # Click "Email Login" if present
             try:
-                self.page.click('span:has-text("Email Login")', timeout=5000)
+                await self.page.click('span:has-text("Email Login")', timeout=5000)
                 logger.info("Clicked Email Login")
             except PlaywrightTimeout:
                 logger.info("Email Login button not found, continuing...")
@@ -101,21 +101,21 @@ class WebullPlaywrightAuth:
             # Fill username
             logger.info("Filling username...")
             username_selector = 'input[class*="csr"]'  # More flexible selector
-            self.page.wait_for_selector(username_selector, timeout=10000)
-            self.page.fill(username_selector, self.username)
+            await self.page.wait_for_selector(username_selector, timeout=10000)
+            await self.page.fill(username_selector, self.username)
 
             # Fill password
             logger.info("Filling password...")
-            self.page.fill('input[type="password"]', self.password)
+            await self.page.fill('input[type="password"]', self.password)
 
             # Click login button
             logger.info("Clicking login button...")
-            self.page.click('button:has-text("Log In")')
+            await self.page.click('button:has-text("Log In")')
 
             # Wait for redirect to trading page or center
             logger.info("Waiting for successful login redirect...")
             try:
-                self.page.wait_for_url("**/center", timeout=timeout)
+                await self.page.wait_for_url("**/center", timeout=timeout)
                 logger.info("Login successful - redirected to center page")
                 return True
             except PlaywrightTimeout:
