@@ -47,6 +47,12 @@ is_paper_trading = True
 # Trading bot task
 trading_bot_task = None
 
+# Initialize Twilio on startup
+@app.on_event("startup")
+async def startup_event():
+    initialize_twilio()
+    logger.info("Application startup complete")
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
