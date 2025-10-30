@@ -294,6 +294,10 @@ async def get_positions():
             uuid=session['uuid']
         )
         
+        # For paper trading, get account ID first
+        if session.get('is_paper', True):
+            wb.get_account_id()
+        
         positions = wb.get_positions()
         return {"positions": positions}
     except Exception as e:
@@ -315,6 +319,10 @@ async def get_orders():
             token_expire=session['token_expire'],
             uuid=session['uuid']
         )
+        
+        # For paper trading, get account ID first
+        if session.get('is_paper', True):
+            wb.get_account_id()
         
         orders = wb.get_current_orders()
         return {"orders": orders}
