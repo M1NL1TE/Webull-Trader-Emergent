@@ -395,21 +395,25 @@ async def get_order_history():
         
         # Get historical orders - paper trading uses different status param
         if session.get('is_paper', True):
-            # Paper trading: try 'All' first, fallback to empty string
             try:
                 history = wb.get_history_orders(status='All', count=50)
             except:
-                # If 'All' doesn't work, try without status or with ''
                 history = wb.get_history_orders(status='', count=50)
         else:
             history = wb.get_history_orders(status='All', count=50)
         
-        logger.info(f"Order history response type: {type(history)}")
-        if isinstance(history, dict):
-            logger.info(f"History keys: {history.keys()}")
-        if isinstance(history, list) and len(history) > 0:
-            logger.info(f"First order keys: {history[0].keys() if isinstance(history[0], dict) else 'Not a dict'}")
-            logger.info(f"First order sample: {history[0]}")
+        # Enrich orders with ticker symbols for options
+        if isinstance(history, list):
+            for order in history:
+                if order.get('tickerType') == 'OPTION' and order.get('belongTickerId'):
+                    try:
+                        # Look up the underlying stock symbol
+                        ticker_info = wb.get_quote(ticker=order['belongTickerId'])
+                        if ticker_info and 'symbol' in ticker_info:
+                            order['underlyingSymbol'] = ticker_info['symbol']
+                    except Exception as e:
+                        logger.warning(f"Could not lookup ticker for ID {order['belongTickerId']}: {e}")
+                        order['underlyingSymbol'] = f"ID:{order['belongTickerId']}"
         
         return {"orders": history if isinstance(history, list) else []}
     except Exception as e:
