@@ -49,6 +49,14 @@ logger = logging.getLogger(__name__)
 
 # ===================== MODELS =====================
 
+class AppPasswordRequest(BaseModel):
+    password: str
+
+class AppPasswordResponse(BaseModel):
+    success: bool
+    message: str
+    token: Optional[str] = None
+
 class LoginRequest(BaseModel):
     username: str
     password: str
