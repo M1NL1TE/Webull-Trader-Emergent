@@ -187,11 +187,16 @@ async def run_trading_bot(wb, settings):
             try:
                 bot_state.last_check_time = datetime.now()
                 
-                # Check if market is open
-                current_time = datetime.now().time()
-                is_weekday = datetime.today().weekday() < 5
+                # Check if market is open (in Eastern Time)
+                from pytz import timezone as pytz_timezone
+                eastern = pytz_timezone('US/Eastern')
+                now_eastern = datetime.now(eastern)
+                current_time = now_eastern.time()
+                is_weekday = now_eastern.weekday() < 5
                 market_open = dt_time(9, 30)
                 market_close = dt_time(16, 0)
+                
+                logger.info(f"Current Eastern Time: {now_eastern.strftime('%I:%M %p %Z')} | Weekday: {is_weekday}")
                 
                 if not is_weekday:
                     bot_state.market_status = "Closed (Weekend)"
