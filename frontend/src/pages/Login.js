@@ -144,7 +144,7 @@ function Login({ setIsAuthenticated }) {
               <div className="p-3 bg-cyan-500/10 border border-cyan-700/30 rounded-lg text-xs space-y-2">
                 <p className="text-cyan-300 font-medium">📝 How to get your Device ID (one-time setup):</p>
                 <ol className="text-slate-300 space-y-1 list-decimal list-inside ml-2">
-                  <li>Open <a href="https://app.webullbroker.com" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline hover:text-cyan-300">app.webullbroker.com</a> in Chrome/Firefox</li>
+                  <li>Open <a href="https://webull.com" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline hover:text-cyan-300">webull.com</a> in Chrome/Firefox</li>
                   <li>Press F12 → Network tab → Check "Preserve log"</li>
                   <li>Login successfully (complete CAPTCHA if shown)</li>
                   <li>In Network tab, click any request → Headers</li>
