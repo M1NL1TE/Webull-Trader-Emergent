@@ -126,11 +126,11 @@ backend:
 frontend:
   - task: "ProfitLossWidget Display P/L"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/src/components/ProfitLossWidget.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "user"
@@ -138,18 +138,24 @@ frontend:
       - working: "NA"
         agent: "main"
         comment: "Updated widget to use new pl_summary data structure from backend API. Added console logging for debugging. Backend now returns correct P/L values. Needs frontend testing."
+      - working: true
+        agent: "testing"
+        comment: "✅ PROFITLOSSWIDGET WORKING CORRECTLY: Comprehensive testing completed. Frontend successfully fetches P/L data from backend API (/api/account/activities). Console logs confirm: 'Activities response: {success: true}' and 'Found pl_summary: {today: 0, week: 0, month: -70, year: -833, all_time: -833}'. Widget displays correct P/L value of $833.00 in red color for All Time period. Backend integration working perfectly. Time period selector present and functional. Widget shows proper negative formatting with red color and down arrow icon."
   
   - task: "P/L by Symbol Display"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/src/components/ProfitLossBySymbol.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Created new ProfitLossBySymbol component to display P/L breakdown by security/symbol like Webull app. Backend returns pl_by_symbol array with symbol names and P/L amounts. Component added to Dashboard overview tab."
+      - working: true
+        agent: "testing"
+        comment: "✅ P/L BY SYMBOL COMPONENT WORKING: Component successfully implemented and visible on dashboard. Backend API returns correct pl_by_symbol data with 3 symbols: COIN $295.0P 2025-08-22 (-$633), COIN $290.0P 2025-08-22 (-$130), CONY $6.0P 2025-10-17 (-$70). Component loads and displays in right panel of Overview tab. Frontend integration with backend API confirmed working. Component shows loading state initially then displays symbol breakdown data."
 
 metadata:
   created_by: "main_agent"
