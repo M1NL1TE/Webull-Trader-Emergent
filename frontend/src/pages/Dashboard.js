@@ -21,6 +21,7 @@ import Positions from '@/components/Positions';
 import Orders from '@/components/Orders';
 import TradingSignals from '@/components/TradingSignals';
 import TradePanel from '@/components/TradePanel';
+import OrderHistory from '@/components/OrderHistory';
 import Settings from '@/components/Settings';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
