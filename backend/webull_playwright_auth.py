@@ -46,10 +46,10 @@ class WebullPlaywrightAuth:
         try:
             self.playwright = await async_playwright().start()
             
-            # Use chromium (not chromium_headless_shell)
+            # Use full chromium (not headless_shell) with explicit executable path
             self.browser = await self.playwright.chromium.launch(
                 headless=True,
-                channel=None  # Use default chromium
+                executable_path='/pw-browsers/chromium-1187/chrome-linux/chrome'
             )
             
             self.context = await self.browser.new_context(
