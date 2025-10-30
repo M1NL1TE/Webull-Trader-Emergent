@@ -450,9 +450,16 @@ async def get_account_activities():
         activities = wb.get_activities(index=1, size=500)
         
         logger.info(f"Activities response type: {type(activities)}")
-        logger.info(f"Activities keys: {activities.keys() if isinstance(activities, dict) else 'Not a dict'}")
-        if isinstance(activities, dict) and 'data' in activities:
-            logger.info(f"Activities.data length: {len(activities['data']) if isinstance(activities['data'], list) else 'Not a list'}")
+        if isinstance(activities, dict):
+            logger.info(f"Activities keys: {activities.keys()}")
+            if 'data' in activities:
+                logger.info(f"Activities.data type: {type(activities['data'])}")
+                if isinstance(activities['data'], dict):
+                    logger.info(f"Activities.data keys: {activities['data'].keys()}")
+                elif isinstance(activities['data'], list):
+                    logger.info(f"Activities.data length: {len(activities['data'])}")
+                    if len(activities['data']) > 0:
+                        logger.info(f"First activity sample: {activities['data'][0]}")
         
         return activities
     except Exception as e:
