@@ -44,6 +44,9 @@ api_router = APIRouter(prefix="/api")
 wb_instance = None
 is_paper_trading = True
 
+# Trading bot task
+trading_bot_task = None
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
