@@ -458,6 +458,10 @@ async def get_account_activities():
                 filled_orders = wb.get_history_orders(status='Filled', count=100)
                 logger.info(f"Fetched {len(filled_orders) if isinstance(filled_orders, list) else 0} filled orders")
                 
+                # Log first order structure for debugging
+                if isinstance(filled_orders, list) and len(filled_orders) > 0:
+                    logger.info(f"Sample filled order structure: {filled_orders[0]}")
+                
                 # Calculate P/L from filled orders
                 pl_by_period = calculate_pl_from_orders(filled_orders)
                 
