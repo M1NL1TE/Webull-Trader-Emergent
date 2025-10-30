@@ -26,18 +26,27 @@ function ProfitLossWidget() {
       const response = await axios.get(`${API}/account/activities`);
       const data = response.data;
       
-      // Extract trades from activities
-      const trades = data.data || [];
+      // Extract trades from activities - handle different response structures
+      let trades = [];
+      if (Array.isArray(data)) {
+        trades = data;
+      } else if (data.data && Array.isArray(data.data)) {
+        trades = data.data;
+      } else if (data.activities && Array.isArray(data.activities)) {
+        trades = data.activities;
+      }
+      
       setActivities(trades);
     } catch (error) {
       console.error('Error fetching activities:', error);
+      setActivities([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
   };
 
   const calculatePL = () => {
-    if (!activities || activities.length === 0) {
+    if (!Array.isArray(activities) || activities.length === 0) {
       setTotalPL(0);
       return;
     }
