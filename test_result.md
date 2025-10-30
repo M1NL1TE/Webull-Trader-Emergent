@@ -137,7 +137,19 @@ frontend:
         comment: "Widget showing $0 for all time periods"
       - working: "NA"
         agent: "main"
-        comment: "Updated widget to use new pl_summary data structure from backend API. Added console logging for debugging. Needs testing to verify display is correct."
+        comment: "Updated widget to use new pl_summary data structure from backend API. Added console logging for debugging. Backend now returns correct P/L values. Needs frontend testing."
+  
+  - task: "P/L by Symbol Display"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/ProfitLossBySymbol.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Created new ProfitLossBySymbol component to display P/L breakdown by security/symbol like Webull app. Backend returns pl_by_symbol array with symbol names and P/L amounts. Component added to Dashboard overview tab."
 
 metadata:
   created_by: "main_agent"
