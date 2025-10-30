@@ -495,8 +495,8 @@ async def get_account_activities():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def calculate_pl_from_orders(orders):
-    """Calculate profit/loss from filled orders grouped by time periods"""
+def calculate_pl_from_orders(orders, wb=None):
+    """Calculate profit/loss from filled orders grouped by time periods and by symbol"""
     if not isinstance(orders, list) or len(orders) == 0:
         return {
             'today': 0.0,
@@ -504,7 +504,7 @@ def calculate_pl_from_orders(orders):
             'month': 0.0,
             'year': 0.0,
             'all_time': 0.0
-        }
+        }, []
     
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
