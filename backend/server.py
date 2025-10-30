@@ -270,9 +270,14 @@ async def get_account():
         
         # For paper trading, get account ID first
         if session.get('is_paper', True):
-            wb.get_account_id()
+            logger.info("Getting paper account ID...")
+            account_id = wb.get_account_id()
+            logger.info(f"Paper account ID: {account_id}")
         
+        logger.info("Fetching account info...")
         account_info = wb.get_account()
+        logger.info(f"Account info received: {type(account_info)}, Keys: {account_info.keys() if isinstance(account_info, dict) else 'Not a dict'}")
+        
         return account_info
     except Exception as e:
         logger.error(f"Get account error: {e}")
