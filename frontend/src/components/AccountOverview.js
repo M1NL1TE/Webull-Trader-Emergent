@@ -11,10 +11,11 @@ function AccountOverview({ account }) {
     return acc;
   }, {});
 
-  const netLiquidation = parseFloat(accountData.netLiquidation || 0);
-  const totalPL = parseFloat(accountData.unrealizedProfitLoss || 0);
-  const cashBalance = parseFloat(accountData.cashBalance || 0);
-  const buyingPower = parseFloat(accountData.buyingPower || 0);
+  // Paper trading accounts have different field names
+  const netLiquidation = parseFloat(account.netLiquidation || accountData.netLiquidation || 0);
+  const totalPL = parseFloat(account.totalProfitLoss || accountData.unrealizedProfitLoss || accountData.dayProfitLoss || 0);
+  const cashBalance = parseFloat(accountData.usableCash || accountData.cashBalance || 0);
+  const buyingPower = parseFloat(accountData.buyingPower || accountData.usableCash || 0);
 
   const stats = [
     {
