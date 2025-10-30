@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, TrendingUp, TrendingDown, Activity } from 'lucide-react';
+import { DollarSign, Activity } from 'lucide-react';
+import ProfitLossWidget from '@/components/ProfitLossWidget';
 
 function AccountOverview({ account }) {
   if (!account || !account.accountMembers) {
@@ -13,7 +14,6 @@ function AccountOverview({ account }) {
 
   // Paper trading accounts have different field names
   const netLiquidation = parseFloat(account.netLiquidation || accountData.netLiquidation || 0);
-  const totalPL = parseFloat(account.totalProfitLoss || accountData.unrealizedProfitLoss || accountData.dayProfitLoss || 0);
   const cashBalance = parseFloat(accountData.usableCash || accountData.cashBalance || 0);
   const buyingPower = parseFloat(accountData.buyingPower || accountData.usableCash || 0);
 
@@ -24,14 +24,6 @@ function AccountOverview({ account }) {
       icon: DollarSign,
       color: 'text-cyan-400',
       bgColor: 'bg-cyan-500/10'
-    },
-    {
-      title: 'Total P/L',
-      value: `$${Math.abs(totalPL).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      icon: totalPL >= 0 ? TrendingUp : TrendingDown,
-      color: totalPL >= 0 ? 'text-green-400' : 'text-red-400',
-      bgColor: totalPL >= 0 ? 'bg-green-500/10' : 'bg-red-500/10',
-      prefix: totalPL >= 0 ? '+' : '-'
     },
     {
       title: 'Cash Balance',
@@ -65,12 +57,15 @@ function AccountOverview({ account }) {
             </CardHeader>
             <CardContent>
               <div className={`text-2xl font-bold ${stat.color}`}>
-                {stat.prefix || ''}{stat.value}
+                {stat.value}
               </div>
             </CardContent>
           </Card>
         );
       })}
+      
+      {/* P/L Widget with time period selector */}
+      <ProfitLossWidget />
     </div>
   );
 }
