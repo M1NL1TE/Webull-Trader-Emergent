@@ -152,6 +152,10 @@ function Dashboard({ setIsAuthenticated }) {
             <TradingSignals />
           </TabsContent>
 
+          <TabsContent value="history">
+            <OrderHistory />
+          </TabsContent>
+
           <TabsContent value="settings">
             <Settings />
           </TabsContent>
