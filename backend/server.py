@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 import math
 import hashlib
+from trading_bot_service import run_trading_bot, get_bot_status, initialize_twilio, bot_state
 
 # Set Playwright browser path BEFORE any playwright imports
 os.environ['PLAYWRIGHT_BROWSERS_PATH'] = '/pw-browsers'
