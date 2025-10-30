@@ -159,8 +159,8 @@ metadata:
 
 test_plan:
   current_focus:
-    - "P/L Calculation from Filled Orders"
     - "ProfitLossWidget Display P/L"
+    - "P/L by Symbol Display"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -170,3 +170,5 @@ agent_communication:
     message: "Fixed P/L calculation issue. Backend now calculates P/L from filled orders using FIFO matching. Curl test shows correct values. Frontend updated to display new pl_summary structure. Please test: 1) Backend /api/account/activities endpoint returns correct pl_summary 2) Frontend ProfitLossWidget displays P/L correctly for all time filters (Today, Week, Month, Year, All Time). Expected P/L: Today=$0, Week=$0, Month=-$70, Year=-$833, All Time=-$833"
   - agent: "testing"
     message: "✅ BACKEND P/L CALCULATION FIX VERIFIED: Comprehensive testing completed with 100% success rate. The /api/account/activities endpoint is working perfectly and returning exact expected P/L values. FIFO matching algorithm correctly processes 6 filled orders across 3 different option contracts. All time period calculations are accurate. Backend implementation is solid and ready for production. Frontend testing can now proceed to verify the ProfitLossWidget displays these values correctly."
+  - agent: "main"
+    message: "Updated both backend and frontend to add per-symbol P/L breakdown feature (user requested). Backend now returns pl_by_symbol array with symbol names (e.g., 'COIN $295P 2025-08-22') and their P/L. Created new ProfitLossBySymbol component displayed in Dashboard. Backend verified via curl. Need frontend testing to verify: 1) ProfitLossWidget shows correct P/L for all time periods 2) ProfitLossBySymbol component displays breakdown by symbol correctly"
