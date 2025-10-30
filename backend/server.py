@@ -484,7 +484,14 @@ async def get_account_activities():
                     'code': 'success',
                     'msg': 'OK',
                     'data': {
-                        'pl_summary': {},
+                        'pl_summary': {
+                            'today': 0.0,
+                            'week': 0.0,
+                            'month': 0.0,
+                            'year': 0.0,
+                            'all_time': 0.0
+                        },
+                        'pl_by_symbol': [],
                         'orders': []
                     }
                 }
