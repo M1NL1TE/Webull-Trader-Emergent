@@ -268,6 +268,10 @@ async def get_account():
             uuid=session['uuid']
         )
         
+        # For paper trading, get account ID first
+        if session.get('is_paper', True):
+            wb.get_account_id()
+        
         account_info = wb.get_account()
         return account_info
     except Exception as e:
