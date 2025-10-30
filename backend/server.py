@@ -423,6 +423,34 @@ async def get_order_history():
         logger.error(f"Get order history error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.get("/account/activities")
+async def get_account_activities():
+    """Get account activities including trades for P/L calculation"""
+    try:
+        session = await get_session()
+        if not session:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        wb = get_webull_instance(session.get('is_paper', True))
+        wb.api_login(
+            access_token=session['access_token'],
+            refresh_token=session['refresh_token'],
+            token_expire=session['token_expire'],
+            uuid=session['uuid']
+        )
+        
+        # For paper trading, get account ID first
+        if session.get('is_paper', True):
+            wb.get_account_id()
+        
+        # Get activities (trades, transfers, dividends)
+        activities = wb.get_activities(index=1, size=500)
+        
+        return activities
+    except Exception as e:
+        logger.error(f"Get activities error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.get("/market/quote/{symbol}")
 async def get_market_quote(symbol: str):
     """Get market quote for a symbol"""
