@@ -18,6 +18,9 @@ import pandas as pd
 import math
 import hashlib
 
+# Set Playwright browser path BEFORE any playwright imports
+os.environ['PLAYWRIGHT_BROWSERS_PATH'] = '/pw-browsers'
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 load_dotenv(ROOT_DIR / '.env.security')
