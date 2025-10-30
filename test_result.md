@@ -111,7 +111,7 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "user"
@@ -119,6 +119,9 @@ backend:
       - working: true
         agent: "main"
         comment: "Fixed P/L calculation. Root cause: get_activities() returned empty data for paper trading accounts. Solution: Modified /api/account/activities endpoint to fetch filled orders and calculate P/L using FIFO matching of buy/sell orders. Calculation formula: (sell_price - buy_price) * quantity * multiplier. Successfully tested via curl, returns correct P/L values: Month=-$70, Year=-$833, All Time=-$833"
+      - working: true
+        agent: "testing"
+        comment: "✅ COMPREHENSIVE BACKEND TESTING COMPLETED: Created backend_test.py and ran full test suite. All tests passed (4/4). /api/account/activities endpoint working perfectly: 1) App password auth successful 2) Session restore successful 3) Endpoint returns correct structure with success/code/msg/data fields 4) P/L calculation values exactly match expected: Today=$0, Week=$0, Month=-$70, Year=-$833, All Time=-$833 5) Time period filtering logic is correct 6) FIFO buy/sell matching working properly with 6 filled orders across 3 ticker IDs 7) Backend logs show detailed P/L calculation: -$70 (Oct), -$130 (Aug), -$633 (Aug) = -$833 total. No critical issues found."
 
 frontend:
   - task: "ProfitLossWidget Display P/L"
