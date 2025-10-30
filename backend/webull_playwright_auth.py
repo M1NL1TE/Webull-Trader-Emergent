@@ -194,13 +194,13 @@ class WebullPlaywrightAuth:
             logger.error("❌ Timeout: AccessToken not captured")
             return None
 
-    async def authenticate(self, login_timeout: int = 30, capture_timeout: int = 60):
+    async def authenticate(self, login_timeout: int = 60, capture_timeout: int = 60):
         """
         Complete authentication flow: start browser, login, capture tokens, close
         
         Args:
-            login_timeout: seconds to wait for login
-            capture_timeout: seconds to wait for token capture
+            login_timeout: seconds to wait for login (default 60)
+            capture_timeout: seconds to wait for token capture (default 60)
             
         Returns:
             dict with tokens or None if failed
@@ -210,7 +210,7 @@ class WebullPlaywrightAuth:
             if not await self.start_browser():
                 return None
 
-            # Perform login
+            # Perform login (convert seconds to milliseconds)
             if not await self.login(timeout=login_timeout * 1000):
                 await self.close_browser()
                 return None
@@ -248,4 +248,4 @@ async def authenticate_webull_playwright(username: str, password: str, did: str)
         headless=True  # Set to False to see browser
     )
     
-    return await authenticator.authenticate(login_timeout=30, capture_timeout=60)
+    return await authenticator.authenticate(login_timeout=60, capture_timeout=60)
