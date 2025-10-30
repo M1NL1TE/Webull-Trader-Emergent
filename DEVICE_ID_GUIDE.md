@@ -18,7 +18,7 @@ Once you provide these, our system automates the browser login process for you.
 ### Step-by-Step Guide
 
 #### 1. Open Webull in Browser
-- Go to: https://app.webullbroker.com
+- Go to: https://webull.com (or https://passport.webull.com)
 - Use Chrome, Firefox, or Edge
 
 #### 2. Open Developer Tools
