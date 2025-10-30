@@ -463,7 +463,7 @@ async def get_account_activities():
                     logger.info(f"Sample filled order structure: {filled_orders[0]}")
                 
                 # Calculate P/L from filled orders
-                pl_by_period = calculate_pl_from_orders(filled_orders)
+                pl_by_period, pl_by_symbol = calculate_pl_from_orders(filled_orders, wb)
                 
                 # Return in a format that matches activities structure
                 return {
@@ -472,6 +472,7 @@ async def get_account_activities():
                     'msg': 'OK',
                     'data': {
                         'pl_summary': pl_by_period,
+                        'pl_by_symbol': pl_by_symbol,
                         'orders': filled_orders if isinstance(filled_orders, list) else []
                     }
                 }
