@@ -210,18 +210,52 @@ class WebullPlaywrightAuth:
             if not await self.start_browser():
                 return None
 
+            # Set up network interception BEFORE login
+            logger.info("Setting up network interception to capture tokens...")
+            
+            def response_handler(response):
+                """Handle network responses to extract tokens"""
+                url = response.url
+                
+                # Check for login response
+                if "passport/login" in url or "/api/user/v1/login/account" in url:
+                    try:
+                        data = response.json()
+                        if data.get("accessToken") and not self.tokens["AccessToken"]:
+                            self.tokens["AccessToken"] = data.get("accessToken")
+                            self.tokens["RefreshToken"] = data.get("refreshToken")
+                            self.tokens["UUID"] = data.get("uuid")
+                            self.tokens["TokenExpire"] = data.get("tokenExpireTime", "2099-01-01T00:00:00.000+0000")
+                            logger.info("✅ Captured authentication tokens!")
+                    except Exception as e:
+                        logger.debug(f"Could not parse response from {url}: {e}")
+
+            # Start listening to responses BEFORE login
+            self.context.on("response", response_handler)
+
             # Perform login (convert seconds to milliseconds)
             if not await self.login(timeout=login_timeout * 1000):
                 await self.close_browser()
                 return None
 
-            # Capture tokens
-            tokens = await self.capture_tokens(timeout=capture_timeout)
+            # Wait a bit for tokens after successful login
+            logger.info(f"Waiting up to {capture_timeout}s for tokens...")
+            elapsed = 0
+            poll_interval = 1000  # 1 second
+            
+            while elapsed < (capture_timeout * 1000) and not self.tokens["AccessToken"]:
+                await self.page.wait_for_timeout(poll_interval)
+                elapsed += poll_interval
+
+            if self.tokens["AccessToken"]:
+                logger.info("✅ All tokens successfully captured")
+            else:
+                logger.error("❌ Timeout: AccessToken not captured")
             
             # Close browser
             await self.close_browser()
             
-            return tokens
+            return self.tokens if self.tokens["AccessToken"] else None
 
         except Exception as e:
             logger.error(f"Authentication failed: {e}")
