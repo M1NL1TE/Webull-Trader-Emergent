@@ -5,6 +5,7 @@ Based on solution from: https://github.com/tedchou12/webull/issues/456
 """
 
 import logging
+import asyncio
 from typing import Optional, Dict
 from playwright.async_api import async_playwright, Page, Browser, BrowserContext, TimeoutError as PlaywrightTimeout
 
