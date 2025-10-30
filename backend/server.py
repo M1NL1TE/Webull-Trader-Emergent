@@ -437,8 +437,24 @@ async def get_trading_signals(symbol: str):
             uuid=session['uuid']
         )
         
+        # For paper trading, get account ID first
+        if session.get('is_paper', True):
+            wb.get_account_id()
+        
         ticker_id = wb.get_ticker(symbol)
+        if not ticker_id or ticker_id == 0:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Could not find ticker ID for {symbol}. Market may be closed or symbol is invalid."
+            )
+        
         df = wb.get_bars(symbol, ticker_id, 'm30', 140, 1)
+        
+        if df is None or df.empty:
+            raise HTTPException(
+                status_code=503,
+                detail="No market data available. Market may be closed."
+            )
         
         # Calculate indicators
         rsi = talib.RSI(df['close'])
@@ -456,6 +472,8 @@ async def get_trading_signals(symbol: str):
             "macd_grade": macd_grade,
             "current_price": float(df['close'].iloc[-1])
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Get signals error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
