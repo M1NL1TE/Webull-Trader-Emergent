@@ -213,14 +213,14 @@ class WebullPlaywrightAuth:
             # Set up network interception BEFORE login
             logger.info("Setting up network interception to capture tokens...")
             
-            def response_handler(response):
+            async def response_handler(response):
                 """Handle network responses to extract tokens"""
                 url = response.url
                 
                 # Check for login response
                 if "passport/login" in url or "/api/user/v1/login/account" in url:
                     try:
-                        data = response.json()
+                        data = await response.json()
                         if data.get("accessToken") and not self.tokens["AccessToken"]:
                             self.tokens["AccessToken"] = data.get("accessToken")
                             self.tokens["RefreshToken"] = data.get("refreshToken")
@@ -231,7 +231,7 @@ class WebullPlaywrightAuth:
                         logger.debug(f"Could not parse response from {url}: {e}")
 
             # Start listening to responses BEFORE login
-            self.context.on("response", response_handler)
+            self.context.on("response", lambda response: asyncio.create_task(response_handler(response)))
 
             # Perform login (convert seconds to milliseconds)
             if not await self.login(timeout=login_timeout * 1000):
