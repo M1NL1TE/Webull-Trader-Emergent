@@ -131,6 +131,7 @@ function Dashboard({ setIsAuthenticated }) {
             <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
             <TabsTrigger value="trade" data-testid="tab-trade">Trade</TabsTrigger>
             <TabsTrigger value="signals" data-testid="tab-signals">Signals</TabsTrigger>
+            <TabsTrigger value="history" data-testid="tab-history">History</TabsTrigger>
             <TabsTrigger value="settings" data-testid="tab-settings">Settings</TabsTrigger>
           </TabsList>
 
