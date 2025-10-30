@@ -407,10 +407,13 @@ async def get_order_history():
             for order in history:
                 if order.get('tickerType') == 'OPTION' and order.get('belongTickerId'):
                     try:
-                        # Look up the underlying stock symbol
-                        ticker_info = wb.get_quote(ticker=order['belongTickerId'])
+                        # Look up the underlying stock symbol using ticker ID
+                        ticker_info = wb.get_quote(tId=order['belongTickerId'])
                         if ticker_info and 'symbol' in ticker_info:
                             order['underlyingSymbol'] = ticker_info['symbol']
+                        else:
+                            logger.warning(f"No symbol in ticker info for ID {order['belongTickerId']}")
+                            order['underlyingSymbol'] = f"ID:{order['belongTickerId']}"
                     except Exception as e:
                         logger.warning(f"Could not lookup ticker for ID {order['belongTickerId']}: {e}")
                         order['underlyingSymbol'] = f"ID:{order['belongTickerId']}"
