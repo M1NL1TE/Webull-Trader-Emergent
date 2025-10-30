@@ -519,61 +519,97 @@ def calculate_pl_from_orders(orders):
         'all_time': 0.0
     }
     
-    # Group orders by symbol for matching buy/sell
-    symbol_orders = {}
+    # Group orders by tickerId for matching buy/sell
+    ticker_orders = {}
     for order in orders:
         if order.get('status') != 'Filled':
             continue
             
-        symbol = order.get('ticker', {}).get('symbol') if isinstance(order.get('ticker'), dict) else order.get('ticker')
-        if not symbol:
+        # Get ticker ID from the order
+        ticker_id = None
+        if isinstance(order.get('ticker'), dict):
+            ticker_id = order['ticker'].get('tickerId')
+        elif order.get('tickerId'):
+            ticker_id = order.get('tickerId')
+            
+        if not ticker_id:
             continue
             
-        if symbol not in symbol_orders:
-            symbol_orders[symbol] = []
-        symbol_orders[symbol].append(order)
-    
-    logger.info(f"Processing {len(symbol_orders)} unique symbols for P/L calculation")
-    
-    # Calculate P/L for each symbol
-    for symbol, symbol_order_list in symbol_orders.items():
-        # Sort by time
-        symbol_order_list.sort(key=lambda x: x.get('createTime0', x.get('createTime', 0)))
+        if ticker_id not in ticker_orders:
+            ticker_orders[ticker_id] = {'buys': [], 'sells': []}
         
-        for order in symbol_order_list:
+        action = order.get('action', '').upper()
+        if action == 'BUY':
+            ticker_orders[ticker_id]['buys'].append(order)
+        elif action == 'SELL':
+            ticker_orders[ticker_id]['sells'].append(order)
+    
+    logger.info(f"Processing {len(ticker_orders)} unique ticker IDs for P/L calculation")
+    
+    # Calculate P/L for each ticker by matching buy/sell
+    for ticker_id, order_dict in ticker_orders.items():
+        buys = sorted(order_dict['buys'], key=lambda x: x.get('createTime0', 0))
+        sells = sorted(order_dict['sells'], key=lambda x: x.get('createTime0', 0))
+        
+        logger.info(f"Ticker ID {ticker_id}: {len(buys)} buys, {len(sells)} sells")
+        
+        # Simple FIFO matching
+        for sell in sells:
             try:
-                # Extract order details
-                action = order.get('action', '').upper()  # BUY or SELL
-                filled_qty = float(order.get('filledQuantity', 0))
-                avg_price = float(order.get('avgFilledPrice', 0))
-                order_time_ms = order.get('createTime0', order.get('createTime', 0))
+                sell_qty = float(sell.get('filledQuantity', 0))
+                sell_price = float(sell.get('avgFilledPrice', 0))
+                sell_time_ms = sell.get('createTime0', sell.get('filledTime0', 0))
+                multiplier = float(sell.get('optionContractMultiplier', 1))
                 
-                if filled_qty <= 0 or avg_price <= 0:
+                if sell_qty <= 0 or sell_price <= 0:
                     continue
                 
-                # Parse order time
-                order_time = datetime.fromtimestamp(order_time_ms / 1000, tz=timezone.utc)
+                # Parse sell time
+                sell_time = datetime.fromtimestamp(sell_time_ms / 1000, tz=timezone.utc)
                 
-                # For SELL orders, calculate profit (simplified: sell_price - cost_basis)
-                # This is a simplified calculation - proper P/L needs to match specific lots
-                if action == 'SELL':
-                    # Estimate P/L as 5% of trade value (placeholder - real calculation needs matched buy orders)
-                    # In a real scenario, we'd track cost basis per symbol
-                    pl = filled_qty * avg_price * 0.05  # Simplified estimate
+                # Match with corresponding buy orders (FIFO)
+                remaining_qty = sell_qty
+                pl = 0.0
+                
+                for buy in buys[:]:  # Iterate over copy
+                    if remaining_qty <= 0:
+                        break
+                        
+                    buy_qty = float(buy.get('filledQuantity', 0))
+                    buy_price = float(buy.get('avgFilledPrice', 0))
                     
-                    # Add to appropriate time periods
-                    pl_data['all_time'] += pl
-                    if order_time >= year_start:
-                        pl_data['year'] += pl
-                    if order_time >= month_start:
-                        pl_data['month'] += pl
-                    if order_time >= week_start:
-                        pl_data['week'] += pl
-                    if order_time >= today_start:
-                        pl_data['today'] += pl
+                    if buy_qty <= 0 or buy_price <= 0:
+                        continue
+                    
+                    # Match quantities
+                    matched_qty = min(remaining_qty, buy_qty)
+                    
+                    # Calculate P/L for this match
+                    # P/L = (sell_price - buy_price) * matched_qty * multiplier
+                    match_pl = (sell_price - buy_price) * matched_qty * multiplier
+                    pl += match_pl
+                    
+                    remaining_qty -= matched_qty
+                    buy['filledQuantity'] = str(buy_qty - matched_qty)  # Update remaining
+                    
+                    if buy_qty - matched_qty <= 0:
+                        buys.remove(buy)  # Fully matched
+                
+                logger.info(f"Sell order {sell.get('orderId')}: P/L = ${pl:.2f}")
+                
+                # Add to appropriate time periods
+                pl_data['all_time'] += pl
+                if sell_time >= year_start:
+                    pl_data['year'] += pl
+                if sell_time >= month_start:
+                    pl_data['month'] += pl
+                if sell_time >= week_start:
+                    pl_data['week'] += pl
+                if sell_time >= today_start:
+                    pl_data['today'] += pl
                         
             except Exception as e:
-                logger.warning(f"Error calculating P/L for order: {e}")
+                logger.warning(f"Error calculating P/L for sell order: {e}")
                 continue
     
     logger.info(f"Calculated P/L: {pl_data}")
