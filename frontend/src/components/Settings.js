@@ -47,6 +47,26 @@ function Settings() {
     }
   };
 
+  const handleAutoTradingToggle = async (checked) => {
+    // Update state immediately
+    const newSettings = { ...settings, auto_trading: checked };
+    setSettings(newSettings);
+    
+    // Auto-save the auto_trading toggle
+    try {
+      await axios.post(`${API}/settings`, newSettings);
+      if (checked) {
+        toast.success('🤖 Auto-trading enabled! Bot is starting...');
+      } else {
+        toast.success('🛑 Auto-trading disabled! Bot is stopping...');
+      }
+    } catch (error) {
+      toast.error('Failed to update auto-trading setting');
+      // Revert on error
+      setSettings(settings);
+    }
+  };
+
   if (loading) {
     return (
       <Card className="glass border-slate-700">
