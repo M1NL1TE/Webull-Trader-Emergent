@@ -8,7 +8,7 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 function ProfitLossWidget() {
-  const [activities, setActivities] = useState([]);
+  const [plSummary, setPlSummary] = useState(null);
   const [period, setPeriod] = useState('all');
   const [totalPL, setTotalPL] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -18,78 +18,75 @@ function ProfitLossWidget() {
   }, []);
 
   useEffect(() => {
-    calculatePL();
-  }, [activities, period]);
+    updatePLForPeriod();
+  }, [plSummary, period]);
 
   const fetchActivities = async () => {
     try {
       const response = await axios.get(`${API}/account/activities`);
       const data = response.data;
       
-      // Extract trades from activities - handle different response structures
-      let trades = [];
-      if (Array.isArray(data)) {
-        trades = data;
-      } else if (data.data && Array.isArray(data.data)) {
-        trades = data.data;
-      } else if (data.activities && Array.isArray(data.activities)) {
-        trades = data.activities;
-      }
+      console.log('Activities response:', data);
       
-      setActivities(trades);
+      // Check if we have the new pl_summary structure
+      if (data.data && data.data.pl_summary) {
+        console.log('Found pl_summary:', data.data.pl_summary);
+        setPlSummary(data.data.pl_summary);
+      } else if (data.pl_summary) {
+        console.log('Found pl_summary at root:', data.pl_summary);
+        setPlSummary(data.pl_summary);
+      } else {
+        console.log('No pl_summary found, using fallback');
+        // Fallback to empty summary
+        setPlSummary({
+          today: 0,
+          week: 0,
+          month: 0,
+          year: 0,
+          all_time: 0
+        });
+      }
     } catch (error) {
       console.error('Error fetching activities:', error);
-      setActivities([]); // Set empty array on error
+      setPlSummary({
+        today: 0,
+        week: 0,
+        month: 0,
+        year: 0,
+        all_time: 0
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const calculatePL = () => {
-    if (!Array.isArray(activities) || activities.length === 0) {
+  const updatePLForPeriod = () => {
+    if (!plSummary) {
       setTotalPL(0);
       return;
     }
 
-    const now = new Date();
-    let startDate = new Date(0); // Beginning of time
-
+    let pl = 0;
     switch (period) {
       case 'today':
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        pl = plSummary.today || 0;
         break;
       case 'week':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        pl = plSummary.week || 0;
         break;
       case 'month':
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        pl = plSummary.month || 0;
         break;
       case 'year':
-        startDate = new Date(now.getFullYear(), 0, 1);
+        pl = plSummary.year || 0;
         break;
       case 'all':
       default:
-        startDate = new Date(0);
+        pl = plSummary.all_time || 0;
         break;
     }
 
-    // Calculate P/L from trades
-    let pl = 0;
-    activities.forEach(activity => {
-      const activityDate = new Date(activity.transactTime || activity.createTime || 0);
-      
-      if (activityDate >= startDate) {
-        // Check if it's a sell order with profit/loss
-        if (activity.action === 'Sell' && activity.profitLoss) {
-          pl += parseFloat(activity.profitLoss);
-        }
-        // Or calculate from transaction amount for closed positions
-        else if (activity.transactionType === 'Close' && activity.transactionAmount) {
-          pl += parseFloat(activity.transactionAmount);
-        }
-      }
-    });
-
+    console.log(`P/L for ${period}:`, pl);
     setTotalPL(pl);
   };
 
