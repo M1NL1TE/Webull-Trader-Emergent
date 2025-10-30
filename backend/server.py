@@ -516,7 +516,7 @@ async def cancel_order(order_id: str):
 async def get_settings():
     """Get user settings"""
     try:
-        settings = await db.settings.find_one({'user': 'default'})
+        settings = await db.settings.find_one({'user': 'default'}, {"_id": 0})
         if not settings:
             # Return default settings
             return {
@@ -525,6 +525,9 @@ async def get_settings():
                 "loss_percentage": 25.0,
                 "sms_notifications": False
             }
+        # Remove MongoDB _id if present
+        settings.pop('_id', None)
+        settings.pop('user', None)
         return settings
     except Exception as e:
         logger.error(f"Get settings error: {e}")
@@ -543,7 +546,11 @@ async def update_settings(settings: SettingsUpdate):
             upsert=True
         )
         
-        return {"success": True, "settings": update_data}
+        # Return updated settings without _id
+        result = await db.settings.find_one({'user': 'default'}, {"_id": 0})
+        result.pop('user', None)
+        
+        return {"success": True, "settings": result}
     except Exception as e:
         logger.error(f"Update settings error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
