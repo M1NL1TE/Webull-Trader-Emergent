@@ -520,6 +520,9 @@ def calculate_pl_from_orders(orders, wb=None):
         'all_time': 0.0
     }
     
+    # Track P/L by symbol
+    pl_by_symbol_dict = {}
+    
     # Group orders by tickerId for matching buy/sell
     ticker_orders = {}
     for order in orders:
