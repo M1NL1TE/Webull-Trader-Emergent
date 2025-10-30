@@ -101,3 +101,55 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Fix P/L (Profit/Loss) calculation in ProfitLossWidget. User reported that P/L was showing $0 for all time filters despite having trading activity in Webull paper trading account."
+
+backend:
+  - task: "P/L Calculation from Filled Orders"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "user"
+        comment: "User reported P/L showing $0 for all time filters"
+      - working: true
+        agent: "main"
+        comment: "Fixed P/L calculation. Root cause: get_activities() returned empty data for paper trading accounts. Solution: Modified /api/account/activities endpoint to fetch filled orders and calculate P/L using FIFO matching of buy/sell orders. Calculation formula: (sell_price - buy_price) * quantity * multiplier. Successfully tested via curl, returns correct P/L values: Month=-$70, Year=-$833, All Time=-$833"
+
+frontend:
+  - task: "ProfitLossWidget Display P/L"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/ProfitLossWidget.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "user"
+        comment: "Widget showing $0 for all time periods"
+      - working: "NA"
+        agent: "main"
+        comment: "Updated widget to use new pl_summary data structure from backend API. Added console logging for debugging. Needs testing to verify display is correct."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: true
+
+test_plan:
+  current_focus:
+    - "P/L Calculation from Filled Orders"
+    - "ProfitLossWidget Display P/L"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Fixed P/L calculation issue. Backend now calculates P/L from filled orders using FIFO matching. Curl test shows correct values. Frontend updated to display new pl_summary structure. Please test: 1) Backend /api/account/activities endpoint returns correct pl_summary 2) Frontend ProfitLossWidget displays P/L correctly for all time filters (Today, Week, Month, Year, All Time). Expected P/L: Today=$0, Week=$0, Month=-$70, Year=-$833, All Time=-$833"
