@@ -103,18 +103,45 @@ function OrderHistory() {
           <ScrollArea className="h-[600px] pr-4">
             <div className="space-y-3">
               {orders.map((order, index) => {
-                const symbol = order.ticker?.symbol || order.symbol || 'N/A';
+                // Handle both stock and option orders
+                let symbol = 'N/A';
+                
+                if (order.ticker && order.ticker.symbol) {
+                  // Stock order with symbol
+                  symbol = order.ticker.symbol;
+                } else if (order.symbol) {
+                  // Direct symbol field
+                  symbol = order.symbol;
+                } else if (order.tickerType === 'OPTION' && order.optionType) {
+                  // Option order - construct descriptive name
+                  const optType = order.optionType.toUpperCase();
+                  const strike = order.optionExercisePrice || '?';
+                  const expiry = order.optionExpireDate ? new Date(order.optionExpireDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+                  symbol = `SPY ${expiry} $${strike} ${optType}`;
+                }
+                
                 const action = order.action || 'N/A';
                 const orderType = order.orderType || 'N/A';
                 const quantity = order.totalQuantity || order.quantity || 0;
                 const filledQty = order.filledQuantity || 0;
-                const price = parseFloat(order.lmtPrice || order.avgFilledPrice || 0);
-                const status = order.status || 'Unknown';
+                const price = parseFloat(order.avgFilledPrice || order.lmtPrice || 0);
+                const status = order.status || order.statusStr || 'Unknown';
                 const createTime = order.createTime0 || order.createTime || '';
                 
                 // Format date if available
-                const orderDate = createTime ? new Date(createTime).toLocaleDateString() : 'N/A';
-                const orderTime = createTime ? new Date(createTime).toLocaleTimeString() : '';
+                let orderDate = 'N/A';
+                let orderTime = '';
+                
+                if (order.createTime && typeof order.createTime === 'string') {
+                  // Already formatted as "10/17/2025 18:17:44 EDT"
+                  const parts = order.createTime.split(' ');
+                  orderDate = parts[0] || 'N/A';
+                  orderTime = parts[1] || '';
+                } else if (createTime && typeof createTime === 'number') {
+                  const date = new Date(createTime);
+                  orderDate = date.toLocaleDateString();
+                  orderTime = date.toLocaleTimeString();
+                }
 
                 return (
                   <div
