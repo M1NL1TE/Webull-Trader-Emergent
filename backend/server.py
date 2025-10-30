@@ -16,14 +16,19 @@ import talib
 import numpy as np
 import pandas as pd
 import math
+import hashlib
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+load_dotenv(ROOT_DIR / '.env.security')
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
+
+# App password from environment
+APP_PASSWORD = os.environ.get('APP_PASSWORD', 'changeme123')
 
 # Create the main app without a prefix
 app = FastAPI()
