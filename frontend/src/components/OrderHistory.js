@@ -113,11 +113,12 @@ function OrderHistory() {
                   // Direct symbol field
                   symbol = order.symbol;
                 } else if (order.tickerType === 'OPTION' && order.optionType) {
-                  // Option order - construct descriptive name
+                  // Option order - use looked up underlying symbol
+                  const underlying = order.underlyingSymbol || 'Unknown';
                   const optType = order.optionType.toUpperCase();
                   const strike = order.optionExercisePrice || '?';
                   const expiry = order.optionExpireDate ? new Date(order.optionExpireDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-                  symbol = `SPY ${expiry} $${strike} ${optType}`;
+                  symbol = `${underlying} ${expiry} $${strike} ${optType}`;
                 }
                 
                 const action = order.action || 'N/A';
