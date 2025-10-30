@@ -153,6 +153,26 @@ def filter_options(wb, symbol, option_type):
 
 # ===================== ROUTES =====================
 
+@api_router.post("/auth/app-password", response_model=AppPasswordResponse)
+async def verify_app_password(request: AppPasswordRequest):
+    """Verify the app access password"""
+    try:
+        if request.password == APP_PASSWORD:
+            # Generate a simple token (hash of password + timestamp)
+            token = hashlib.sha256(f"{APP_PASSWORD}{datetime.now().date()}".encode()).hexdigest()
+            return AppPasswordResponse(
+                success=True,
+                message="Access granted",
+                token=token
+            )
+        else:
+            raise HTTPException(status_code=401, detail="Invalid password")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"App password verification error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.post("/auth/login", response_model=LoginResponse)
 async def login(request: LoginRequest):
     """Login to Webull using Playwright automation"""
