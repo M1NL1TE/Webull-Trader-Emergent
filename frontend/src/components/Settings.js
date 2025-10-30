@@ -100,7 +100,7 @@ function Settings() {
               id="auto_trading"
               data-testid="auto-trading-toggle"
               checked={settings.auto_trading}
-              onCheckedChange={(checked) => setSettings({ ...settings, auto_trading: checked })}
+              onCheckedChange={handleAutoTradingToggle}
             />
           </div>
 
