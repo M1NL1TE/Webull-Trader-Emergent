@@ -393,9 +393,22 @@ async def get_order_history():
         if session.get('is_paper', True):
             wb.get_account_id()
         
-        # Get historical orders
-        history = wb.get_history_orders(count=50)
-        return {"orders": history}
+        # Get historical orders - paper trading uses different status param
+        if session.get('is_paper', True):
+            # Paper trading: try 'All' first, fallback to empty string
+            try:
+                history = wb.get_history_orders(status='All', count=50)
+            except:
+                # If 'All' doesn't work, try without status or with ''
+                history = wb.get_history_orders(status='', count=50)
+        else:
+            history = wb.get_history_orders(status='All', count=50)
+        
+        logger.info(f"Order history response type: {type(history)}")
+        if isinstance(history, dict):
+            logger.info(f"History keys: {history.keys()}")
+        
+        return {"orders": history if isinstance(history, list) else []}
     except Exception as e:
         logger.error(f"Get order history error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
