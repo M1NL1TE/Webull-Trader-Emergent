@@ -902,7 +902,9 @@ async def get_settings():
 
 @api_router.post("/settings")
 async def update_settings(settings: SettingsUpdate):
-    """Update user settings"""
+    """Update user settings and manage trading bot"""
+    global trading_bot_task
+    
     try:
         update_data = {k: v for k, v in settings.model_dump().items() if v is not None}
         update_data['user'] = 'default'
@@ -913,14 +915,56 @@ async def update_settings(settings: SettingsUpdate):
             upsert=True
         )
         
-        # Return updated settings without _id
+        # Get updated settings
         result = await db.settings.find_one({'user': 'default'}, {"_id": 0})
         result.pop('user', None)
+        
+        # Manage trading bot based on auto_trading setting
+        auto_trading_enabled = result.get('auto_trading', False)
+        
+        if auto_trading_enabled and not bot_state.running:
+            # Start the trading bot
+            logger.info("Starting trading bot (auto-trading enabled)")
+            
+            # Get session and webull instance
+            session = await get_session()
+            if not session:
+                raise HTTPException(status_code=401, detail="Not authenticated. Please login first.")
+            
+            wb = get_webull_instance(session.get('is_paper', True))
+            wb.api_login(
+                access_token=session['access_token'],
+                refresh_token=session['refresh_token'],
+                token_expire=session['token_expire'],
+                uuid=session['uuid']
+            )
+            
+            # Get account ID for paper trading
+            if session.get('is_paper', True):
+                wb.get_account_id()
+            
+            # Start bot as background task
+            trading_bot_task = asyncio.create_task(run_trading_bot(wb, result))
+            logger.info("✅ Trading bot task created")
+            
+        elif not auto_trading_enabled and bot_state.running:
+            # Stop the trading bot
+            logger.info("Stopping trading bot (auto-trading disabled)")
+            bot_state.running = False
+            if trading_bot_task:
+                trading_bot_task.cancel()
+                trading_bot_task = None
+            logger.info("✅ Trading bot stopped")
         
         return {"success": True, "settings": result}
     except Exception as e:
         logger.error(f"Update settings error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/bot/status")
+async def get_trading_bot_status():
+    """Get current trading bot status"""
+    return get_bot_status()
 
 # Include the router in the main app
 app.include_router(api_router)
