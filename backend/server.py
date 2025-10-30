@@ -407,6 +407,9 @@ async def get_order_history():
         logger.info(f"Order history response type: {type(history)}")
         if isinstance(history, dict):
             logger.info(f"History keys: {history.keys()}")
+        if isinstance(history, list) and len(history) > 0:
+            logger.info(f"First order keys: {history[0].keys() if isinstance(history[0], dict) else 'Not a dict'}")
+            logger.info(f"First order sample: {history[0]}")
         
         return {"orders": history if isinstance(history, list) else []}
     except Exception as e:
