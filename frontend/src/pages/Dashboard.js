@@ -24,6 +24,7 @@ import TradePanel from '@/components/TradePanel';
 import OrderHistory from '@/components/OrderHistory';
 import Settings from '@/components/Settings';
 import ProfitLossBySymbol from '@/components/ProfitLossBySymbol';
+import BotStatusWidget from '@/components/BotStatusWidget';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
