@@ -630,6 +630,9 @@ def calculate_pl_from_orders(orders, wb=None):
                 
                 logger.info(f"Sell order {sell.get('orderId')}: P/L = ${pl:.2f}")
                 
+                # Track ticker total
+                ticker_total_pl += pl
+                
                 # Add to appropriate time periods
                 pl_data['all_time'] += pl
                 if sell_time >= year_start:
@@ -644,9 +647,20 @@ def calculate_pl_from_orders(orders, wb=None):
             except Exception as e:
                 logger.warning(f"Error calculating P/L for sell order: {e}")
                 continue
+        
+        # Store per-symbol P/L
+        if ticker_total_pl != 0:  # Only include symbols with realized P/L
+            pl_by_symbol_dict[symbol_name] = ticker_total_pl
+    
+    # Convert to list format for frontend
+    pl_by_symbol_list = [
+        {'symbol': symbol, 'pl': pl}
+        for symbol, pl in sorted(pl_by_symbol_dict.items(), key=lambda x: x[1])
+    ]
     
     logger.info(f"Calculated P/L: {pl_data}")
-    return pl_data
+    logger.info(f"P/L by symbol: {pl_by_symbol_list}")
+    return pl_data, pl_by_symbol_list
 
 @api_router.get("/market/quote/{symbol}")
 async def get_market_quote(symbol: str):
