@@ -84,35 +84,41 @@ class WebullPlaywrightAuth:
         except Exception as e:
             logger.error(f"Error closing browser: {e}")
 
-    async def login(self, timeout: int = 30000):
+    async def login(self, timeout: int = 60000):
         """
         Automate login process
-        timeout: milliseconds to wait for elements
+        timeout: milliseconds to wait for elements (default 60s)
         """
         if not self.page:
             raise Exception("Browser not started. Call start_browser() first.")
 
         try:
             logger.info("Navigating to login page...")
-            await self.page.goto(self.LOGIN_URL, timeout=timeout)
-            await self.page.wait_for_load_state("networkidle")
+            await self.page.goto(self.LOGIN_URL, timeout=timeout, wait_until='domcontentloaded')
+            logger.info("Page loaded, waiting for stability...")
+            
+            # Wait a bit for page to stabilize
+            await self.page.wait_for_timeout(2000)
 
             # Click "Email Login" if present
             try:
                 await self.page.click('span:has-text("Email Login")', timeout=5000)
                 logger.info("Clicked Email Login")
+                await self.page.wait_for_timeout(1000)
             except PlaywrightTimeout:
                 logger.info("Email Login button not found, continuing...")
 
             # Fill username
             logger.info("Filling username...")
-            username_selector = 'input[class*="csr"]'  # More flexible selector
-            await self.page.wait_for_selector(username_selector, timeout=10000)
+            username_selector = 'input[class*="csr"]'
+            await self.page.wait_for_selector(username_selector, timeout=15000)
             await self.page.fill(username_selector, self.username)
+            await self.page.wait_for_timeout(500)
 
             # Fill password
             logger.info("Filling password...")
             await self.page.fill('input[type="password"]', self.password)
+            await self.page.wait_for_timeout(500)
 
             # Click login button
             logger.info("Clicking login button...")
@@ -126,13 +132,18 @@ class WebullPlaywrightAuth:
                 return True
             except PlaywrightTimeout:
                 # Check if we're on trade page instead
-                if "app.webull.com" in self.page.url:
-                    logger.info("Login successful - on app page")
+                current_url = self.page.url
+                logger.info(f"Checking current URL: {current_url}")
+                if "app.webull.com" in current_url or "webull.com/center" in current_url:
+                    logger.info("Login successful - on Webull page")
                     return True
                 else:
-                    logger.error(f"Login may have failed - current URL: {self.page.url}")
+                    logger.error(f"Login may have failed - current URL: {current_url}")
                     return False
 
+        except PlaywrightTimeout as e:
+            logger.error(f"Timeout during login: {e}")
+            return False
         except Exception as e:
             logger.error(f"Login error: {e}")
             return False
