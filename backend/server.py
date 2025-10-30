@@ -276,7 +276,12 @@ async def get_account():
         
         logger.info("Fetching account info...")
         account_info = wb.get_account()
-        logger.info(f"Account info received: {type(account_info)}, Keys: {account_info.keys() if isinstance(account_info, dict) else 'Not a dict'}")
+        
+        # Log detailed info
+        logger.info(f"netLiquidation: {account_info.get('netLiquidation')}")
+        logger.info(f"accountMembers type: {type(account_info.get('accountMembers'))}")
+        if account_info.get('accountMembers'):
+            logger.info(f"accountMembers content: {account_info.get('accountMembers')}")
         
         return account_info
     except Exception as e:
