@@ -50,7 +50,7 @@ trading_bot_task = None
 # Initialize Twilio on startup
 @app.on_event("startup")
 async def startup_event():
-    initialize_twilio()
+    initialize_notifications()
     logger.info("Application startup complete")
 
 # Configure logging
