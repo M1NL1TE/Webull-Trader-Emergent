@@ -12,6 +12,9 @@ import pandas as pd
 import talib
 import math
 from twilio.rest import Client
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 logger = logging.getLogger(__name__)
 
