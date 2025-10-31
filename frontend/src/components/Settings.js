@@ -48,19 +48,36 @@ function Settings() {
   };
 
   const handleAutoTradingToggle = async (checked) => {
-    // Update state immediately
+    console.log('Auto-trading toggle clicked:', checked);
+    
+    // Update state immediately for UI responsiveness
     const newSettings = { ...settings, auto_trading: checked };
     setSettings(newSettings);
     
     // Auto-save the auto_trading toggle
     try {
-      await axios.post(`${API}/settings`, newSettings);
+      console.log('Sending settings update to backend...', newSettings);
+      const response = await axios.post(`${API}/settings`, newSettings);
+      console.log('Settings update response:', response.data);
+      
       if (checked) {
         toast.success('🤖 Auto-trading enabled! Bot is starting...');
       } else {
         toast.success('🛑 Auto-trading disabled! Bot is stopping...');
       }
+      
+      // Log bot status after update
+      setTimeout(async () => {
+        try {
+          const statusResponse = await axios.get(`${API}/bot/status`);
+          console.log('Bot status after toggle:', statusResponse.data);
+        } catch (e) {
+          console.error('Failed to fetch bot status:', e);
+        }
+      }, 1000);
+      
     } catch (error) {
+      console.error('Failed to update auto-trading:', error);
       toast.error('Failed to update auto-trading setting');
       // Revert on error
       setSettings(settings);
