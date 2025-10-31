@@ -371,7 +371,7 @@ async def run_trading_bot(wb, settings):
     except Exception as e:
         logger.error(f"Trading bot crashed: {e}", exc_info=True)
         bot_state.error_message = str(e)
-        send_sms(f"Trading bot stopped due to error: {str(e)}")
+        send_notification(f"Bot Error\nTrading bot stopped due to error: {str(e)}")
     finally:
         bot_state.running = False
         logger.info("🛑 Trading bot stopped")
