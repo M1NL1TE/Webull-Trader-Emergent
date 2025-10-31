@@ -909,6 +909,8 @@ async def update_settings(settings: SettingsUpdate):
         update_data = {k: v for k, v in settings.model_dump().items() if v is not None}
         update_data['user'] = 'default'
         
+        logger.info(f"Settings update request: {update_data}")
+        
         await db.settings.update_one(
             {'user': 'default'},
             {'$set': update_data},
@@ -922,13 +924,16 @@ async def update_settings(settings: SettingsUpdate):
         # Manage trading bot based on auto_trading setting
         auto_trading_enabled = result.get('auto_trading', False)
         
+        logger.info(f"Auto-trading enabled: {auto_trading_enabled}, Bot currently running: {bot_state.running}")
+        
         if auto_trading_enabled and not bot_state.running:
             # Start the trading bot
-            logger.info("Starting trading bot (auto-trading enabled)")
+            logger.info("🚀 Starting trading bot (auto-trading enabled)")
             
             # Get session and webull instance
             session = await get_session()
             if not session:
+                logger.error("Cannot start bot - no authenticated session")
                 raise HTTPException(status_code=401, detail="Not authenticated. Please login first.")
             
             wb = get_webull_instance(session.get('is_paper', True))
@@ -945,18 +950,20 @@ async def update_settings(settings: SettingsUpdate):
             
             # Start bot as background task
             trading_bot_task = asyncio.create_task(run_trading_bot(wb, result))
-            logger.info("✅ Trading bot task created")
+            logger.info("✅ Trading bot task created and started")
             
         elif not auto_trading_enabled and bot_state.running:
             # Stop the trading bot
-            logger.info("Stopping trading bot (auto-trading disabled)")
+            logger.info("🛑 Stopping trading bot (auto-trading disabled)")
             bot_state.running = False
             if trading_bot_task:
                 trading_bot_task.cancel()
                 trading_bot_task = None
             logger.info("✅ Trading bot stopped")
+        else:
+            logger.info(f"No bot state change needed (enabled={auto_trading_enabled}, running={bot_state.running})")
         
-        return {"success": True, "settings": result}
+        return {"success": True, "settings": result, "bot_running": bot_state.running}
     except Exception as e:
         logger.error(f"Update settings error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
