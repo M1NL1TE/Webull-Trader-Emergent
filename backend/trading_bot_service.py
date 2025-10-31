@@ -45,18 +45,101 @@ bot_state = BotState()
 
 # Twilio client (initialized when bot starts)
 twilio_client = None
+smtp_enabled = False
+notification_email = None
 
-def initialize_twilio():
-    """Initialize Twilio client from environment variables"""
-    global twilio_client
+def initialize_notifications():
+    """Initialize notification systems (Twilio SMS and/or Email)"""
+    global twilio_client, smtp_enabled, notification_email
+    
+    # Try to initialize Twilio
     account_sid = os.getenv('TWILIO_ACCOUNT_SID')
     auth_token = os.getenv('TWILIO_AUTH_TOKEN')
     
     if account_sid and auth_token:
-        twilio_client = Client(account_sid, auth_token)
-        logger.info("Twilio client initialized")
+        try:
+            twilio_client = Client(account_sid, auth_token)
+            logger.info("Twilio client initialized")
+        except Exception as e:
+            logger.warning(f"Twilio initialization failed: {e}")
     else:
-        logger.warning("Twilio credentials not found in environment")
+        logger.info("Twilio credentials not found")
+    
+    # Initialize email notifications
+    smtp_enabled = os.getenv('SMTP_ENABLED', 'false').lower() == 'true'
+    notification_email = os.getenv('NOTIFICATION_EMAIL')
+    
+    if smtp_enabled and notification_email:
+        logger.info(f"Email notifications enabled for: {notification_email}")
+    else:
+        logger.info("Email notifications not configured")
+
+def send_email(subject: str, body: str):
+    """Send email notification using Python's built-in SMTP"""
+    if not smtp_enabled or not notification_email:
+        logger.warning("Email notifications not enabled")
+        return
+        
+    try:
+        # Create message
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = 'Webull Trading Bot <noreply@webullbot.local>'
+        msg['To'] = notification_email
+        
+        # Create HTML version with nice formatting
+        html_body = f"""
+        <html>
+          <body style="font-family: Arial, sans-serif; padding: 20px; background-color: #f5f5f5;">
+            <div style="background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h2 style="color: #1e3a8a; margin-top: 0;">🤖 Webull Trading Bot</h2>
+              <div style="color: #374151; line-height: 1.6;">
+                {body.replace(chr(10), '<br>')}
+              </div>
+              <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+              <p style="color: #6b7280; font-size: 12px; margin: 0;">
+                Automated notification from your Webull Trading Bot
+              </p>
+            </div>
+          </body>
+        </html>
+        """
+        
+        # Attach both plain text and HTML versions
+        part1 = MIMEText(body, 'plain')
+        part2 = MIMEText(html_body, 'html')
+        msg.attach(part1)
+        msg.attach(part2)
+        
+        # Send via local SMTP (using system's sendmail or local relay)
+        # This works on most Linux systems without authentication
+        with smtplib.SMTP('localhost', 25) as server:
+            server.send_message(msg)
+            logger.info(f"Email sent to {notification_email}: {subject}")
+            
+    except Exception as e:
+        logger.error(f"Failed to send email: {e}")
+        # Try alternative: log to file as backup
+        try:
+            with open('/tmp/trading_bot_notifications.log', 'a') as f:
+                f.write(f"\n[{datetime.now()}] {subject}: {body}\n")
+                logger.info("Notification logged to file instead")
+        except:
+            pass
+
+def send_notification(message: str):
+    """Send notification via all enabled methods (SMS and/or Email)"""
+    # Extract subject from message (first line)
+    lines = message.split('\n', 1)
+    subject = lines[0] if lines else message
+    body = lines[1] if len(lines) > 1 else message
+    
+    # Try email first (more reliable)
+    if smtp_enabled:
+        send_email(f"Trading Bot: {subject}", body)
+    
+    # Try SMS if available
+    send_sms(message)
 
 def send_sms(message: str):
     """Send SMS notification via Twilio"""
