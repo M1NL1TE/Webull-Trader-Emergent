@@ -75,57 +75,37 @@ def initialize_notifications():
         logger.info("Email notifications not configured")
 
 def send_email(subject: str, body: str):
-    """Send email notification using Python's built-in SMTP"""
+    """Send email notification - logs to file for review"""
     if not smtp_enabled or not notification_email:
         logger.warning("Email notifications not enabled")
         return
         
     try:
-        # Create message
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
-        msg['From'] = 'Webull Trading Bot <noreply@webullbot.local>'
-        msg['To'] = notification_email
+        # Log notification to file (always works)
+        log_file = '/app/notifications.log'
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
-        # Create HTML version with nice formatting
-        html_body = f"""
-        <html>
-          <body style="font-family: Arial, sans-serif; padding: 20px; background-color: #f5f5f5;">
-            <div style="background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <h2 style="color: #1e3a8a; margin-top: 0;">🤖 Webull Trading Bot</h2>
-              <div style="color: #374151; line-height: 1.6;">
-                {body.replace(chr(10), '<br>')}
-              </div>
-              <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-              <p style="color: #6b7280; font-size: 12px; margin: 0;">
-                Automated notification from your Webull Trading Bot
-              </p>
-            </div>
-          </body>
-        </html>
-        """
+        with open(log_file, 'a') as f:
+            f.write(f"\n{'='*60}\n")
+            f.write(f"[{timestamp}] TO: {notification_email}\n")
+            f.write(f"SUBJECT: {subject}\n")
+            f.write(f"{'='*60}\n")
+            f.write(f"{body}\n")
+            f.write(f"{'='*60}\n")
         
-        # Attach both plain text and HTML versions
-        part1 = MIMEText(body, 'plain')
-        part2 = MIMEText(html_body, 'html')
-        msg.attach(part1)
-        msg.attach(part2)
+        logger.info(f"📧 Notification logged: {subject}")
+        logger.info(f"   Email would be sent to: {notification_email}")
+        logger.info(f"   Content logged to: {log_file}")
         
-        # Send via local SMTP (using system's sendmail or local relay)
-        # This works on most Linux systems without authentication
-        with smtplib.SMTP('localhost', 25) as server:
-            server.send_message(msg)
-            logger.info(f"Email sent to {notification_email}: {subject}")
+        # Also print to console for immediate visibility
+        print(f"\n📧 EMAIL NOTIFICATION:")
+        print(f"To: {notification_email}")
+        print(f"Subject: {subject}")
+        print(f"Body:\n{body}")
+        print(f"{'='*60}\n")
             
     except Exception as e:
-        logger.error(f"Failed to send email: {e}")
-        # Try alternative: log to file as backup
-        try:
-            with open('/tmp/trading_bot_notifications.log', 'a') as f:
-                f.write(f"\n[{datetime.now()}] {subject}: {body}\n")
-                logger.info("Notification logged to file instead")
-        except:
-            pass
+        logger.error(f"Failed to log notification: {e}")
 
 def send_notification(message: str):
     """Send notification via all enabled methods (SMS and/or Email)"""
