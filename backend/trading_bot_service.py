@@ -251,7 +251,7 @@ async def run_trading_bot(wb, settings):
         bot_state.running = True
         bot_state.error_message = None
         logger.info("🤖 Trading bot started")
-        send_sms("Trading bot started - monitoring SPY")
+        send_notification("Bot Started\nTrading bot is now monitoring SPY for entry signals during market hours (9:30 AM - 4:00 PM EST)")
         
         # Initialize variables (from original main)
         symbol = 'SPY'
