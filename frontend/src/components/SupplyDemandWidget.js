@@ -9,6 +9,7 @@ const API = `${BACKEND_URL}/api`;
 function SupplyDemandWidget() {
   const [zones, setZones] = useState(null);
   const [currentPrice, setCurrentPrice] = useState(0);
+  const [marketStatus, setMarketStatus] = useState('Unknown');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
