@@ -1011,7 +1011,40 @@ async def update_settings(settings: SettingsUpdate):
 
 @api_router.get("/bot/status")
 async def get_trading_bot_status():
-    """Get current trading bot status"""
+    """Get current trading bot status and auto-start if needed"""
+    global trading_bot_task
+    
+    try:
+        # Check if bot should be running but isn't
+        if not bot_state.running:
+            # Get settings
+            settings = await db.settings.find_one({'user': 'default'}, {"_id": 0})
+            
+            if settings and settings.get('auto_trading', False):
+                # Auto-trading is ON but bot is stopped - check for session
+                session = await get_session()
+                
+                if session:
+                    logger.info("🚀 Auto-starting bot (auto_trading=ON, session exists, bot stopped)")
+                    
+                    wb = get_webull_instance(session.get('is_paper', True))
+                    wb.api_login(
+                        access_token=session['access_token'],
+                        refresh_token=session['refresh_token'],
+                        token_expire=session['token_expire'],
+                        uuid=session['uuid']
+                    )
+                    
+                    if session.get('is_paper', True):
+                        wb.get_account_id()
+                    
+                    # Start bot
+                    trading_bot_task = asyncio.create_task(run_trading_bot(wb, settings))
+                    logger.info("✅ Bot auto-started from status check")
+    
+    except Exception as e:
+        logger.error(f"Error in bot status auto-start: {e}")
+    
     return get_bot_status()
 
 # Include the router in the main app
