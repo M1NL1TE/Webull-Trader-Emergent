@@ -1,8 +1,30 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useEffect, useState } from 'react';
+import axios from 'axios';
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
 
 function Positions({ positions }) {
+  const [profitTarget, setProfitTarget] = useState(50);
+  const [stopLoss, setStopLoss] = useState(25);
+
+  useEffect(() => {
+    // Fetch settings to get profit/loss targets
+    const fetchSettings = async () => {
+      try {
+        const response = await axios.get(`${API}/settings`);
+        setProfitTarget(response.data.profit_percentage || 50);
+        setStopLoss(response.data.loss_percentage || 25);
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+      }
+    };
+    fetchSettings();
+  }, []);
+
   if (!positions || positions.length === 0) {
     return (
       <Card className="glass border-slate-700" data-testid="positions-card">
@@ -38,6 +60,13 @@ function Positions({ positions }) {
               const costPrice = parseFloat(position.costPrice || 0);
               const lastPrice = parseFloat(position.lastPrice || 0);
               const symbol = position.ticker?.symbol || 'N/A';
+              
+              // Calculate current P/L percentage
+              const plPercentage = costPrice > 0 ? ((lastPrice - costPrice) / costPrice) * 100 : 0;
+              
+              // Calculate target prices
+              const profitTargetPrice = costPrice * (1 + profitTarget / 100);
+              const stopLossPrice = costPrice * (1 - stopLoss / 100);
 
               return (
                 <div
@@ -50,12 +79,18 @@ function Positions({ positions }) {
                       <h4 className="font-semibold text-white">{symbol}</h4>
                       <p className="text-sm text-slate-400">Quantity: {quantity}</p>
                     </div>
-                    <Badge className={isProfit ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}>
-                      {isProfit ? '+' : ''}
-                      ${Math.abs(unrealizedPL).toFixed(2)}
-                    </Badge>
+                    <div className="text-right">
+                      <Badge className={isProfit ? 'bg-green-500/20 text-green-400 border-green-500' : 'bg-red-500/20 text-red-400 border-red-500'}>
+                        {isProfit ? '+' : ''}
+                        ${Math.abs(unrealizedPL).toFixed(2)}
+                      </Badge>
+                      <p className={`text-xs mt-1 font-semibold ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
+                        {plPercentage >= 0 ? '+' : ''}{plPercentage.toFixed(2)}%
+                      </p>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
+                  
+                  <div className="grid grid-cols-2 gap-2 text-sm mb-3">
                     <div>
                       <span className="text-slate-400">Cost: </span>
                       <span className="text-white">${costPrice.toFixed(2)}</span>
@@ -63,6 +98,31 @@ function Positions({ positions }) {
                     <div>
                       <span className="text-slate-400">Last: </span>
                       <span className="text-white">${lastPrice.toFixed(2)}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Bot Targets */}
+                  <div className="pt-3 border-t border-slate-700">
+                    <p className="text-xs text-slate-500 mb-2">Bot Exit Targets:</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="p-2 rounded bg-green-500/10 border border-green-500/30">
+                        <div className="flex items-center justify-between">
+                          <span className="text-green-400">Profit:</span>
+                          <span className="text-green-300 font-semibold">+{profitTarget}%</span>
+                        </div>
+                        <div className="text-green-400 font-mono mt-1">
+                          ${profitTargetPrice.toFixed(2)}
+                        </div>
+                      </div>
+                      <div className="p-2 rounded bg-red-500/10 border border-red-500/30">
+                        <div className="flex items-center justify-between">
+                          <span className="text-red-400">Stop:</span>
+                          <span className="text-red-300 font-semibold">-{stopLoss}%</span>
+                        </div>
+                        <div className="text-red-400 font-mono mt-1">
+                          ${stopLossPrice.toFixed(2)}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
