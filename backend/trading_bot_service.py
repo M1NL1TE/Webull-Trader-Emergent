@@ -576,5 +576,8 @@ def get_bot_status():
         'position_status': bot_state.position_status,
         'error_message': bot_state.error_message,
         'zones': bot_state.zones,
-        'orb_status': bot_state.orb_status
+        'orb_status': bot_state.orb_status,
+        'technical_signals': bot_state.technical_signals,
+        'no_trade_reason': bot_state.no_trade_reason,
+        'current_price': bot_state.current_price
     }
