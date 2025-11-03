@@ -353,6 +353,18 @@ async def run_trading_bot(wb, settings):
         
         logger.info(f"Bot settings: Profit target={profit_pct*100}%, Stop loss={loss_pct*100}%")
         
+        # Calculate initial zones even if market is closed (for display purposes)
+        try:
+            stockId = wb.get_ticker(symbol)
+            df = wb.get_bars(symbol, stockId, interval, 140, 1)
+            if df is not None and len(df) >= 50:
+                initial_zones = analyze_supply_demand(df)
+                bot_state.zones = initial_zones
+                bot_state.current_price = df['close'].iloc[-1]
+                logger.info(f"Initial zones calculated: Supply ${initial_zones['supply_bottom']:.2f}-${initial_zones['supply_top']:.2f}, Demand ${initial_zones['demand_bottom']:.2f}-${initial_zones['demand_top']:.2f}")
+        except Exception as e:
+            logger.warning(f"Could not calculate initial zones: {e}")
+        
         while bot_state.running:
             try:
                 bot_state.last_check_time = datetime.now()
