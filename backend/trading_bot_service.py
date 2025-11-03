@@ -213,6 +213,98 @@ def get_candle_grade(df):
         return 'C'
     return 'D'
 
+
+def analyze_supply_demand(df):
+    """Analyze supply and demand zones from price data"""
+    try:
+        # Look for significant support/resistance levels
+        highs = df['high'].values
+        lows = df['low'].values
+        closes = df['close'].values
+        
+        # Find recent swing highs and lows
+        recent_high = np.max(highs[-20:])
+        recent_low = np.min(lows[-20:])
+        
+        # Supply zone (resistance): area around recent highs
+        supply_top = recent_high
+        supply_bottom = recent_high * 0.995  # 0.5% below high
+        
+        # Demand zone (support): area around recent lows  
+        demand_bottom = recent_low
+        demand_top = recent_low * 1.005  # 0.5% above low
+        
+        return {
+            'demand_top': demand_top,
+            'demand_bottom': demand_bottom,
+            'supply_top': supply_top,
+            'supply_bottom': supply_bottom
+        }
+    except Exception as e:
+        logger.error(f"Error analyzing supply/demand: {e}")
+        return {'demand_top': 0, 'demand_bottom': 0, 'supply_top': 0, 'supply_bottom': 0}
+
+
+def check_orb_breakout(wb, symbol, current_time):
+    """Check for Opening Range Breakout in first 15 minutes"""
+    try:
+        # Only check ORB in first 15 minutes after market open (9:30-9:45 AM EST)
+        from pytz import timezone as pytz_timezone
+        eastern = pytz_timezone('US/Eastern')
+        now_eastern = datetime.now(eastern)
+        
+        market_open = now_eastern.replace(hour=9, minute=30, second=0, microsecond=0)
+        orb_end = market_open + timedelta(minutes=15)
+        
+        if now_eastern < market_open or now_eastern > orb_end:
+            return None, "Outside ORB window (9:30-9:45 AM)"
+        
+        # Get 1-minute bars for ORB analysis
+        stockId = wb.get_ticker(symbol)
+        df_1m = wb.get_bars(symbol, stockId, 'm1', 20, 1)
+        
+        if df_1m is None or len(df_1m) < 10:
+            return None, "Insufficient data for ORB"
+        
+        # Calculate opening range (first 5-10 minutes)
+        orb_high = df_1m['high'][:10].max()
+        orb_low = df_1m['low'][:10].min()
+        current_price = df_1m['close'].iloc[-1]
+        
+        bot_state.orb_status['high'] = orb_high
+        bot_state.orb_status['low'] = orb_low
+        
+        # Check for breakout
+        if current_price > orb_high and not bot_state.orb_status['upside_broken']:
+            bot_state.orb_status['upside_broken'] = True
+            bot_state.orb_status['upside_time'] = now_eastern.isoformat()
+            return 'call', f"ORB upside breakout: ${current_price:.2f} > ${orb_high:.2f}"
+        
+        elif current_price < orb_low and not bot_state.orb_status['downside_broken']:
+            bot_state.orb_status['downside_broken'] = True
+            bot_state.orb_status['downside_time'] = now_eastern.isoformat()
+            return 'put', f"ORB downside breakout: ${current_price:.2f} < ${orb_low:.2f}"
+        
+        return None, f"ORB range: ${orb_low:.2f} - ${orb_high:.2f}, Current: ${current_price:.2f}"
+        
+    except Exception as e:
+        logger.error(f"Error checking ORB: {e}")
+        return None, f"ORB check error: {str(e)}"
+
+
+def get_combined_grade(rsi_grade, macd_grade, candle_grade, volume_grade):
+    """Calculate combined grade from all technical indicators"""
+    grade_values = {'A+': 8, 'A': 7, 'B+': 6, 'B': 5, 'C+': 4, 'C': 3, 'D+': 2, 'D': 1}
+    grades = [rsi_grade, macd_grade, candle_grade, volume_grade]
+    
+    avg_value = sum(grade_values.get(g, 1) for g in grades) / len(grades)
+    
+    # Convert back to grade
+    for grade, value in sorted(grade_values.items(), key=lambda x: -x[1]):
+        if avg_value >= value:
+            return grade
+    return 'D'
+
 def get_volume_candle_grade(df):
     """Calculate volume-based candle grade"""
     df_last = df.tail(3)
