@@ -409,13 +409,119 @@ async def run_trading_bot(wb, settings):
                     # Get price data
                     df = wb.get_bars(symbol, stockId, interval, 140, 1)
                     
-                    # Analyze supply/demand zones (simplified version - full logic in original)
-                    # TODO: Integrate full supply_demand function
+                    if df is None or len(df) < 50:
+                        bot_state.no_trade_reason = "Insufficient price data"
+                        bot_state.current_signal = "Waiting for data..."
+                        continue
                     
-                    bot_state.current_signal = "Scanning for entry signals..."
+                    current_price = df['close'].iloc[-1]
+                    bot_state.current_price = current_price
                     
-                    # Placeholder for entry logic
-                    # In production, this would call your full strategy functions
+                    # 1. CHECK ORB FIRST (Priority in first 15 minutes)
+                    orb_signal, orb_message = check_orb_breakout(wb, symbol, current_time)
+                    logger.info(f"ORB Check: {orb_message}")
+                    
+                    if orb_signal:
+                        # ORB breakout detected - TAKE THE TRADE!
+                        logger.info(f"🚨 ORB BREAKOUT DETECTED: {orb_signal.upper()}")
+                        bot_state.current_signal = f"ORB {orb_signal} breakout!"
+                        bot_state.no_trade_reason = f"Executing ORB {orb_signal} trade"
+                        
+                        # TODO: Execute ORB trade
+                        send_notification(f"ORB Trade Signal\n{orb_signal.upper()} signal detected\n{orb_message}")
+                        
+                        # For now, log the trade
+                        logger.info(f"📈 Would place {orb_signal} order here (ORB strategy)")
+                        bot_state.last_action = f"ORB {orb_signal} signal at {current_time}"
+                        
+                        continue  # Move to next iteration
+                    
+                    # 2. ANALYZE SUPPLY/DEMAND ZONES
+                    zones = analyze_supply_demand(df)
+                    bot_state.zones = zones
+                    
+                    in_demand_zone = zones['demand_bottom'] <= current_price <= zones['demand_top']
+                    in_supply_zone = zones['supply_bottom'] <= current_price <= zones['supply_top']
+                    
+                    zone_signal = None
+                    if in_demand_zone:
+                        zone_signal = 'call'
+                        logger.info(f"💚 Price in DEMAND zone: ${zones['demand_bottom']:.2f} - ${zones['demand_top']:.2f}")
+                    elif in_supply_zone:
+                        zone_signal = 'put'
+                        logger.info(f"🔴 Price in SUPPLY zone: ${zones['supply_bottom']:.2f} - ${zones['supply_top']:.2f}")
+                    
+                    # 3. CALCULATE TECHNICAL GRADES
+                    try:
+                        rsi_grade = get_rsi_grade(df)
+                        macd_grade = get_macd_grade(df)
+                        candle_grade = get_candle_grade(df)
+                        volume_grade = get_volume_candle_grade(df)
+                        combined_grade = get_combined_grade(rsi_grade, macd_grade, candle_grade, volume_grade)
+                        
+                        bot_state.technical_signals = {
+                            'rsi_grade': rsi_grade,
+                            'macd_grade': macd_grade,
+                            'candle_grade': candle_grade,
+                            'volume_grade': volume_grade,
+                            'combined_grade': combined_grade
+                        }
+                        
+                        logger.info(f"📊 Grades: RSI={rsi_grade}, MACD={macd_grade}, Candle={candle_grade}, Volume={volume_grade}, Combined={combined_grade}")
+                    
+                    except Exception as e:
+                        logger.error(f"Error calculating grades: {e}")
+                        bot_state.no_trade_reason = f"Error analyzing technicals: {str(e)}"
+                        continue
+                    
+                    # 4. DETERMINE TRADE SIGNAL
+                    trade_signal = None
+                    trade_reason = []
+                    
+                    # Zone-based signals
+                    if zone_signal == 'call' and combined_grade >= 'C':
+                        trade_signal = 'call'
+                        trade_reason.append(f"Demand zone bounce (Grade: {combined_grade})")
+                    elif zone_signal == 'put' and combined_grade >= 'C':
+                        trade_signal = 'put'
+                        trade_reason.append(f"Supply zone rejection (Grade: {combined_grade})")
+                    
+                    # Pure technical signals (no zone requirement)
+                    elif combined_grade >= 'B':
+                        # Determine direction from RSI/MACD
+                        rsi = talib.RSI(df['close'])
+                        if rsi.iloc[-1] < 40:
+                            trade_signal = 'call'
+                            trade_reason.append(f"Strong technicals - Oversold (Grade: {combined_grade})")
+                        elif rsi.iloc[-1] > 60:
+                            trade_signal = 'put'
+                            trade_reason.append(f"Strong technicals - Overbought (Grade: {combined_grade})")
+                    
+                    # 5. EXECUTE OR LOG WHY NOT
+                    if trade_signal:
+                        logger.info(f"🎯 TRADE SIGNAL: {trade_signal.upper()} - {', '.join(trade_reason)}")
+                        bot_state.current_signal = f"{trade_signal.upper()} signal detected!"
+                        bot_state.no_trade_reason = f"Executing {trade_signal} trade"
+                        
+                        # TODO: Execute actual trade
+                        send_notification(f"Trade Signal\n{trade_signal.upper()} - {', '.join(trade_reason)}\nPrice: ${current_price:.2f}")
+                        
+                        logger.info(f"📈 Would place {trade_signal} order here")
+                        bot_state.last_action = f"{trade_signal} signal at ${current_price:.2f}"
+                        
+                    else:
+                        # Explain why no trade
+                        reasons = []
+                        if not zone_signal:
+                            reasons.append(f"Not in supply/demand zone (Price: ${current_price:.2f})")
+                        if combined_grade < 'C':
+                            reasons.append(f"Grade too low ({combined_grade} < C)")
+                        if not orb_signal:
+                            reasons.append(orb_message)
+                        
+                        bot_state.no_trade_reason = " | ".join(reasons) if reasons else "Scanning for setups..."
+                        bot_state.current_signal = "Scanning for entry signals..."
+                        logger.info(f"No trade: {bot_state.no_trade_reason}")
                     
                 elif has_position and not has_open_orders:
                     # Monitor position for exit
