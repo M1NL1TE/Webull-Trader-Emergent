@@ -64,13 +64,25 @@ function BotStatusWidget() {
 
   const formatLastCheckTime = (isoString) => {
     if (!isoString) return 'Never';
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffSeconds = Math.floor((now - date) / 1000);
-    
-    if (diffSeconds < 60) return `${diffSeconds}s ago`;
-    if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`;
-    return date.toLocaleTimeString();
+    try {
+      const date = new Date(isoString);
+      const now = new Date();
+      
+      // Validate the date
+      if (isNaN(date.getTime())) return 'Invalid time';
+      
+      const diffSeconds = Math.floor((now - date) / 1000);
+      
+      // If time difference is negative or too large, something is wrong
+      if (diffSeconds < 0) return 'Just now';
+      if (diffSeconds > 86400) return date.toLocaleTimeString(); // Over 24 hours, show actual time
+      
+      if (diffSeconds < 60) return `${diffSeconds}s ago`;
+      if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`;
+      return `${Math.floor(diffSeconds / 3600)}h ago`;
+    } catch (e) {
+      return 'Unknown';
+    }
   };
 
   return (
