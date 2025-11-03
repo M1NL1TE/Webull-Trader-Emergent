@@ -503,11 +503,31 @@ async def run_trading_bot(wb, settings):
                         bot_state.current_signal = f"{trade_signal.upper()} signal detected!"
                         bot_state.no_trade_reason = f"Executing {trade_signal} trade"
                         
-                        # TODO: Execute actual trade
-                        send_notification(f"Trade Signal\n{trade_signal.upper()} - {', '.join(trade_reason)}\nPrice: ${current_price:.2f}")
+                        # EXECUTE ACTUAL TRADE
+                        try:
+                            if trade_signal == 'call':
+                                success = execute_call_trade(wb, symbol, combined_grade, account_info)
+                                if success:
+                                    send_notification(f"Call Trade Executed\n{', '.join(trade_reason)}\nPrice: ${current_price:.2f}\nGrade: {combined_grade}")
+                                    bot_state.last_action = f"Placed CALL order at ${current_price:.2f}"
+                                    logger.info("✅ Call order placed successfully")
+                                else:
+                                    logger.error("❌ Failed to place call order")
+                                    bot_state.no_trade_reason = "Order placement failed"
+                            
+                            elif trade_signal == 'put':
+                                success = execute_put_trade(wb, symbol, combined_grade, account_info)
+                                if success:
+                                    send_notification(f"Put Trade Executed\n{', '.join(trade_reason)}\nPrice: ${current_price:.2f}\nGrade: {combined_grade}")
+                                    bot_state.last_action = f"Placed PUT order at ${current_price:.2f}"
+                                    logger.info("✅ Put order placed successfully")
+                                else:
+                                    logger.error("❌ Failed to place put order")
+                                    bot_state.no_trade_reason = "Order placement failed"
                         
-                        logger.info(f"📈 Would place {trade_signal} order here")
-                        bot_state.last_action = f"{trade_signal} signal at ${current_price:.2f}"
+                        except Exception as e:
+                            logger.error(f"Error executing trade: {e}", exc_info=True)
+                            bot_state.no_trade_reason = f"Trade execution error: {str(e)}"
                         
                     else:
                         # Explain why no trade
