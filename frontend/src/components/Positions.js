@@ -11,6 +11,7 @@ function Positions({ positions }) {
   const [profitTarget, setProfitTarget] = useState(50);
   const [stopLoss, setStopLoss] = useState(25);
   const [entrySignal, setEntrySignal] = useState(null);
+  const [zones, setZones] = useState(null);
 
   useEffect(() => {
     // Fetch settings to get profit/loss targets
@@ -24,21 +25,22 @@ function Positions({ positions }) {
       }
     };
     
-    // Fetch entry signal
-    const fetchEntrySignal = async () => {
+    // Fetch entry signal and zones
+    const fetchBotData = async () => {
       try {
         const response = await axios.get(`${API}/bot/status`);
         setEntrySignal(response.data.last_entry_signal);
+        setZones(response.data.zones);
       } catch (error) {
-        console.error('Error fetching entry signal:', error);
+        console.error('Error fetching bot data:', error);
       }
     };
     
     fetchSettings();
-    fetchEntrySignal();
+    fetchBotData();
     
-    // Refresh entry signal every 30 seconds
-    const interval = setInterval(fetchEntrySignal, 30000);
+    // Refresh bot data every 30 seconds
+    const interval = setInterval(fetchBotData, 30000);
     return () => clearInterval(interval);
   }, []);
 
