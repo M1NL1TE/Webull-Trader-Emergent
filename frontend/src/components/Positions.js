@@ -59,7 +59,44 @@ function Positions({ positions }) {
               const quantity = position.position || 0;
               const costPrice = parseFloat(position.costPrice || 0);
               const lastPrice = parseFloat(position.lastPrice || 0);
-              const symbol = position.ticker?.symbol || 'N/A';
+              const rawSymbol = position.ticker?.symbol || 'N/A';
+              
+              // Parse option symbol: SPY251104C00683000 -> SPY $683 / 04 Nov Call
+              const parseOptionSymbol = (symbol) => {
+                // Format: SYMBOL+YYMMDD+C/P+STRIKEXXXXXX
+                const match = symbol.match(/^([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/);
+                
+                if (match) {
+                  const [, ticker, year, month, day, type, strikeRaw] = match;
+                  const strike = parseInt(strikeRaw) / 1000; // Strike is in cents, divide by 1000
+                  const optionType = type === 'C' ? 'Call' : 'Put';
+                  
+                  // Format date
+                  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                  const monthName = months[parseInt(month) - 1];
+                  
+                  return {
+                    ticker,
+                    strike: `$${strike}`,
+                    date: `${day} ${monthName}`,
+                    year: `20${year}`,
+                    type: optionType
+                  };
+                }
+                
+                // If not an option symbol, return as-is
+                return {
+                  ticker: symbol,
+                  strike: '',
+                  date: '',
+                  year: '',
+                  type: ''
+                };
+              };
+              
+              const parsed = parseOptionSymbol(rawSymbol);
+              const displaySymbol = parsed.strike ? `${parsed.ticker} ${parsed.strike}` : rawSymbol;
+              const displayDate = parsed.date ? `${parsed.date} ${parsed.type}` : '';
               
               // Calculate current P/L percentage
               const plPercentage = costPrice > 0 ? ((lastPrice - costPrice) / costPrice) * 100 : 0;
@@ -76,8 +113,11 @@ function Positions({ positions }) {
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h4 className="font-semibold text-white">{symbol}</h4>
-                      <p className="text-sm text-slate-400">Quantity: {quantity}</p>
+                      <h4 className="font-semibold text-white text-lg">{displaySymbol}</h4>
+                      {displayDate && (
+                        <p className="text-xs text-slate-400">{displayDate}</p>
+                      )}
+                      <p className="text-sm text-slate-400 mt-1">Qty: {quantity}</p>
                     </div>
                     <div className="text-right">
                       <Badge className={isProfit ? 'bg-green-500/20 text-green-400 border-green-500' : 'bg-red-500/20 text-red-400 border-red-500'}>
