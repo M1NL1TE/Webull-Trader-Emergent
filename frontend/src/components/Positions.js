@@ -159,7 +159,7 @@ function Positions({ positions }) {
                   </div>
                   
                   {/* Entry Signal Info */}
-                  {entrySignal && (
+                  {entrySignal ? (
                     <div className="mt-3 pt-3 border-t border-slate-700">
                       <p className="text-xs text-slate-500 mb-2">Entry Signal:</p>
                       <div className="p-2 rounded bg-blue-500/10 border border-blue-500/30">
@@ -183,6 +183,33 @@ function Positions({ positions }) {
                             </div>
                           </div>
                         )}
+                      </div>
+                    </div>
+                  ) : (
+                    // Show current zones for old positions (before entry tracking was added)
+                    <div className="mt-3 pt-3 border-t border-slate-700">
+                      <p className="text-xs text-slate-500 mb-2">Current S/D Zones:</p>
+                      <div className="p-2 rounded bg-slate-700/30 border border-slate-600">
+                        <p className="text-xs text-amber-400 mb-2">⚠️ Entry zones not tracked for this position</p>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="text-red-400">Supply: </span>
+                            <span className="text-slate-300">
+                              {zones && zones.supply_top > 0 
+                                ? `$${zones.supply_bottom.toFixed(2)}-$${zones.supply_top.toFixed(2)}`
+                                : 'Calculating...'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-green-400">Demand: </span>
+                            <span className="text-slate-300">
+                              {zones && zones.demand_top > 0 
+                                ? `$${zones.demand_bottom.toFixed(2)}-$${zones.demand_top.toFixed(2)}`
+                                : 'Calculating...'}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-2">Showing latest calculated zones</p>
                       </div>
                     </div>
                   )}
