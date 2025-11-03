@@ -57,6 +57,15 @@ function SupplyDemandWidget() {
       <CardContent className="space-y-4">
         {zones && zones.supply_top > 0 ? (
           <>
+            {/* Market Status Indicator */}
+            {marketStatus && marketStatus.includes('Closed') && (
+              <div className="mb-3 p-2 rounded bg-amber-500/10 border border-amber-500/30">
+                <p className="text-xs text-amber-300">
+                  📊 Market closed - Showing last calculated zones
+                </p>
+              </div>
+            )}
+            
             {/* Supply Zone */}
             <div className={`p-4 rounded-lg ${inSupplyZone ? 'bg-red-500/20 border-2 border-red-500' : 'bg-red-500/10 border border-red-500/30'}`}>
               <div className="flex items-center justify-between mb-3">
