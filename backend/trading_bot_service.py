@@ -433,12 +433,30 @@ async def run_trading_bot(wb, settings):
                             if orb_signal == 'call':
                                 success = execute_call_trade(wb, symbol, 'A+', account_info)  # ORB gets A+ grade
                                 if success:
+                                    bot_state.last_entry_signal = {
+                                        'signal_type': 'ORB Breakout',
+                                        'reasons': orb_message,
+                                        'zones': None,
+                                        'grade': 'A+',
+                                        'entry_price': current_price,
+                                        'direction': 'CALL',
+                                        'timestamp': datetime.now(timezone.utc).isoformat()
+                                    }
                                     send_notification(f"ORB Call Trade\n{orb_message}\nORB breakout strategy")
                                     bot_state.last_action = f"ORB CALL at {current_time}"
                                     logger.info("✅ ORB call order placed")
                             elif orb_signal == 'put':
                                 success = execute_put_trade(wb, symbol, 'A+', account_info)  # ORB gets A+ grade
                                 if success:
+                                    bot_state.last_entry_signal = {
+                                        'signal_type': 'ORB Breakout',
+                                        'reasons': orb_message,
+                                        'zones': None,
+                                        'grade': 'A+',
+                                        'entry_price': current_price,
+                                        'direction': 'PUT',
+                                        'timestamp': datetime.now(timezone.utc).isoformat()
+                                    }
                                     send_notification(f"ORB Put Trade\n{orb_message}\nORB breakout strategy")
                                     bot_state.last_action = f"ORB PUT at {current_time}"
                                     logger.info("✅ ORB put order placed")
