@@ -168,7 +168,11 @@ function Dashboard({ setIsAuthenticated }) {
             <TradePanel onTradeComplete={fetchData} />
           </TabsContent>
 
-          <TabsContent value="signals">
+          <TabsContent value="signals" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <TechnicalSignalsWidget />
+              <SupplyDemandWidget />
+            </div>
             <TradingSignals />
           </TabsContent>
 
