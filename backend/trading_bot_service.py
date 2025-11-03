@@ -585,6 +585,151 @@ async def run_trading_bot(wb, settings):
         bot_state.running = False
         logger.info("🛑 Trading bot stopped")
 
+def execute_call_trade(wb, symbol, trade_grade, account_info):
+    """Execute call option trade based on your original buy_call logic"""
+    try:
+        # Filter options for calls
+        filtered_chain = filter_options_for_trade(wb, symbol, 'call')
+        
+        if not filtered_chain:
+            logger.error("No suitable call options found")
+            return False
+        
+        # Calculate order quantity based on trade grade and account value
+        account_value = float(account_info['accountMembers'][1]['value'])
+        trade_pct = trade_grades.get(trade_grade, {'trade_pct': 0.10})['trade_pct']
+        
+        option_price = wb.get_option_quote(stock=symbol, optionId=filtered_chain[0]['call']['tickerId'])['data'][0]['askList'][0]['price']
+        order_quantity = float((account_value * trade_pct) / (float(option_price) * 100))
+        order_quantity = math.floor(order_quantity)
+        
+        # Ensure at least 1 contract
+        if order_quantity < 1:
+            for option in filtered_chain:
+                option_price = wb.get_option_quote(stock=symbol, optionId=option['call']['tickerId'])['data'][0]['askList'][0]['price']
+                new_order_quantity = (account_value * trade_pct) / (float(option_price) * 100)
+                if new_order_quantity >= 1:
+                    filtered_chain.remove(option)
+                    filtered_chain.insert(0, option)
+                    order_quantity = math.floor(new_order_quantity)
+                    break
+            else:
+                logger.error("Cannot afford even 1 contract")
+                return False
+        
+        # Place the order
+        logger.info(f"Placing call order: {order_quantity} contracts at ${option_price}")
+        wb.place_order_option(
+            optionId=filtered_chain[0]['call']['tickerId'],
+            lmtPrice=option_price,
+            stpPrice=str(float(option_price) - 0.25),
+            action='BUY',
+            orderType='LMT',
+            enforce='GTC',
+            quant=order_quantity
+        )
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error in execute_call_trade: {e}", exc_info=True)
+        return False
+
+
+def execute_put_trade(wb, symbol, trade_grade, account_info):
+    """Execute put option trade based on your original buy_put logic"""
+    try:
+        # Filter options for puts
+        filtered_chain = filter_options_for_trade(wb, symbol, 'put')
+        
+        if not filtered_chain:
+            logger.error("No suitable put options found")
+            return False
+        
+        # Calculate order quantity
+        account_value = float(account_info['accountMembers'][1]['value'])
+        trade_pct = trade_grades.get(trade_grade, {'trade_pct': 0.10})['trade_pct']
+        
+        option_price = wb.get_option_quote(stock=symbol, optionId=filtered_chain[0]['put']['tickerId'])['data'][0]['askList'][0]['price']
+        order_quantity = float((account_value * trade_pct) / (float(option_price) * 100))
+        order_quantity = math.floor(order_quantity)
+        
+        # Ensure at least 1 contract
+        if order_quantity < 1:
+            for option in filtered_chain:
+                option_price = wb.get_option_quote(stock=symbol, optionId=option['put']['tickerId'])['data'][0]['askList'][0]['price']
+                new_order_quantity = (account_value * trade_pct) / (float(option_price) * 100)
+                if new_order_quantity >= 1:
+                    filtered_chain.remove(option)
+                    filtered_chain.insert(0, option)
+                    order_quantity = math.floor(new_order_quantity)
+                    break
+            else:
+                logger.error("Cannot afford even 1 contract")
+                return False
+        
+        # Place the order
+        logger.info(f"Placing put order: {order_quantity} contracts at ${option_price}")
+        wb.place_order_option(
+            optionId=filtered_chain[0]['put']['tickerId'],
+            lmtPrice=option_price,
+            stpPrice=str(float(option_price) - 0.25),
+            action='BUY',
+            orderType='LMT',
+            enforce='GTC',
+            quant=order_quantity
+        )
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error in execute_put_trade: {e}", exc_info=True)
+        return False
+
+
+def filter_options_for_trade(wb, symbol, option_type):
+    """Filter SPY options based on strike price and volume (from your original code)"""
+    try:
+        current_date = datetime.now().date()
+        current_day = current_date.weekday()
+        
+        # Determine minimum expiration date
+        if current_day == 4:  # Friday
+            min_days = 3
+        else:
+            min_days = 1
+        min_date = current_date + timedelta(days=min_days)
+        
+        # Get expiration dates
+        expiration_dates = wb.get_options_expiration_dates(symbol)
+        expiration_dates = [date for date in expiration_dates if datetime.strptime(date['date'], '%Y-%m-%d').date() >= min_date]
+        
+        if not expiration_dates:
+            return None
+        
+        expiration_date = expiration_dates[0]['date']
+        
+        # Get current price and calculate strike range
+        current_price = float(wb.get_quote(stock=symbol)['close'])
+        rounded_price = round(current_price)
+        
+        if option_type == 'call':
+            call_options = wb.get_options(stock=symbol, count=-1, direction='call', expireDate=expiration_date)
+            call_options = [opt for opt in call_options if rounded_price <= float(opt['strikePrice']) <= rounded_price + 5]
+            call_options.sort(key=lambda x: int(wb.get_option_quote(stock=symbol, optionId=x['call']['tickerId'])['data'][0]['volume']), reverse=True)
+            return call_options
+        
+        elif option_type == 'put':
+            put_options = wb.get_options(stock=symbol, count=-1, direction='put', expireDate=expiration_date)
+            put_options = [opt for opt in put_options if rounded_price - 5 <= float(opt['strikePrice']) <= rounded_price]
+            put_options.sort(key=lambda x: int(wb.get_option_quote(stock=symbol, optionId=x['put']['tickerId'])['data'][0]['volume']), reverse=True)
+            return put_options
+        
+    except Exception as e:
+        logger.error(f"Error filtering options: {e}")
+        return None
+
+
 def get_bot_status():
     """Get current bot status for API endpoint"""
     return {
