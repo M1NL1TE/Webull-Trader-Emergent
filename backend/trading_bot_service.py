@@ -51,6 +51,7 @@ class BotState:
         }
         self.no_trade_reason = "Initializing..."
         self.current_price = 0
+        self.last_entry_signal = None  # Store last trade entry details
         
 bot_state = BotState()
 
