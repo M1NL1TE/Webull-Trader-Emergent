@@ -158,6 +158,35 @@ function Positions({ positions }) {
                     </div>
                   </div>
                   
+                  {/* Entry Signal Info */}
+                  {entrySignal && (
+                    <div className="mt-3 pt-3 border-t border-slate-700">
+                      <p className="text-xs text-slate-500 mb-2">Entry Signal:</p>
+                      <div className="p-2 rounded bg-blue-500/10 border border-blue-500/30">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-semibold text-blue-300">{entrySignal.signal_type}</span>
+                          <span className="text-xs text-blue-400">Grade: {entrySignal.grade}</span>
+                        </div>
+                        <p className="text-xs text-blue-200">{entrySignal.reasons}</p>
+                        {entrySignal.zones && (
+                          <div className="mt-2 pt-2 border-t border-blue-500/30">
+                            <p className="text-xs text-slate-400 mb-1">Entry Zones:</p>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <span className="text-red-400">Supply: </span>
+                                <span className="text-slate-300">${entrySignal.zones.supply_bottom.toFixed(2)}-${entrySignal.zones.supply_top.toFixed(2)}</span>
+                              </div>
+                              <div>
+                                <span className="text-green-400">Demand: </span>
+                                <span className="text-slate-300">${entrySignal.zones.demand_bottom.toFixed(2)}-${entrySignal.zones.demand_top.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Bot Targets */}
                   <div className="pt-3 border-t border-slate-700">
                     <p className="text-xs text-slate-500 mb-2">Bot Exit Targets:</p>
