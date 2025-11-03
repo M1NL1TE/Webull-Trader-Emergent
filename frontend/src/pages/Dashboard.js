@@ -25,6 +25,8 @@ import OrderHistory from '@/components/OrderHistory';
 import Settings from '@/components/Settings';
 import ProfitLossBySymbol from '@/components/ProfitLossBySymbol';
 import BotStatusWidget from '@/components/BotStatusWidget';
+import TechnicalSignalsWidget from '@/components/TechnicalSignalsWidget';
+import NoTradeReasonWidget from '@/components/NoTradeReasonWidget';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
