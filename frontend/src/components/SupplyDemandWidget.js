@@ -24,6 +24,7 @@ function SupplyDemandWidget() {
       
       setZones(data.zones || {});
       setCurrentPrice(data.current_price || 0);
+      setMarketStatus(data.market_status || 'Unknown');
     } catch (error) {
       console.error('Error fetching zones:', error);
     } finally {
