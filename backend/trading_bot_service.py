@@ -37,9 +37,20 @@ class BotState:
             'upside_broken': False,
             'downside_broken': False,
             'upside_time': None,
-            'downside_time': None
+            'downside_time': None,
+            'high': 0,
+            'low': 0
         }
         self.position_status = "No Position"
+        self.technical_signals = {
+            'rsi_grade': 'D',
+            'macd_grade': 'D',
+            'candle_grade': 'D',
+            'volume_grade': 'D',
+            'combined_grade': 'D'
+        }
+        self.no_trade_reason = "Initializing..."
+        self.current_price = 0
         
 bot_state = BotState()
 
