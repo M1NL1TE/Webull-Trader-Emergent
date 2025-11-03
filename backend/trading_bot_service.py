@@ -427,12 +427,23 @@ async def run_trading_bot(wb, settings):
                         bot_state.current_signal = f"ORB {orb_signal} breakout!"
                         bot_state.no_trade_reason = f"Executing ORB {orb_signal} trade"
                         
-                        # TODO: Execute ORB trade
-                        send_notification(f"ORB Trade Signal\n{orb_signal.upper()} signal detected\n{orb_message}")
-                        
-                        # For now, log the trade
-                        logger.info(f"📈 Would place {orb_signal} order here (ORB strategy)")
-                        bot_state.last_action = f"ORB {orb_signal} signal at {current_time}"
+                        # Execute ORB trade
+                        try:
+                            if orb_signal == 'call':
+                                success = execute_call_trade(wb, symbol, 'A+', account_info)  # ORB gets A+ grade
+                                if success:
+                                    send_notification(f"ORB Call Trade\n{orb_message}\nORB breakout strategy")
+                                    bot_state.last_action = f"ORB CALL at {current_time}"
+                                    logger.info("✅ ORB call order placed")
+                            elif orb_signal == 'put':
+                                success = execute_put_trade(wb, symbol, 'A+', account_info)  # ORB gets A+ grade
+                                if success:
+                                    send_notification(f"ORB Put Trade\n{orb_message}\nORB breakout strategy")
+                                    bot_state.last_action = f"ORB PUT at {current_time}"
+                                    logger.info("✅ ORB put order placed")
+                        except Exception as e:
+                            logger.error(f"Error executing ORB trade: {e}", exc_info=True)
+                            bot_state.no_trade_reason = f"ORB trade error: {str(e)}"
                         
                         continue  # Move to next iteration
                     
