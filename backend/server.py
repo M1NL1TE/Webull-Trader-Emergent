@@ -52,6 +52,47 @@ trading_bot_task = None
 async def startup_event():
     initialize_notifications()
     logger.info("Application startup complete")
+    
+    # Check if auto-trading is enabled and start bot
+    asyncio.create_task(check_and_start_bot())
+
+async def check_and_start_bot():
+    """Check if auto-trading is enabled and start bot if needed"""
+    global trading_bot_task
+    
+    # Wait a bit for everything to initialize
+    await asyncio.sleep(5)
+    
+    try:
+        # Check settings
+        settings = await db.settings.find_one({'user': 'default'}, {"_id": 0})
+        
+        if settings and settings.get('auto_trading', False):
+            logger.info("Auto-trading is enabled - checking for existing session...")
+            
+            # Check if there's a valid session
+            session_data = await db.sessions.find_one({'user': 'default'})
+            
+            if session_data and not bot_state.running:
+                logger.info("🚀 Auto-starting trading bot on startup...")
+                
+                wb = get_webull_instance(session_data.get('is_paper', True))
+                wb.api_login(
+                    access_token=session_data['access_token'],
+                    refresh_token=session_data['refresh_token'],
+                    token_expire=session_data['token_expire'],
+                    uuid=session_data['uuid']
+                )
+                
+                if session_data.get('is_paper', True):
+                    wb.get_account_id()
+                
+                trading_bot_task = asyncio.create_task(run_trading_bot(wb, settings))
+                logger.info("✅ Trading bot auto-started successfully")
+            else:
+                logger.info("No valid session found for auto-start")
+    except Exception as e:
+        logger.error(f"Error auto-starting bot: {e}")
 
 # Configure logging
 logging.basicConfig(
