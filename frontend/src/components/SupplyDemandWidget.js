@@ -152,7 +152,11 @@ function SupplyDemandWidget() {
         ) : (
           <div className="text-center py-8 text-slate-400">
             <p className="text-sm">Calculating zones...</p>
-            <p className="text-xs mt-2">Bot needs to analyze price data first</p>
+            <p className="text-xs mt-2">
+              {marketStatus && marketStatus.includes('Closed') 
+                ? 'Zones will update when market opens (9:30 AM EST)'
+                : 'Bot needs to analyze price data first'}
+            </p>
           </div>
         )}
       </CardContent>
