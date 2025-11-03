@@ -519,9 +519,25 @@ async def run_trading_bot(wb, settings):
                             if trade_signal == 'call':
                                 success = execute_call_trade(wb, symbol, combined_grade, account_info)
                                 if success:
+                                    # Store entry details
+                                    entry_details = {
+                                        'signal': 'Technical + Zone' if zone_signal else 'Technical',
+                                        'reasons': trade_reason,
+                                        'zones': zones.copy() if zone_signal else None,
+                                        'grade': combined_grade,
+                                        'entry_price': current_price,
+                                        'timestamp': datetime.now(timezone.utc).isoformat()
+                                    }
+                                    
                                     send_notification(f"Call Trade Executed\n{', '.join(trade_reason)}\nPrice: ${current_price:.2f}\nGrade: {combined_grade}")
                                     bot_state.last_action = f"Placed CALL order at ${current_price:.2f}"
                                     logger.info("✅ Call order placed successfully")
+                                    
+                                    # Store in database for later retrieval
+                                    try:
+                                        await db.trade_entries.insert_one(entry_details)
+                                    except:
+                                        pass  # Don't fail if can't store
                                 else:
                                     logger.error("❌ Failed to place call order")
                                     bot_state.no_trade_reason = "Order placement failed"
@@ -529,9 +545,25 @@ async def run_trading_bot(wb, settings):
                             elif trade_signal == 'put':
                                 success = execute_put_trade(wb, symbol, combined_grade, account_info)
                                 if success:
+                                    # Store entry details
+                                    entry_details = {
+                                        'signal': 'Technical + Zone' if zone_signal else 'Technical',
+                                        'reasons': trade_reason,
+                                        'zones': zones.copy() if zone_signal else None,
+                                        'grade': combined_grade,
+                                        'entry_price': current_price,
+                                        'timestamp': datetime.now(timezone.utc).isoformat()
+                                    }
+                                    
                                     send_notification(f"Put Trade Executed\n{', '.join(trade_reason)}\nPrice: ${current_price:.2f}\nGrade: {combined_grade}")
                                     bot_state.last_action = f"Placed PUT order at ${current_price:.2f}"
                                     logger.info("✅ Put order placed successfully")
+                                    
+                                    # Store in database for later retrieval
+                                    try:
+                                        await db.trade_entries.insert_one(entry_details)
+                                    except:
+                                        pass  # Don't fail if can't store
                                 else:
                                     logger.error("❌ Failed to place put order")
                                     bot_state.no_trade_reason = "Order placement failed"
