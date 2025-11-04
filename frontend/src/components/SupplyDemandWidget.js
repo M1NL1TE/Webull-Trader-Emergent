@@ -62,6 +62,27 @@ function SupplyDemandWidget() {
       <CardContent className="space-y-4">
         {zones && zones.supply_top > 0 ? (
           <>
+            {/* Timestamp Info Banner */}
+            {zones.timestamp_start && (
+              <div className="p-3 rounded-lg bg-slate-700/30 border border-slate-600">
+                <div className="flex items-center justify-between text-xs">
+                  <div>
+                    <span className="text-slate-400">Data Range:</span>
+                    <span className="text-slate-200 ml-2 font-mono">
+                      {new Date(zones.timestamp_start).toLocaleDateString()} {new Date(zones.timestamp_start).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </span>
+                    <span className="text-slate-500 mx-1">→</span>
+                    <span className="text-slate-200 font-mono">
+                      {new Date(zones.timestamp_end).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </span>
+                  </div>
+                  <span className="text-slate-400">
+                    {zones.candle_count} candles
+                  </span>
+                </div>
+              </div>
+            )}
+            
             {/* Market Status Indicator */}
             {marketStatus && marketStatus.includes('Closed') && (
               <div className="mb-3 p-2 rounded bg-amber-500/10 border border-amber-500/30">
