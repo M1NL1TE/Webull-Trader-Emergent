@@ -170,6 +170,17 @@ function Positions({ positions }) {
                           <span className="text-xs text-blue-400">Grade: {entrySignal.grade}</span>
                         </div>
                         <p className="text-xs text-blue-200">{entrySignal.reasons}</p>
+                        
+                        {/* SPY Entry Price */}
+                        {entrySignal.entry_price && (
+                          <div className="mt-2 pt-2 border-t border-blue-500/30">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-slate-400">SPY Entry Price:</span>
+                              <span className="text-sm font-mono font-semibold text-cyan-400">${entrySignal.entry_price.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        )}
+                        
                         {entrySignal.zones && (
                           <div className="mt-2 pt-2 border-t border-blue-500/30">
                             <p className="text-xs text-slate-400 mb-1">Entry Zones:</p>
