@@ -290,16 +290,27 @@ def analyze_supply_demand(df):
         # Find the demand level and its timestamp
         demand_timestamp = None
         if len(swing_lows) > 0:
+            # Log all detected swing lows for debugging
+            logger.info(f"📊 Found {len(swing_lows)} swing lows:")
+            for idx, (price, ts_idx) in enumerate(swing_lows):
+                logger.info(f"  Swing Low #{idx+1}: ${price:.2f} at {recent_timestamps[ts_idx]}")
+            
             # Use the lowest of the last 3 swing lows
             last_swings = swing_lows[-3:] if len(swing_lows) >= 3 else swing_lows
+            logger.info(f"📍 Last 3 swing lows being considered:")
+            for idx, (price, ts_idx) in enumerate(last_swings):
+                logger.info(f"  Last Swing #{idx+1}: ${price:.2f} at {recent_timestamps[ts_idx]}")
+            
             demand_swing = min(last_swings, key=lambda x: x[0])
             demand_level = demand_swing[0]
             demand_timestamp = recent_timestamps[demand_swing[1]].isoformat()
+            logger.info(f"✅ Selected Demand Level: ${demand_level:.2f} at {demand_timestamp}")
         else:
             # Fallback to simple min
             min_idx = np.argmin(recent_lows)
             demand_level = recent_lows[min_idx]
             demand_timestamp = recent_timestamps[min_idx].isoformat()
+            logger.info(f"⚠️ No swing lows found - using absolute min: ${demand_level:.2f} at {demand_timestamp}")
         
         # Create zones with 0.25% width (more precise for intraday SPY)
         supply_top = supply_level
