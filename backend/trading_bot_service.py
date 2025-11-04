@@ -407,7 +407,7 @@ async def run_trading_bot(wb, settings):
         # Calculate initial zones even if market is closed (for display purposes)
         try:
             stockId = wb.get_ticker(symbol)
-            df = wb.get_bars(symbol, stockId, interval, 140, 1)
+            df = wb.get_bars(symbol, stockId, interval, 200, 1)  # Increased for 80-candle lookback
             if df is not None and len(df) >= 50:
                 initial_zones = analyze_supply_demand(df)
                 bot_state.zones = initial_zones
@@ -471,7 +471,7 @@ async def run_trading_bot(wb, settings):
                     logger.info("No positions - analyzing for entry signals...")
                     
                     # Get price data
-                    df = wb.get_bars(symbol, stockId, interval, 140, 1)
+                    df = wb.get_bars(symbol, stockId, interval, 200, 1)  # Increased for 80-candle lookback
                     
                     if df is None or len(df) < 50:
                         bot_state.no_trade_reason = "Insufficient price data"
