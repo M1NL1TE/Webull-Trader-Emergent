@@ -103,22 +103,71 @@ function OrderHistory() {
           <ScrollArea className="h-[600px] pr-4">
             <div className="space-y-3">
               {orders.map((order, index) => {
+                // Parse option symbol: SPY251104C00683000 -> SPY $683 / 04 Nov Call
+                const parseOptionSymbol = (symbol) => {
+                  // Format: SYMBOL+YYMMDD+C/P+STRIKEXXXXXX
+                  const match = symbol.match(/^([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/);
+                  
+                  if (match) {
+                    const [, ticker, year, month, day, type, strikeRaw] = match;
+                    const strike = parseInt(strikeRaw) / 1000; // Strike is in cents, divide by 1000
+                    const optionType = type === 'C' ? 'Call' : 'Put';
+                    
+                    // Format date
+                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    const monthName = months[parseInt(month) - 1];
+                    
+                    return {
+                      ticker,
+                      strike: `$${strike}`,
+                      date: `${day} ${monthName}`,
+                      year: `20${year}`,
+                      type: optionType
+                    };
+                  }
+                  
+                  // If not an option symbol, return as-is
+                  return {
+                    ticker: symbol,
+                    strike: '',
+                    date: '',
+                    year: '',
+                    type: ''
+                  };
+                };
+                
                 // Handle both stock and option orders
                 let symbol = 'N/A';
+                let displayDate = '';
                 
                 if (order.ticker && order.ticker.symbol) {
-                  // Stock order with symbol
-                  symbol = order.ticker.symbol;
+                  const rawSymbol = order.ticker.symbol;
+                  const parsed = parseOptionSymbol(rawSymbol);
+                  
+                  if (parsed.strike) {
+                    // Option format: "SPY $683 / 04 Nov Call"
+                    symbol = `${parsed.ticker} ${parsed.strike}`;
+                    displayDate = `${parsed.date} ${parsed.type}`;
+                  } else {
+                    symbol = rawSymbol;
+                  }
                 } else if (order.symbol) {
                   // Direct symbol field
-                  symbol = order.symbol;
+                  const parsed = parseOptionSymbol(order.symbol);
+                  if (parsed.strike) {
+                    symbol = `${parsed.ticker} ${parsed.strike}`;
+                    displayDate = `${parsed.date} ${parsed.type}`;
+                  } else {
+                    symbol = order.symbol;
+                  }
                 } else if (order.tickerType === 'OPTION' && order.optionType) {
                   // Option order - use looked up underlying symbol
                   const underlying = order.underlyingSymbol || 'Unknown';
                   const optType = order.optionType.toUpperCase();
                   const strike = order.optionExercisePrice || '?';
                   const expiry = order.optionExpireDate ? new Date(order.optionExpireDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-                  symbol = `${underlying} ${expiry} $${strike} ${optType}`;
+                  symbol = `${underlying} $${strike}`;
+                  displayDate = `${expiry} ${optType}`;
                 }
                 
                 const action = order.action || 'N/A';
