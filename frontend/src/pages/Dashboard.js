@@ -151,8 +151,11 @@ function Dashboard({ setIsAuthenticated }) {
               <NoTradeReasonWidget />
             </div>
             
-            {/* Supply/Demand Zones */}
-            <SupplyDemandWidget />
+            {/* ORB & Supply/Demand Zones Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <OrbStatusWidget />
+              <SupplyDemandWidget />
+            </div>
             
             {/* Positions, Orders & P/L */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
