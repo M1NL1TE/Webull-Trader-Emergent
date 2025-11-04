@@ -222,14 +222,15 @@ def analyze_supply_demand(df):
     - Uses 15-minute candles for stronger levels
     - Tighter 0.25% zone width for precision
     - Requires 3 candles on each side for stronger pivots
+    - Increased lookback to 80 candles (20 hours of 15-min data)
     """
     try:
         highs = df['high'].values
         lows = df['low'].values
         closes = df['close'].values
         
-        # Look at last 40 candles for better swing detection
-        lookback = min(40, len(df))
+        # Look at last 80 candles (20 hours with 15-min candles = same as 40 candles with 30-min)
+        lookback = min(80, len(df))
         recent_highs = highs[-lookback:]
         recent_lows = lows[-lookback:]
         recent_closes = closes[-lookback:]
