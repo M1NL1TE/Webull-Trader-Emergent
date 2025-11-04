@@ -352,6 +352,7 @@ def check_orb_breakout(wb, symbol, current_time):
     """Check for Opening Range Breakout in first 15 minutes
     
     ORB levels persist throughout the trading day once calculated.
+    If calculated after 9:45 AM, fetches historical data from 9:30-9:45 AM window.
     """
     try:
         from pytz import timezone as pytz_timezone
@@ -361,34 +362,43 @@ def check_orb_breakout(wb, symbol, current_time):
         market_open = now_eastern.replace(hour=9, minute=30, second=0, microsecond=0)
         orb_end = market_open + timedelta(minutes=15)
         
-        # Check if we're in the ORB calculation window (9:30-9:45 AM)
-        in_orb_window = market_open <= now_eastern <= orb_end
-        
-        # If we already have ORB levels and we're past the window, return None but keep levels
-        if not in_orb_window and bot_state.orb_status.get('high', 0) > 0:
-            return None, f"ORB window closed. Levels: ${bot_state.orb_status['low']:.2f} - ${bot_state.orb_status['high']:.2f}"
+        # If we already have ORB levels for today, return None but keep levels
+        if bot_state.orb_status.get('high', 0) > 0:
+            return None, f"ORB calculated. Levels: ${bot_state.orb_status['low']:.2f} - ${bot_state.orb_status['high']:.2f}"
         
         # If we're before market open, no ORB yet
         if now_eastern < market_open:
             return None, "Market not open yet (ORB at 9:30 AM)"
         
-        # We're in the ORB window - calculate levels
-        if in_orb_window:
-            # Get 1-minute bars for ORB analysis
-            stockId = wb.get_ticker(symbol)
+        # Calculate ORB levels (works both during and after the window)
+        stockId = wb.get_ticker(symbol)
+        
+        # If we're past the ORB window, get historical data from 9:30-9:45 AM today
+        if now_eastern > orb_end:
+            # Calculate timestamp for 9:45 AM today
+            orb_end_timestamp = int(orb_end.timestamp())
+            df_1m = wb.get_bars(symbol, stockId, 'm1', 15, 1, timeStamp=orb_end_timestamp)
+            logger.info(f"📊 Calculating ORB from historical data (9:30-9:45 AM)")
+        else:
+            # We're in the ORB window - get current data
             df_1m = wb.get_bars(symbol, stockId, 'm1', 20, 1)
-            
-            if df_1m is None or len(df_1m) < 10:
-                return None, "Insufficient data for ORB"
-            
-            # Calculate opening range (first 10 minutes)
-            orb_high = df_1m['high'][:10].max()
-            orb_low = df_1m['low'][:10].min()
+        
+        if df_1m is None or len(df_1m) < 10:
+            return None, "Insufficient data for ORB calculation"
+        
+        # Calculate opening range (first 10 minutes of 1-min bars)
+        orb_high = df_1m['high'][:10].max()
+        orb_low = df_1m['low'][:10].min()
+        
+        # Store ORB levels (persist throughout day)
+        bot_state.orb_status['high'] = orb_high
+        bot_state.orb_status['low'] = orb_low
+        
+        logger.info(f"✅ ORB Levels Calculated: High=${orb_high:.2f}, Low=${orb_low:.2f}")
+        
+        # Check current price for breakout status (only if we have current data)
+        if now_eastern <= orb_end and len(df_1m) > 0:
             current_price = df_1m['close'].iloc[-1]
-            
-            # Store ORB levels (persist throughout day)
-            bot_state.orb_status['high'] = orb_high
-            bot_state.orb_status['low'] = orb_low
             
             # Check for breakout
             if current_price > orb_high and not bot_state.orb_status['upside_broken']:
@@ -403,7 +413,7 @@ def check_orb_breakout(wb, symbol, current_time):
             
             return None, f"ORB range: ${orb_low:.2f} - ${orb_high:.2f}, Current: ${current_price:.2f}"
         
-        return None, "Outside ORB window"
+        return None, f"ORB levels set: ${orb_low:.2f} - ${orb_high:.2f}"
         
     except Exception as e:
         logger.error(f"Error checking ORB: {e}")
