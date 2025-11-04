@@ -216,24 +216,64 @@ def get_candle_grade(df):
 
 
 def analyze_supply_demand(df):
-    """Analyze supply and demand zones from price data"""
+    """Analyze supply and demand zones from price data using proper swing detection"""
     try:
-        # Look for significant support/resistance levels
         highs = df['high'].values
         lows = df['low'].values
         closes = df['close'].values
         
-        # Find recent swing highs and lows
-        recent_high = np.max(highs[-20:])
-        recent_low = np.min(lows[-20:])
+        # Look at last 40 candles for better swing detection (was 20)
+        lookback = min(40, len(df))
+        recent_highs = highs[-lookback:]
+        recent_lows = lows[-lookback:]
+        recent_closes = closes[-lookback:]
         
-        # Supply zone (resistance): area around recent highs
-        supply_top = recent_high
-        supply_bottom = recent_high * 0.995  # 0.5% below high
+        # Find swing highs and lows (not just max/min)
+        # A swing high needs lower highs on both sides
+        # A swing low needs higher lows on both sides
+        swing_highs = []
+        swing_lows = []
         
-        # Demand zone (support): area around recent lows  
-        demand_bottom = recent_low
-        demand_top = recent_low * 1.005  # 0.5% above low
+        for i in range(2, lookback - 2):
+            # Check for swing high
+            if (recent_highs[i] > recent_highs[i-1] and 
+                recent_highs[i] > recent_highs[i-2] and
+                recent_highs[i] > recent_highs[i+1] and 
+                recent_highs[i] > recent_highs[i+2]):
+                swing_highs.append(recent_highs[i])
+            
+            # Check for swing low
+            if (recent_lows[i] < recent_lows[i-1] and 
+                recent_lows[i] < recent_lows[i-2] and
+                recent_lows[i] < recent_lows[i+1] and 
+                recent_lows[i] < recent_lows[i+2]):
+                swing_lows.append(recent_lows[i])
+        
+        # If we found swings, use them; otherwise fall back to simple high/low
+        if len(swing_highs) > 0:
+            supply_level = max(swing_highs[-3:]) if len(swing_highs) >= 3 else max(swing_highs)
+        else:
+            supply_level = np.max(recent_highs)
+        
+        if len(swing_lows) > 0:
+            demand_level = min(swing_lows[-3:]) if len(swing_lows) >= 3 else min(swing_lows)
+        else:
+            demand_level = np.min(recent_lows)
+        
+        # Create zones with 1% width (wider than 0.5% to be more visible)
+        supply_top = supply_level
+        supply_bottom = supply_level * 0.99  # 1% below high
+        
+        demand_bottom = demand_level  
+        demand_top = demand_level * 1.01  # 1% above low
+        
+        # CRITICAL: Ensure zones don't overlap
+        # If demand top is above supply bottom, there's an issue
+        if demand_top > supply_bottom:
+            # Create a gap between zones
+            midpoint = (supply_bottom + demand_top) / 2
+            supply_bottom = midpoint + 0.5  # At least $0.50 gap
+            demand_top = midpoint - 0.5
         
         return {
             'demand_top': demand_top,
