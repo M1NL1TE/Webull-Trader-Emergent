@@ -492,9 +492,25 @@ async def run_trading_bot(wb, settings):
         except Exception as e:
             logger.warning(f"Could not calculate initial zones: {e}")
         
+        # Counter to reload settings periodically
+        check_counter = 0
+        
         while bot_state.running:
             try:
                 bot_state.last_check_time = datetime.now()
+                
+                # Reload settings every 10 iterations (~2.5 minutes)
+                check_counter += 1
+                if check_counter % 10 == 0:
+                    try:
+                        from server import settings_collection
+                        settings_doc = settings_collection.find_one({})
+                        if settings_doc:
+                            profit_pct = settings_doc.get('profit_percentage', 50.0) / 100.0
+                            loss_pct = settings_doc.get('loss_percentage', 25.0) / 100.0
+                            logger.info(f"♻️ Settings reloaded: Profit={profit_pct*100}%, Loss={loss_pct*100}%")
+                    except Exception as e:
+                        logger.warning(f"Could not reload settings: {e}")
                 
                 # Check if market is open (in Eastern Time)
                 from pytz import timezone as pytz_timezone
