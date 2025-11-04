@@ -654,24 +654,56 @@ async def run_trading_bot(wb, settings):
                     
                     cost_price = float(position['costPrice'])
                     current_price = float(position['lastPrice'])
+                    ticker_id = position['ticker']['tickerId']
+                    quantity = int(position['position'])
                     
                     # Calculate profit/loss targets
                     target_price = cost_price * (1 + profit_pct)
-                    stop_loss = cost_price * (1 - loss_pct)
+                    stop_loss_price = cost_price * (1 - loss_pct)
                     
                     pnl_pct = ((current_price - cost_price) / cost_price) * 100
                     
                     logger.info(f"Position P/L: {pnl_pct:.2f}% (Target: +{profit_pct*100}%, Stop: -{loss_pct*100}%)")
                     bot_state.current_signal = f"Monitoring position: P/L {pnl_pct:.2f}%"
                     
+                    # CHECK FOR EXIT CONDITIONS
                     if current_price >= target_price:
-                        logger.info(f"🎯 Target reached! Selling at profit")
-                        # TODO: Place sell order
-                        send_sms(f"SPY position sold for {pnl_pct:.2f}% profit")
-                    elif current_price <= stop_loss:
-                        logger.info(f"🛑 Stop loss hit! Selling to limit loss")
-                        # TODO: Place sell order
-                        send_sms(f"SPY position sold at {pnl_pct:.2f}% loss (stop loss)")
+                        logger.info(f"🎯 PROFIT TARGET REACHED! P/L: {pnl_pct:.2f}%")
+                        try:
+                            # Place SELL order
+                            wb.place_order_option(
+                                optionId=ticker_id,
+                                lmtPrice=current_price,
+                                stpPrice=str(float(current_price) - 0.25),
+                                action='SELL',
+                                orderType='LMT',
+                                enforce='GTC',
+                                quant=quantity
+                            )
+                            logger.info(f"✅ SELL order placed: {quantity} contracts at ${current_price}")
+                            send_notification(f"Profit Target Hit!\nSold {quantity} contracts at {pnl_pct:.2f}% profit\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
+                            bot_state.last_action = f"SOLD at +{pnl_pct:.2f}% profit"
+                        except Exception as e:
+                            logger.error(f"❌ Error placing SELL order: {e}")
+                            
+                    elif current_price <= stop_loss_price:
+                        logger.info(f"🛑 STOP LOSS HIT! P/L: {pnl_pct:.2f}%")
+                        try:
+                            # Place SELL order (market order for faster execution)
+                            wb.place_order_option(
+                                optionId=ticker_id,
+                                lmtPrice=current_price,
+                                stpPrice=str(float(current_price) - 0.25),
+                                action='SELL',
+                                orderType='LMT',
+                                enforce='GTC',
+                                quant=quantity
+                            )
+                            logger.info(f"✅ STOP LOSS SELL order placed: {quantity} contracts at ${current_price}")
+                            send_notification(f"Stop Loss Triggered!\nSold {quantity} contracts at {pnl_pct:.2f}% loss\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
+                            bot_state.last_action = f"SOLD at {pnl_pct:.2f}% loss (stop loss)"
+                        except Exception as e:
+                            logger.error(f"❌ Error placing STOP LOSS order: {e}")
                 
                 # Sleep before next check (15 seconds in original)
                 await asyncio.sleep(15)
