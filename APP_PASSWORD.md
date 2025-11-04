@@ -5,7 +5,7 @@
 **Current Password:** `WebullTrader2024!Secure`
 
 **Where to use it:**
-- When you first visit https://webull-auto.preview.emergentagent.com
+- When you first visit https://options-autopilot-3.preview.emergentagent.com
 - You'll see a password screen before accessing the app
 - Enter this password to unlock the dashboard
 
@@ -92,7 +92,7 @@ Let me know if you want any of these!
 ## Testing
 
 Try it now:
-1. Open https://webull-auto.preview.emergentagent.com in an **incognito/private window**
+1. Open https://options-autopilot-3.preview.emergentagent.com in an **incognito/private window**
 2. You should see the password screen
 3. Enter: `WebullTrader2024!Secure`
 4. You should be able to access the app
