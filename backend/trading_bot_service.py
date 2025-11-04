@@ -389,7 +389,7 @@ async def run_trading_bot(wb, settings):
         
         # Initialize variables (from original main)
         symbol = 'SPY'
-        interval = 'm30'
+        interval = 'm15'  # 15-minute candles for stronger S/D levels
         ztd, zbd, zts, zbs = 0, 0, 0, 0
         orb_up_time, orb_down_time = '', ''
         orb_break_upside, orb_break_downside = False, False
