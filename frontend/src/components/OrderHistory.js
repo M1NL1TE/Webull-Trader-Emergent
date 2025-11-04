@@ -202,12 +202,15 @@ function OrderHistory() {
                     <div className="flex justify-between items-start mb-3">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-semibold text-white">{symbol}</h4>
+                          <h4 className="font-semibold text-white text-lg">{symbol}</h4>
                           <Badge variant="outline" className={action === 'BUY' ? 'text-green-400 border-green-700' : 'text-red-400 border-red-700'}>
                             {action}
                           </Badge>
                         </div>
-                        <p className="text-xs text-slate-400">
+                        {displayDate && (
+                          <p className="text-xs text-slate-400">{displayDate}</p>
+                        )}
+                        <p className="text-xs text-slate-400 mt-1">
                           {orderDate} {orderTime}
                         </p>
                       </div>
