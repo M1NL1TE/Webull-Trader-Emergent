@@ -59,8 +59,16 @@ function OrbStatusWidget() {
       <CardContent className="space-y-4">
         {!hasOrbData ? (
           <div className="text-center py-6">
-            <p className="text-slate-400 text-sm">
-              ORB levels available during market hours (9:30-9:45 AM)
+            <p className="text-slate-400 text-sm mb-3">
+              ⏱️ ORB Levels Not Yet Calculated
+            </p>
+            <p className="text-xs text-slate-500">
+              ORB is calculated during 9:30-9:45 AM EST and persists throughout the trading day.
+            </p>
+            <p className="text-xs text-slate-500 mt-2">
+              {new Date().getHours() < 9 || (new Date().getHours() === 9 && new Date().getMinutes() < 30) 
+                ? 'Will be calculated when market opens at 9:30 AM'
+                : 'Bot was started after 9:45 AM - ORB levels will be available tomorrow'}
             </p>
           </div>
         ) : (
