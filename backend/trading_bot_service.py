@@ -450,6 +450,8 @@ async def run_trading_bot(wb, settings):
                     bot_state.market_status = "Closed (Weekend)"
                     bot_state.current_signal = "Waiting for market open"
                     logger.info("Weekend - market closed")
+                    # Reset ORB status on weekends
+                    bot_state.orb_status = {'high': 0, 'low': 0, 'upside_broken': False, 'downside_broken': False}
                     await asyncio.sleep(3600)  # Check every hour on weekends
                     continue
                 
@@ -457,6 +459,10 @@ async def run_trading_bot(wb, settings):
                     bot_state.market_status = "Pre-Market"
                     bot_state.current_signal = "Waiting for market open at 9:30 AM"
                     logger.info(f"Pre-market - waiting until {market_open}")
+                    # Reset ORB status before market opens (new trading day)
+                    if bot_state.orb_status.get('high', 0) > 0:
+                        logger.info("Resetting ORB levels for new trading day")
+                        bot_state.orb_status = {'high': 0, 'low': 0, 'upside_broken': False, 'downside_broken': False}
                     await asyncio.sleep(60)  # Check every minute
                     continue
                 
@@ -464,6 +470,7 @@ async def run_trading_bot(wb, settings):
                     bot_state.market_status = "Closed (After Hours)"
                     bot_state.current_signal = "Market closed for the day"
                     logger.info("Market closed for the day")
+                    # Keep ORB levels visible after hours (don't reset)
                     await asyncio.sleep(3600)  # Check every hour after close
                     continue
                 
