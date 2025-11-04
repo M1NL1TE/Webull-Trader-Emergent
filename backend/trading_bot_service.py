@@ -289,15 +289,31 @@ def analyze_supply_demand(df):
             supply_bottom = midpoint + 0.5  # At least $0.50 gap
             demand_top = midpoint - 0.5
         
+        # Calculate timestamp information
+        first_timestamp = recent_timestamps[0].isoformat() if len(recent_timestamps) > 0 else None
+        last_timestamp = recent_timestamps[-1].isoformat() if len(recent_timestamps) > 0 else None
+        candle_count = lookback
+        
         return {
             'demand_top': demand_top,
             'demand_bottom': demand_bottom,
             'supply_top': supply_top,
-            'supply_bottom': supply_bottom
+            'supply_bottom': supply_bottom,
+            'timestamp_start': first_timestamp,
+            'timestamp_end': last_timestamp,
+            'candle_count': candle_count
         }
     except Exception as e:
         logger.error(f"Error analyzing supply/demand: {e}")
-        return {'demand_top': 0, 'demand_bottom': 0, 'supply_top': 0, 'supply_bottom': 0}
+        return {
+            'demand_top': 0, 
+            'demand_bottom': 0, 
+            'supply_top': 0, 
+            'supply_bottom': 0,
+            'timestamp_start': None,
+            'timestamp_end': None,
+            'candle_count': 0
+        }
 
 
 def check_orb_breakout(wb, symbol, current_time):
