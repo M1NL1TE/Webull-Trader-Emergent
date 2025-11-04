@@ -965,6 +965,95 @@ def filter_options_for_trade(wb, symbol, option_type):
         return None
 
 
+def backfill_entry_signal(wb):
+    """Backfill entry signal data for current position from order history"""
+    try:
+        logger.info("🔄 Attempting to backfill entry signal for current position...")
+        
+        # Get current positions
+        account_info = wb.get_account()
+        positions = account_info.get('positions', [])
+        
+        if not positions:
+            logger.info("No positions to backfill")
+            return False
+        
+        # Get the most recent position (assuming only one position at a time)
+        position = positions[0]
+        ticker_symbol = position['ticker']['symbol']
+        
+        # Get order history to find when this position was opened
+        orders = wb.get_history_orders(1)  # Paper trading account
+        
+        # Find the BUY order for this ticker
+        buy_order = None
+        for order in orders:
+            if (order.get('action') == 'BUY' and 
+                order.get('ticker', {}).get('symbol') == ticker_symbol and
+                order.get('status') == 'Filled'):
+                buy_order = order
+                break
+        
+        if not buy_order:
+            logger.warning(f"Could not find BUY order for {ticker_symbol}")
+            return False
+        
+        # Get the filled time (timestamp in milliseconds)
+        filled_time_ms = buy_order.get('filledTime0')
+        if not filled_time_ms:
+            logger.warning("No filled time found in order")
+            return False
+        
+        # Convert to seconds for get_bars
+        filled_timestamp = int(filled_time_ms / 1000)
+        
+        logger.info(f"Found BUY order filled at timestamp: {filled_timestamp}")
+        
+        # Get SPY price at that time (get bars around that timestamp)
+        stockId = wb.get_ticker('SPY')
+        df = wb.get_bars('SPY', stockId, 'm15', 200, 1, timeStamp=filled_timestamp)
+        
+        if df is None or len(df) == 0:
+            logger.warning("Could not fetch historical SPY data")
+            return False
+        
+        # Get the price closest to the order time
+        entry_price = df['close'].iloc[-1]
+        
+        # Calculate zones at that time
+        zones = analyze_supply_demand(df)
+        
+        # Determine if it was a zone trade
+        in_demand_zone = zones['demand_bottom'] <= entry_price <= zones['demand_top']
+        in_supply_zone = zones['supply_bottom'] <= entry_price <= zones['supply_top']
+        
+        # Determine direction from option type
+        option_type = position.get('ticker', {}).get('optionSymbol', '')
+        is_call = 'C' in ticker_symbol[-9:]  # Check last part for C or P
+        direction = 'CALL' if is_call else 'PUT'
+        
+        signal_type = 'Zone Trade' if (in_demand_zone or in_supply_zone) else 'Manual/Historical'
+        
+        # Create backfilled entry signal
+        bot_state.last_entry_signal = {
+            'signal_type': signal_type,
+            'reasons': f'Position opened at 12:45 PM {"in demand zone" if in_demand_zone else "in supply zone" if in_supply_zone else ""}',
+            'zones': zones.copy() if (in_demand_zone or in_supply_zone) else None,
+            'grade': 'N/A',
+            'entry_price': float(entry_price),
+            'direction': direction,
+            'timestamp': buy_order.get('filledTime', 'Unknown'),
+            'backfilled': True
+        }
+        
+        logger.info(f"✅ Entry signal backfilled: SPY ${entry_price:.2f}, {direction}, {signal_type}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error backfilling entry signal: {e}", exc_info=True)
+        return False
+
+
 def get_bot_status():
     """Get current bot status for API endpoint"""
     return {
