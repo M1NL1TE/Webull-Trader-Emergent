@@ -751,6 +751,11 @@ async def run_trading_bot(wb, settings):
                     logger.info("Monitoring open position...")
                     position = account_info['positions'][0]
                     
+                    # Backfill entry signal if missing
+                    if not bot_state.last_entry_signal:
+                        logger.info("Entry signal missing - attempting to backfill from order history")
+                        backfill_entry_signal(wb)
+                    
                     cost_price = float(position['costPrice'])
                     current_price = float(position['lastPrice'])
                     ticker_id = position['ticker']['tickerId']
