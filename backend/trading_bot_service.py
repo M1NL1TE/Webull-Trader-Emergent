@@ -305,7 +305,7 @@ def analyze_supply_demand(df):
             supply_bottom = midpoint + 0.5  # At least $0.50 gap
             demand_top = midpoint - 0.5
         
-        # Calculate timestamp information
+        # Calculate overall timestamp range
         first_timestamp = recent_timestamps[0].isoformat() if len(recent_timestamps) > 0 else None
         last_timestamp = recent_timestamps[-1].isoformat() if len(recent_timestamps) > 0 else None
         candle_count = lookback
@@ -315,8 +315,10 @@ def analyze_supply_demand(df):
             'demand_bottom': demand_bottom,
             'supply_top': supply_top,
             'supply_bottom': supply_bottom,
-            'timestamp_start': first_timestamp,
-            'timestamp_end': last_timestamp,
+            'supply_timestamp': supply_timestamp,  # Timestamp of supply swing candle
+            'demand_timestamp': demand_timestamp,  # Timestamp of demand swing candle
+            'timestamp_start': first_timestamp,    # First candle in lookback
+            'timestamp_end': last_timestamp,       # Last candle in lookback
             'candle_count': candle_count
         }
     except Exception as e:
@@ -326,6 +328,8 @@ def analyze_supply_demand(df):
             'demand_bottom': 0, 
             'supply_top': 0, 
             'supply_bottom': 0,
+            'supply_timestamp': None,
+            'demand_timestamp': None,
             'timestamp_start': None,
             'timestamp_end': None,
             'candle_count': 0
