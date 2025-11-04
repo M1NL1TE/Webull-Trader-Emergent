@@ -265,16 +265,27 @@ def analyze_supply_demand(df):
         # Find the supply level and its timestamp
         supply_timestamp = None
         if len(swing_highs) > 0:
+            # Log all detected swing highs for debugging
+            logger.info(f"📊 Found {len(swing_highs)} swing highs:")
+            for idx, (price, ts_idx) in enumerate(swing_highs):
+                logger.info(f"  Swing High #{idx+1}: ${price:.2f} at {recent_timestamps[ts_idx]}")
+            
             # Use the highest of the last 3 swing highs
             last_swings = swing_highs[-3:] if len(swing_highs) >= 3 else swing_highs
+            logger.info(f"📍 Last 3 swing highs being considered:")
+            for idx, (price, ts_idx) in enumerate(last_swings):
+                logger.info(f"  Last Swing #{idx+1}: ${price:.2f} at {recent_timestamps[ts_idx]}")
+            
             supply_swing = max(last_swings, key=lambda x: x[0])
             supply_level = supply_swing[0]
             supply_timestamp = recent_timestamps[supply_swing[1]].isoformat()
+            logger.info(f"✅ Selected Supply Level: ${supply_level:.2f} at {supply_timestamp}")
         else:
             # Fallback to simple max
             max_idx = np.argmax(recent_highs)
             supply_level = recent_highs[max_idx]
             supply_timestamp = recent_timestamps[max_idx].isoformat()
+            logger.info(f"⚠️ No swing highs found - using absolute max: ${supply_level:.2f} at {supply_timestamp}")
         
         # Find the demand level and its timestamp
         demand_timestamp = None
