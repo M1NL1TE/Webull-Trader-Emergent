@@ -53,6 +53,11 @@ function SupplyDemandWidget() {
           <DollarSign className="w-5 h-5 text-cyan-400" />
           Supply/Demand Zones
         </CardTitle>
+        {zones && zones.timestamp_start && (
+          <p className="text-xs text-slate-400 mt-2">
+            📅 Calculated from {zones.candle_count} candles (15-min) • {new Date(zones.timestamp_start).toLocaleString()} - {new Date(zones.timestamp_end).toLocaleString()}
+          </p>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
         {zones && zones.supply_top > 0 ? (
