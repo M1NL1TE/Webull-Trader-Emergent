@@ -220,10 +220,10 @@ def analyze_supply_demand(df):
     
     Improvements:
     - Uses 15-minute candles for stronger levels
+    - 3 trading days lookback (195 candles × 15-min = ~48.75 hours)
     - Tighter 0.25% zone width for precision
     - Requires 3 candles on each side for stronger pivots
-    - Increased lookback to 80 candles (20 hours of 15-min data)
-    - Returns timestamp information for zone calculation
+    - Returns separate timestamp information for supply and demand zones
     """
     try:
         highs = df['high'].values
@@ -231,18 +231,17 @@ def analyze_supply_demand(df):
         closes = df['close'].values
         timestamps = df.index  # Get timestamps from dataframe index
         
-        # Look at last 80 candles (20 hours with 15-min candles = same as 40 candles with 30-min)
-        lookback = min(80, len(df))
+        # Look at last 195 candles (~3 trading days with 15-min candles)
+        lookback = min(195, len(df))
         recent_highs = highs[-lookback:]
         recent_lows = lows[-lookback:]
         recent_closes = closes[-lookback:]
         recent_timestamps = timestamps[-lookback:]
         
         # Find swing highs and lows with TIGHTER detection (3 candles on each side)
-        # A swing high needs lower highs on both sides (3 candles)
-        # A swing low needs higher lows on both sides (3 candles)
-        swing_highs = []
-        swing_lows = []
+        # Track both price and timestamp for each swing
+        swing_highs = []  # (price, timestamp_index)
+        swing_lows = []   # (price, timestamp_index)
         
         for i in range(3, lookback - 3):
             # Check for swing high (3 candles on each side)
@@ -252,7 +251,7 @@ def analyze_supply_demand(df):
                 recent_highs[i] > recent_highs[i+1] and 
                 recent_highs[i] > recent_highs[i+2] and
                 recent_highs[i] > recent_highs[i+3]):
-                swing_highs.append(recent_highs[i])
+                swing_highs.append((recent_highs[i], i))
             
             # Check for swing low (3 candles on each side)
             if (recent_lows[i] < recent_lows[i-1] and 
@@ -261,18 +260,35 @@ def analyze_supply_demand(df):
                 recent_lows[i] < recent_lows[i+1] and 
                 recent_lows[i] < recent_lows[i+2] and
                 recent_lows[i] < recent_lows[i+3]):
-                swing_lows.append(recent_lows[i])
+                swing_lows.append((recent_lows[i], i))
         
-        # If we found swings, use them; otherwise fall back to simple high/low
+        # Find the supply level and its timestamp
+        supply_timestamp = None
         if len(swing_highs) > 0:
-            supply_level = max(swing_highs[-3:]) if len(swing_highs) >= 3 else max(swing_highs)
+            # Use the highest of the last 3 swing highs
+            last_swings = swing_highs[-3:] if len(swing_highs) >= 3 else swing_highs
+            supply_swing = max(last_swings, key=lambda x: x[0])
+            supply_level = supply_swing[0]
+            supply_timestamp = recent_timestamps[supply_swing[1]].isoformat()
         else:
-            supply_level = np.max(recent_highs)
+            # Fallback to simple max
+            max_idx = np.argmax(recent_highs)
+            supply_level = recent_highs[max_idx]
+            supply_timestamp = recent_timestamps[max_idx].isoformat()
         
+        # Find the demand level and its timestamp
+        demand_timestamp = None
         if len(swing_lows) > 0:
-            demand_level = min(swing_lows[-3:]) if len(swing_lows) >= 3 else min(swing_lows)
+            # Use the lowest of the last 3 swing lows
+            last_swings = swing_lows[-3:] if len(swing_lows) >= 3 else swing_lows
+            demand_swing = min(last_swings, key=lambda x: x[0])
+            demand_level = demand_swing[0]
+            demand_timestamp = recent_timestamps[demand_swing[1]].isoformat()
         else:
-            demand_level = np.min(recent_lows)
+            # Fallback to simple min
+            min_idx = np.argmin(recent_lows)
+            demand_level = recent_lows[min_idx]
+            demand_timestamp = recent_timestamps[min_idx].isoformat()
         
         # Create zones with 0.25% width (more precise for intraday SPY)
         supply_top = supply_level
