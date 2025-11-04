@@ -185,6 +185,19 @@ function SupplyDemandWidget() {
                     ${(zones.demand_top - zones.demand_bottom).toFixed(2)}
                   </span>
                 </div>
+                {zones.demand_timestamp && (
+                  <div className="pt-2 border-t border-green-500/30">
+                    <span className="text-xs text-slate-400">📅 Swing Low From:</span>
+                    <div className="text-xs text-green-300 font-mono mt-1">
+                      {new Date(zones.demand_timestamp).toLocaleString([], {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </>
