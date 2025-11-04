@@ -216,37 +216,47 @@ def get_candle_grade(df):
 
 
 def analyze_supply_demand(df):
-    """Analyze supply and demand zones from price data using proper swing detection"""
+    """Analyze supply and demand zones from price data using proper swing detection
+    
+    Improvements:
+    - Uses 15-minute candles for stronger levels
+    - Tighter 0.25% zone width for precision
+    - Requires 3 candles on each side for stronger pivots
+    """
     try:
         highs = df['high'].values
         lows = df['low'].values
         closes = df['close'].values
         
-        # Look at last 40 candles for better swing detection (was 20)
+        # Look at last 40 candles for better swing detection
         lookback = min(40, len(df))
         recent_highs = highs[-lookback:]
         recent_lows = lows[-lookback:]
         recent_closes = closes[-lookback:]
         
-        # Find swing highs and lows (not just max/min)
-        # A swing high needs lower highs on both sides
-        # A swing low needs higher lows on both sides
+        # Find swing highs and lows with TIGHTER detection (3 candles on each side)
+        # A swing high needs lower highs on both sides (3 candles)
+        # A swing low needs higher lows on both sides (3 candles)
         swing_highs = []
         swing_lows = []
         
-        for i in range(2, lookback - 2):
-            # Check for swing high
+        for i in range(3, lookback - 3):
+            # Check for swing high (3 candles on each side)
             if (recent_highs[i] > recent_highs[i-1] and 
                 recent_highs[i] > recent_highs[i-2] and
+                recent_highs[i] > recent_highs[i-3] and
                 recent_highs[i] > recent_highs[i+1] and 
-                recent_highs[i] > recent_highs[i+2]):
+                recent_highs[i] > recent_highs[i+2] and
+                recent_highs[i] > recent_highs[i+3]):
                 swing_highs.append(recent_highs[i])
             
-            # Check for swing low
+            # Check for swing low (3 candles on each side)
             if (recent_lows[i] < recent_lows[i-1] and 
                 recent_lows[i] < recent_lows[i-2] and
+                recent_lows[i] < recent_lows[i-3] and
                 recent_lows[i] < recent_lows[i+1] and 
-                recent_lows[i] < recent_lows[i+2]):
+                recent_lows[i] < recent_lows[i+2] and
+                recent_lows[i] < recent_lows[i+3]):
                 swing_lows.append(recent_lows[i])
         
         # If we found swings, use them; otherwise fall back to simple high/low
@@ -260,12 +270,12 @@ def analyze_supply_demand(df):
         else:
             demand_level = np.min(recent_lows)
         
-        # Create zones with 1% width (wider than 0.5% to be more visible)
+        # Create zones with 0.25% width (more precise for intraday SPY)
         supply_top = supply_level
-        supply_bottom = supply_level * 0.99  # 1% below high
+        supply_bottom = supply_level * 0.9975  # 0.25% below high
         
         demand_bottom = demand_level  
-        demand_top = demand_level * 1.01  # 1% above low
+        demand_top = demand_level * 1.0025  # 0.25% above low
         
         # CRITICAL: Ensure zones don't overlap
         # If demand top is above supply bottom, there's an issue
