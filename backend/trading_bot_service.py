@@ -549,6 +549,11 @@ async def run_trading_bot(wb, settings):
                 
                 bot_state.position_status = "Position Open" if has_position else "No Position"
                 
+                # ALWAYS calculate ORB levels (even with positions, for display purposes)
+                if bot_state.orb_status.get('high', 0) == 0:
+                    orb_signal, orb_message = check_orb_breakout(wb, symbol, current_time)
+                    logger.info(f"ORB Check: {orb_message}")
+                
                 if not has_position and not has_open_orders:
                     # Look for entry signals
                     logger.info("No positions - analyzing for entry signals...")
@@ -564,7 +569,7 @@ async def run_trading_bot(wb, settings):
                     current_price = df['close'].iloc[-1]
                     bot_state.current_price = current_price
                     
-                    # 1. CHECK ORB FIRST (Priority in first 15 minutes)
+                    # 1. CHECK ORB (for trading signals)
                     orb_signal, orb_message = check_orb_breakout(wb, symbol, current_time)
                     logger.info(f"ORB Check: {orb_message}")
                     
