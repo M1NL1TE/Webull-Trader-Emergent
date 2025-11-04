@@ -28,6 +28,7 @@ import BotStatusWidget from '@/components/BotStatusWidget';
 import TechnicalSignalsWidget from '@/components/TechnicalSignalsWidget';
 import NoTradeReasonWidget from '@/components/NoTradeReasonWidget';
 import SupplyDemandWidget from '@/components/SupplyDemandWidget';
+import OrbStatusWidget from '@/components/OrbStatusWidget';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
