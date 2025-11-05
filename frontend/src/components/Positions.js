@@ -166,12 +166,11 @@ function Positions({ positions: initialPositions }) {
           <span className="text-xs text-slate-500 font-normal">(Updates every 5s)</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-0">
-        <ScrollArea className="h-[350px] px-6 pt-4">
-          <div className="space-y-4 pb-4">
-            {positions.map((position, index) => {
-              console.log('Rendering position:', position);
-              console.log('Ticker ID:', position?.ticker?.tickerId);
+      <CardContent className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {positions.map((position, index) => {
+            console.log('Rendering position:', position);
+            console.log('Ticker ID:', position?.ticker?.tickerId);
               
               const unrealizedPL = parseFloat(position.unrealizedProfitLoss || 0);
               const isProfit = unrealizedPL >= 0;
