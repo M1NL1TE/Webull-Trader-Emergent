@@ -12,7 +12,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
 
 # Get backend URL from frontend .env
-BACKEND_URL = "https://options-autopilot-3.preview.emergentagent.com/api"
+BACKEND_URL = "https://autotrade-spy.preview.emergentagent.com/api"
 APP_PASSWORD = "WebullTrader2024!Secure"
 
 class WebullBackendTester:
