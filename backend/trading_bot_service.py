@@ -675,16 +675,20 @@ async def run_trading_bot(wb, settings):
                     trade_signal = None
                     trade_reason = []
                     
-                    # Zone-based signals
-                    if zone_signal == 'call' and combined_grade >= 'C':
+                    # Grade comparison helper (alphabetic comparison is backwards for grades!)
+                    grade_values = {'A+': 8, 'A': 7, 'B+': 6, 'B': 5, 'C+': 4, 'C': 3, 'D+': 2, 'D': 1}
+                    current_grade_value = grade_values.get(combined_grade, 1)
+                    
+                    # Zone-based signals (require C or higher = value >= 3)
+                    if zone_signal == 'call' and current_grade_value >= 3:
                         trade_signal = 'call'
                         trade_reason.append(f"Demand zone bounce (Grade: {combined_grade})")
-                    elif zone_signal == 'put' and combined_grade >= 'C':
+                    elif zone_signal == 'put' and current_grade_value >= 3:
                         trade_signal = 'put'
                         trade_reason.append(f"Supply zone rejection (Grade: {combined_grade})")
                     
-                    # Pure technical signals (no zone requirement)
-                    elif combined_grade >= 'B':
+                    # Pure technical signals (require B or higher = value >= 5)
+                    elif current_grade_value >= 5:
                         # Determine direction from RSI/MACD
                         rsi = talib.RSI(df['close'])
                         if rsi.iloc[-1] < 40:
