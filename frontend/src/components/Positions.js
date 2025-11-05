@@ -12,6 +12,7 @@ function Positions({ positions }) {
   const [stopLoss, setStopLoss] = useState(25);
   const [entrySignal, setEntrySignal] = useState(null);
   const [zones, setZones] = useState(null);
+  const [sellLoading, setSellLoading] = useState(false);
 
   useEffect(() => {
     // Fetch settings to get profit/loss targets
