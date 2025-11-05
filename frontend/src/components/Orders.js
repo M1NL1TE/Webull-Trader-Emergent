@@ -49,7 +49,44 @@ function Orders({ orders, onRefresh }) {
         <ScrollArea className="h-[400px] pr-4">
           <div className="space-y-4">
             {orders.map((order, index) => {
-              const symbol = order.ticker?.symbol || 'N/A';
+              // Parse option symbol: SPY251104C00683000 -> SPY $683 / 04 Nov Call
+              const parseOptionSymbol = (symbol) => {
+                // Format: SYMBOL+YYMMDD+C/P+STRIKEXXXXXX
+                const match = symbol.match(/^([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/);
+                
+                if (match) {
+                  const [, ticker, year, month, day, type, strikeRaw] = match;
+                  const strike = parseInt(strikeRaw) / 1000; // Strike is in cents, divide by 1000
+                  const optionType = type === 'C' ? 'Call' : 'Put';
+                  
+                  // Format date
+                  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                  const monthName = months[parseInt(month) - 1];
+                  
+                  return {
+                    ticker,
+                    strike: `$${strike}`,
+                    date: `${day} ${monthName}`,
+                    year: `20${year}`,
+                    type: optionType
+                  };
+                }
+                
+                // If not an option symbol, return as-is
+                return {
+                  ticker: symbol,
+                  strike: '',
+                  date: '',
+                  year: '',
+                  type: ''
+                };
+              };
+              
+              const rawSymbol = order.ticker?.symbol || 'N/A';
+              const parsed = parseOptionSymbol(rawSymbol);
+              const displaySymbol = parsed.strike ? `${parsed.ticker} ${parsed.strike}` : rawSymbol;
+              const displayDate = parsed.strike ? `${parsed.date} ${parsed.type}` : '';
+              
               const action = order.action || 'N/A';
               const orderType = order.orderType || 'N/A';
               const quantity = order.totalQuantity || 0;
@@ -64,7 +101,10 @@ function Orders({ orders, onRefresh }) {
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h4 className="font-semibold text-white">{symbol}</h4>
+                      <h4 className="font-semibold text-white text-lg">{displaySymbol}</h4>
+                      {displayDate && (
+                        <p className="text-xs text-slate-400">{displayDate}</p>
+                      )}
                       <p className="text-sm text-slate-400">
                         {action} {quantity} @ ${price.toFixed(2)}
                       </p>
