@@ -691,12 +691,16 @@ async def run_trading_bot(wb, settings):
                     elif current_grade_value >= 5:
                         # Determine direction from RSI/MACD
                         rsi = talib.RSI(df['close'])
-                        if rsi.iloc[-1] < 40:
+                        rsi_value = rsi.iloc[-1]
+                        
+                        if rsi_value < 40:
                             trade_signal = 'call'
-                            trade_reason.append(f"Strong technicals - Oversold (Grade: {combined_grade})")
-                        elif rsi.iloc[-1] > 60:
+                            trade_reason.append(f"Oversold RSI ({rsi_value:.1f}) with strong technicals")
+                            trade_reason.append(f"Grades: RSI={rsi_grade}, MACD={macd_grade}, Candle={candle_grade}, Volume={volume_grade} → {combined_grade}")
+                        elif rsi_value > 60:
                             trade_signal = 'put'
-                            trade_reason.append(f"Strong technicals - Overbought (Grade: {combined_grade})")
+                            trade_reason.append(f"Overbought RSI ({rsi_value:.1f}) with strong technicals")
+                            trade_reason.append(f"Grades: RSI={rsi_grade}, MACD={macd_grade}, Candle={candle_grade}, Volume={volume_grade} → {combined_grade}")
                     
                     # 5. EXECUTE OR LOG WHY NOT
                     if trade_signal:
