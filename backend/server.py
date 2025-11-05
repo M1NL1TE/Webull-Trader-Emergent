@@ -31,6 +31,11 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
+# Collections
+sessions_collection = db['sessions']
+settings_collection = db['settings']
+entry_signals_collection = db['entry_signals']  # New collection for persisting entry signals
+
 # App password from environment
 APP_PASSWORD = os.environ.get('APP_PASSWORD', 'changeme123')
 
