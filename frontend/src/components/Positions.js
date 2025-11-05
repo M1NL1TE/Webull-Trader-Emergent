@@ -49,6 +49,34 @@ function Positions({ positions: initialPositions }) {
       }
     };
     
+    // Fetch order times for positions
+    const fetchOrderTimes = async () => {
+      try {
+        const ordersResponse = await axios.get(`${API}/orders/history`);
+        const times = {};
+        
+        // Get the most recent BUY order for each ticker
+        ordersResponse.data.forEach(order => {
+          if (order.action === 'BUY' && order.status === 'Filled' && order.ticker?.tickerId) {
+            const tickerId = order.ticker.tickerId;
+            const filledTime = order.filledTime || order.createTime;
+            
+            // Keep the most recent time for this ticker
+            if (!times[tickerId] || order.filledTime0 > times[tickerId].timestamp) {
+              times[tickerId] = {
+                time: filledTime,
+                timestamp: order.filledTime0
+              };
+            }
+          }
+        });
+        
+        setOrderTimes(times);
+      } catch (error) {
+        console.error('Error fetching order times:', error);
+      }
+    };
+    
     fetchSettings();
     fetchBotData();
     fetchPositions(); // Initial fetch
