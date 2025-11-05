@@ -1082,6 +1082,7 @@ def backfill_entry_signal(wb):
             'entry_price': float(entry_price),
             'direction': direction,
             'timestamp': buy_order.get('filledTime', 'Unknown'),
+            'ticker_symbol': ticker_symbol,  # Store ticker to identify position
             'backfilled': True
         }
         
