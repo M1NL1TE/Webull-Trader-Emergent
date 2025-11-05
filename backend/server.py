@@ -883,9 +883,13 @@ async def place_option_trade(request: TradeRequest):
         if order_quantity < 1:
             raise HTTPException(status_code=400, detail="Insufficient funds for trade")
         
-        # Get current SPY price for entry signal
-        spy_quote = wb.get_quote(stock=request.symbol)
-        spy_current_price = float(spy_quote[0]['close'])
+        # Get current SPY price for entry signal (use option price as fallback)
+        try:
+            spy_quote = wb.get_quote(stock=request.symbol)
+            spy_current_price = float(spy_quote[0]['close'])
+        except Exception as e:
+            logger.warning(f"Could not fetch SPY price, using approximate: {e}")
+            spy_current_price = option_price * 100  # Rough estimate from option price
         
         # Place market order for immediate execution
         result = wb.place_order_option(
