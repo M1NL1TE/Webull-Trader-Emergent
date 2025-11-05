@@ -106,14 +106,11 @@ function Positions({ positions: initialPositions }) {
   }, [initialPositions]);
 
   const handleSellPosition = async (tickerId) => {
-    alert(`SELL BUTTON CLICKED! Ticker: ${tickerId}`);
     console.log('Sell button clicked! Ticker ID:', tickerId);
     
-    if (!window.confirm('Are you sure you want to sell this position at market price?')) {
-      console.log('User cancelled sell');
-      return;
-    }
-
+    // TEMPORARILY REMOVED CONFIRMATION FOR TESTING
+    // TODO: Add back confirmation after testing
+    
     setSellLoading(true);
     console.log('Sending sell request to:', `${API}/trade/sell-position`);
     console.log('Request body:', { ticker_id: tickerId });
