@@ -158,13 +158,13 @@ function Dashboard({ setIsAuthenticated }) {
               <SupplyDemandWidget />
             </div>
             
-            {/* Positions, Orders & P/L */}
+            {/* Positions - Full Width for Better Visibility */}
+            <Positions positions={positions} onRefresh={fetchData} />
+            
+            {/* Orders & P/L */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Positions positions={positions} onRefresh={fetchData} />
-                  <Orders orders={orders} onRefresh={fetchData} />
-                </div>
+              <div className="lg:col-span-2">
+                <Orders orders={orders} onRefresh={fetchData} />
               </div>
               <div>
                 <ProfitLossBySymbol />
