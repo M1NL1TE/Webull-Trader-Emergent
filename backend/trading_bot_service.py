@@ -662,6 +662,7 @@ async def run_trading_bot(wb, settings):
                                         'direction': 'PUT',
                                         'timestamp': datetime.now(timezone.utc).isoformat()
                                     }
+                                    await save_entry_signal_to_db(bot_state.last_entry_signal)
                                     send_notification(f"ORB Put Trade\n{orb_message}\nORB breakout strategy")
                                     bot_state.last_action = f"ORB PUT at {current_time}"
                                     logger.info("✅ ORB put order placed")
