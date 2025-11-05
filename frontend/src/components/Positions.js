@@ -398,10 +398,10 @@ function Positions({ positions: initialPositions }) {
                         console.log('SELL BUTTON CLICKED! TickerId:', tickerId);
                         handleSellPosition(tickerId);
                       }}
-                      disabled={sellLoading}
-                      className="w-full py-2 px-3 bg-red-600 hover:bg-red-700 disabled:bg-red-800 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer text-sm"
+                      disabled={sellLoading[position.ticker.tickerId]}
+                      className="w-full py-2.5 px-4 bg-red-600 hover:bg-red-700 disabled:bg-red-800 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer text-sm"
                     >
-                      {sellLoading ? (
+                      {sellLoading[position.ticker.tickerId] ? (
                         <>
                           <div className="spinner w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                           <span>Selling...</span>
