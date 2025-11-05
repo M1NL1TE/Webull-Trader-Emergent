@@ -78,7 +78,7 @@ function OrderHistory() {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-slate-200">Order History</CardTitle>
-            <p className="text-sm text-slate-400 mt-1">Last 50 orders</p>
+            <p className="text-sm text-slate-400 mt-1">Last 30 orders</p>
           </div>
           <Button
             onClick={handleRefresh}
