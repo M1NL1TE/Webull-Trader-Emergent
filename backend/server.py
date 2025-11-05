@@ -925,11 +925,10 @@ async def cancel_order(order_id: str):
 
 
 @api_router.post("/trade/sell-position")
-async def sell_position_at_market(ticker_id: int = None):
+async def sell_position_at_market(request: SellPositionRequest):
     """Sell a position at market price"""
-    if ticker_id is None:
-        raise HTTPException(status_code=400, detail="ticker_id is required")
     try:
+        ticker_id = request.ticker_id
         session = await get_session()
         if not session:
             raise HTTPException(status_code=401, detail="Not authenticated")
