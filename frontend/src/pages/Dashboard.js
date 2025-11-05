@@ -66,10 +66,11 @@ function Dashboard({ setIsAuthenticated }) {
   useEffect(() => {
     fetchData();
     
-    // Auto-refresh every 10 seconds for faster position updates
+    // Auto-refresh every 30 seconds for general dashboard data
+    // (Positions component has its own 5-second refresh for real-time pricing)
     const interval = setInterval(() => {
       fetchData();
-    }, 10000);
+    }, 30000);
 
     return () => clearInterval(interval);
   }, []);
