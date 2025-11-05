@@ -114,7 +114,8 @@ function Positions({ positions: initialPositions }) {
     // TEMPORARILY REMOVED CONFIRMATION FOR TESTING
     // TODO: Add back confirmation after testing
     
-    setSellLoading(true);
+    // Set loading state for this specific position
+    setSellLoading(prev => ({ ...prev, [tickerId]: true }));
     console.log('Sending sell request to:', `${API}/trade/sell-position`);
     console.log('Request body:', { ticker_id: tickerId });
     
@@ -127,8 +128,9 @@ function Positions({ positions: initialPositions }) {
       
       if (response.data.success) {
         alert(`Position sold successfully!\nQuantity: ${response.data.quantity}\nPrice: $${response.data.price.toFixed(2)}`);
-        // Refresh the page to update positions
-        window.location.reload();
+        // Refresh positions data without full page reload
+        const positionsResponse = await axios.get(`${API}/account`);
+        setLivePositions(positionsResponse.data.positions || []);
       } else {
         alert('Sell request completed but success flag was false');
       }
@@ -137,7 +139,12 @@ function Positions({ positions: initialPositions }) {
       console.error('Error response:', error.response);
       alert(`Failed to sell position: ${error.response?.data?.detail || error.message}`);
     } finally {
-      setSellLoading(false);
+      // Clear loading state for this specific position
+      setSellLoading(prev => {
+        const newState = { ...prev };
+        delete newState[tickerId];
+        return newState;
+      });
     }
   };
 
