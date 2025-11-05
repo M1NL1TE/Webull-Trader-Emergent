@@ -779,11 +779,15 @@ async def run_trading_bot(wb, settings):
                     
                     # Check if entry signal is for current position (not old position)
                     if bot_state.last_entry_signal:
-                        # If stored ticker doesn't match current position, clear it
+                        # If stored ticker doesn't match current position, it's old - clear it
                         stored_ticker = bot_state.last_entry_signal.get('ticker_symbol')
                         if stored_ticker and stored_ticker != current_ticker:
                             logger.info(f"Clearing old entry signal (old ticker: {stored_ticker}, current: {current_ticker})")
                             bot_state.last_entry_signal = None
+                        elif not stored_ticker:
+                            # No ticker stored - add it now
+                            bot_state.last_entry_signal['ticker_symbol'] = current_ticker
+                            logger.info(f"Added ticker symbol to entry signal: {current_ticker}")
                     
                     # Backfill entry signal if missing
                     if not bot_state.last_entry_signal:
