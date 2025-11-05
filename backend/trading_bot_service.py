@@ -713,12 +713,18 @@ async def run_trading_bot(wb, settings):
                             if trade_signal == 'call':
                                 success = execute_call_trade(wb, symbol, combined_grade, account_info)
                                 if success:
-                                    # Store entry details
+                                    # Store entry details with technical breakdown
                                     bot_state.last_entry_signal = {
                                         'signal_type': 'Zone Trade' if zone_signal else 'Technical',
                                         'reasons': ', '.join(trade_reason),
                                         'zones': zones.copy() if zone_signal else None,
                                         'grade': combined_grade,
+                                        'grade_breakdown': {
+                                            'rsi': rsi_grade,
+                                            'macd': macd_grade,
+                                            'candle': candle_grade,
+                                            'volume': volume_grade
+                                        },
                                         'entry_price': current_price,
                                         'direction': 'CALL',
                                         'timestamp': datetime.now(timezone.utc).isoformat()
