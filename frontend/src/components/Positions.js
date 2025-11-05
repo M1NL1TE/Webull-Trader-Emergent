@@ -143,6 +143,9 @@ function Positions({ positions: initialPositions }) {
         <ScrollArea className="h-[400px] pr-4">
           <div className="space-y-4">
             {positions.map((position, index) => {
+              console.log('Rendering position:', position);
+              console.log('Ticker ID:', position?.ticker?.tickerId);
+              
               const unrealizedPL = parseFloat(position.unrealizedProfitLoss || 0);
               const isProfit = unrealizedPL >= 0;
               const quantity = position.position || 0;
