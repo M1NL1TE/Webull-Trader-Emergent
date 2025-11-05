@@ -464,21 +464,33 @@ async def get_order_history():
         else:
             history = wb.get_history_orders(status='All', count=50)
         
-        # Enrich orders with ticker symbols for options
+        # Enrich orders with ticker symbols for options (with caching to improve performance)
+        ticker_cache = {}  # Cache ticker lookups to avoid duplicate API calls
+        
         if isinstance(history, list):
             for order in history:
                 if order.get('tickerType') == 'OPTION' and order.get('belongTickerId'):
-                    try:
-                        # Look up the underlying stock symbol using ticker ID
-                        ticker_info = wb.get_quote(tId=order['belongTickerId'])
-                        if ticker_info and 'symbol' in ticker_info:
-                            order['underlyingSymbol'] = ticker_info['symbol']
-                        else:
-                            logger.warning(f"No symbol in ticker info for ID {order['belongTickerId']}")
-                            order['underlyingSymbol'] = f"ID:{order['belongTickerId']}"
-                    except Exception as e:
-                        logger.warning(f"Could not lookup ticker for ID {order['belongTickerId']}: {e}")
-                        order['underlyingSymbol'] = f"ID:{order['belongTickerId']}"
+                    ticker_id = order['belongTickerId']
+                    
+                    # Check cache first
+                    if ticker_id in ticker_cache:
+                        order['underlyingSymbol'] = ticker_cache[ticker_id]
+                    else:
+                        try:
+                            # Look up the underlying stock symbol using ticker ID
+                            ticker_info = wb.get_quote(tId=ticker_id)
+                            if ticker_info and 'symbol' in ticker_info:
+                                symbol = ticker_info['symbol']
+                                order['underlyingSymbol'] = symbol
+                                ticker_cache[ticker_id] = symbol  # Cache it
+                            else:
+                                logger.warning(f"No symbol in ticker info for ID {ticker_id}")
+                                order['underlyingSymbol'] = f"ID:{ticker_id}"
+                                ticker_cache[ticker_id] = f"ID:{ticker_id}"
+                        except Exception as e:
+                            logger.warning(f"Could not lookup ticker for ID {ticker_id}: {e}")
+                            order['underlyingSymbol'] = f"ID:{ticker_id}"
+                            ticker_cache[ticker_id] = f"ID:{ticker_id}"
         
         return {"orders": history if isinstance(history, list) else []}
     except Exception as e:
