@@ -7,12 +7,13 @@ import axios from 'axios';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-function Positions({ positions }) {
+function Positions({ positions: initialPositions }) {
   const [profitTarget, setProfitTarget] = useState(50);
   const [stopLoss, setStopLoss] = useState(25);
   const [entrySignal, setEntrySignal] = useState(null);
   const [zones, setZones] = useState(null);
   const [sellLoading, setSellLoading] = useState(false);
+  const [livePositions, setLivePositions] = useState(initialPositions);
 
   useEffect(() => {
     // Fetch settings to get profit/loss targets
@@ -37,13 +38,38 @@ function Positions({ positions }) {
       }
     };
     
+    // Fetch live positions data (every 5 seconds)
+    const fetchPositions = async () => {
+      try {
+        const response = await axios.get(`${API}/account`);
+        setLivePositions(response.data.positions || []);
+      } catch (error) {
+        console.error('Error fetching positions:', error);
+      }
+    };
+    
     fetchSettings();
     fetchBotData();
+    fetchPositions(); // Initial fetch
     
-    // Refresh bot data every 30 seconds
-    const interval = setInterval(fetchBotData, 30000);
-    return () => clearInterval(interval);
+    // Refresh positions every 5 seconds for real-time pricing
+    const positionsInterval = setInterval(fetchPositions, 5000);
+    
+    // Refresh bot data every 30 seconds (less frequent)
+    const botDataInterval = setInterval(fetchBotData, 30000);
+    
+    return () => {
+      clearInterval(positionsInterval);
+      clearInterval(botDataInterval);
+    };
   }, []);
+
+  // Update local positions when prop changes (from dashboard refresh)
+  useEffect(() => {
+    if (initialPositions) {
+      setLivePositions(initialPositions);
+    }
+  }, [initialPositions]);
 
   const handleSellPosition = async (tickerId) => {
     if (!window.confirm('Are you sure you want to sell this position at market price?')) {
