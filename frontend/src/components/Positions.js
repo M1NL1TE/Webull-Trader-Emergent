@@ -52,8 +52,8 @@ function Positions({ positions }) {
 
     setSellLoading(true);
     try {
-      const response = await axios.post(`${API}/trade/sell-position`, null, {
-        params: { ticker_id: tickerId }
+      const response = await axios.post(`${API}/trade/sell-position`, {
+        ticker_id: tickerId
       });
       
       if (response.data.success) {
