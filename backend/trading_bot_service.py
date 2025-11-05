@@ -4,7 +4,7 @@ Integrates user's original trading bot logic into async background task
 """
 import asyncio
 import logging
-from datetime import datetime, timedelta, time as dt_time
+from datetime import datetime, timedelta, time as dt_time, timezone
 from typing import Optional
 import os
 import numpy as np
