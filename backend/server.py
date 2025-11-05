@@ -128,6 +128,9 @@ class TradeRequest(BaseModel):
     option_type: str  # 'call' or 'put'
     trade_grade: str
 
+class SellPositionRequest(BaseModel):
+    ticker_id: int
+
 class SettingsUpdate(BaseModel):
     auto_trading: Optional[bool] = None
     profit_percentage: Optional[float] = None
