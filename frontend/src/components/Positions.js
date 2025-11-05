@@ -55,6 +55,8 @@ function Positions({ positions: initialPositions }) {
         const ordersResponse = await axios.get(`${API}/orders/history`);
         const times = {};
         
+        console.log('Fetching order times from history...');
+        
         // Get the most recent BUY order for each ticker
         ordersResponse.data.forEach(order => {
           if (order.action === 'BUY' && order.status === 'Filled' && order.ticker?.tickerId) {
@@ -71,6 +73,7 @@ function Positions({ positions: initialPositions }) {
           }
         });
         
+        console.log('Order times collected:', times);
         setOrderTimes(times);
       } catch (error) {
         console.error('Error fetching order times:', error);
