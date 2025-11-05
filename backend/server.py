@@ -920,6 +920,73 @@ async def cancel_order(order_id: str):
         logger.error(f"Cancel order error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@api_router.post("/trade/sell-position")
+async def sell_position_at_market(ticker_id: int):
+    """Sell a position at market price"""
+    try:
+        session = await get_session()
+        if not session:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        wb = get_webull_instance(session.get('is_paper', True))
+        wb.api_login(
+            access_token=session['access_token'],
+            refresh_token=session['refresh_token'],
+            token_expire=session['token_expire'],
+            uuid=session['uuid']
+        )
+        
+        # Get account info to find the position
+        account_info = wb.get_account()
+        positions = account_info.get('positions', [])
+        
+        # Find the position with matching ticker_id
+        position = None
+        for pos in positions:
+            if pos['ticker']['tickerId'] == ticker_id:
+                position = pos
+                break
+        
+        if not position:
+            raise HTTPException(status_code=404, detail="Position not found")
+        
+        # Get current market price
+        option_quote = wb.get_option_quote(stock='SPY', optionId=ticker_id)
+        
+        # Use bid price for selling (more realistic fill)
+        market_price = float(option_quote['data'][0]['bidList'][0]['price'])
+        quantity = int(position['position'])
+        
+        logger.info(f"Selling position: {quantity} contracts at market ${market_price}")
+        
+        # Place SELL order at current bid price (market-like execution)
+        result = wb.place_order_option(
+            optionId=ticker_id,
+            lmtPrice=market_price,
+            stpPrice=str(market_price - 0.25),
+            action='SELL',
+            orderType='LMT',
+            enforce='GTC',
+            quant=quantity
+        )
+        
+        # Clear entry signal since position is being closed
+        bot_state.last_entry_signal = None
+        logger.info("✅ Position sold manually, entry signal cleared")
+        
+        return {
+            "success": True,
+            "order": result,
+            "quantity": quantity,
+            "price": market_price,
+            "ticker_id": ticker_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Sell position error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.get("/settings")
 async def get_settings():
     """Get user settings"""
