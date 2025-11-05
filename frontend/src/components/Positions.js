@@ -95,6 +95,8 @@ function Positions({ positions: initialPositions }) {
     }
   };
 
+  const positions = livePositions;
+
   if (!positions || positions.length === 0) {
     return (
       <Card className="glass border-slate-700" data-testid="positions-card">
@@ -113,11 +115,9 @@ function Positions({ positions: initialPositions }) {
   return (
     <Card className="glass border-slate-700" data-testid="positions-card">
       <CardHeader>
-        <CardTitle className="text-slate-200 flex items-center justify-between">
-          <span>Current Positions</span>
-          <Badge variant="outline" className="text-cyan-400 border-cyan-700">
-            {positions.length}
-          </Badge>
+        <CardTitle className="text-slate-200 flex items-center gap-2">
+          Current Positions
+          <span className="text-xs text-slate-500 font-normal">(Updates every 5s)</span>
         </CardTitle>
       </CardHeader>
       <CardContent>
