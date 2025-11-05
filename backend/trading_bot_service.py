@@ -1162,15 +1162,18 @@ def backfill_entry_signal(wb):
         
         signal_type = 'Zone Trade' if (in_demand_zone or in_supply_zone) else 'Manual/Historical'
         
+        # Format the filled time properly
+        filled_time = buy_order.get('filledTime', 'Unknown')
+        
         # Create backfilled entry signal
         bot_state.last_entry_signal = {
             'signal_type': signal_type,
-            'reasons': f'Position opened at 12:45 PM {"in demand zone" if in_demand_zone else "in supply zone" if in_supply_zone else ""}',
+            'reasons': f'Position opened at {filled_time} {"in demand zone" if in_demand_zone else "in supply zone" if in_supply_zone else ""}',
             'zones': zones.copy() if (in_demand_zone or in_supply_zone) else None,
             'grade': 'N/A',
             'entry_price': float(entry_price),
             'direction': direction,
-            'timestamp': buy_order.get('filledTime', 'Unknown'),
+            'timestamp': filled_time,
             'ticker_symbol': ticker_symbol,  # Store ticker to identify position
             'backfilled': True
         }
