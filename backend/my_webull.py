@@ -778,9 +778,13 @@ class my_webull :
 
         res = requests.post(self._urls.options_exp_dat_new(), json=data, headers=headers, timeout=self.timeout).json()
         t_data = []
-        for entry in res['expireDateList'] :
-            if str(entry['from']['date']) == expireDate :
-                t_data = entry['data']
+        # Handle missing expireDateList key gracefully
+        if 'expireDateList' in res and res['expireDateList']:
+            for entry in res['expireDateList']:
+                if str(entry['from']['date']) == expireDate:
+                    t_data = entry['data']
+        else:
+            print(f"Warning: expireDateList not found in response for {stock}")
 
         r_data = {}
         for entry in t_data :
@@ -1555,9 +1559,13 @@ class my_paper_webull(my_webull):
 
         res = requests.post(self._urls.options_exp_dat_new(), json=data, headers=headers, timeout=self.timeout).json()
         t_data = []
-        for entry in res['expireDateList'] :
-            if str(entry['from']['date']) == expireDate :
-                t_data = entry['data']
+        # Handle missing expireDateList key gracefully
+        if 'expireDateList' in res and res['expireDateList']:
+            for entry in res['expireDateList']:
+                if str(entry['from']['date']) == expireDate:
+                    t_data = entry['data']
+        else:
+            print(f"Warning: expireDateList not found in response for {stock}")
 
         r_data = {}
         for entry in t_data :
