@@ -131,17 +131,10 @@ function Positions({ positions: initialPositions }) {
           Current Positions
           <span className="text-xs text-slate-500 font-normal">(Updates every 5s)</span>
         </CardTitle>
-        {/* DEBUG: Test button */}
-        <button 
-          onClick={() => alert('TEST BUTTON WORKS!')} 
-          className="bg-yellow-500 px-2 py-1 text-xs rounded"
-        >
-          TEST CLICK
-        </button>
       </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-[400px] pr-4">
-          <div className="space-y-4">
+      <CardContent className="p-0">
+        <ScrollArea className="h-[350px] px-6 pt-4">
+          <div className="space-y-4 pb-4">
             {positions.map((position, index) => {
               console.log('Rendering position:', position);
               console.log('Ticker ID:', position?.ticker?.tickerId);
