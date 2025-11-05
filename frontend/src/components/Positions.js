@@ -72,23 +72,34 @@ function Positions({ positions: initialPositions }) {
   }, [initialPositions]);
 
   const handleSellPosition = async (tickerId) => {
+    console.log('Sell button clicked! Ticker ID:', tickerId);
+    
     if (!window.confirm('Are you sure you want to sell this position at market price?')) {
+      console.log('User cancelled sell');
       return;
     }
 
     setSellLoading(true);
+    console.log('Sending sell request to:', `${API}/trade/sell-position`);
+    console.log('Request body:', { ticker_id: tickerId });
+    
     try {
       const response = await axios.post(`${API}/trade/sell-position`, {
         ticker_id: tickerId
       });
       
+      console.log('Sell response:', response.data);
+      
       if (response.data.success) {
         alert(`Position sold successfully!\nQuantity: ${response.data.quantity}\nPrice: $${response.data.price.toFixed(2)}`);
         // Refresh the page to update positions
         window.location.reload();
+      } else {
+        alert('Sell request completed but success flag was false');
       }
     } catch (error) {
       console.error('Error selling position:', error);
+      console.error('Error response:', error.response);
       alert(`Failed to sell position: ${error.response?.data?.detail || error.message}`);
     } finally {
       setSellLoading(false);
