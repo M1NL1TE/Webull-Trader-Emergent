@@ -233,7 +233,7 @@ function Positions({ positions: initialPositions }) {
               return (
                 <div
                   key={index}
-                  className="p-4 bg-slate-800/50 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors"
+                  className="p-5 bg-slate-800/50 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors min-w-[320px]"
                   data-testid={`position-${index}`}
                 >
                   <div className="flex justify-between items-start mb-2">
