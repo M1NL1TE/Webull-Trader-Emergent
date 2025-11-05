@@ -1601,8 +1601,13 @@ class my_paper_webull(my_webull):
 
         res = requests.post(self._urls.options_exp_dat_new(), json=data, headers=headers, timeout=self.timeout).json()
         r_data = []
-        for entry in res['expireDateList'] :
-            r_data.append(entry['from'])
+        # Handle missing expireDateList key gracefully
+        if 'expireDateList' in res and res['expireDateList']:
+            for entry in res['expireDateList']:
+                r_data.append(entry['from'])
+        else:
+            # Fallback: return empty list if expireDateList is missing
+            print(f"Warning: expireDateList not found in response for {stock}")
 
         # return requests.get(self._urls.options_exp_date(self.get_ticker(stock)), params=data, headers=headers, timeout=self.timeout).json()['expireDateList']
         return r_data
