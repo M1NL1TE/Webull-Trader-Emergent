@@ -45,6 +45,30 @@ function Positions({ positions }) {
     return () => clearInterval(interval);
   }, []);
 
+  const handleSellPosition = async (tickerId) => {
+    if (!window.confirm('Are you sure you want to sell this position at market price?')) {
+      return;
+    }
+
+    setSellLoading(true);
+    try {
+      const response = await axios.post(`${API}/trade/sell-position`, null, {
+        params: { ticker_id: tickerId }
+      });
+      
+      if (response.data.success) {
+        alert(`Position sold successfully!\nQuantity: ${response.data.quantity}\nPrice: $${response.data.price.toFixed(2)}`);
+        // Refresh the page to update positions
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Error selling position:', error);
+      alert(`Failed to sell position: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setSellLoading(false);
+    }
+  };
+
   if (!positions || positions.length === 0) {
     return (
       <Card className="glass border-slate-700" data-testid="positions-card">
