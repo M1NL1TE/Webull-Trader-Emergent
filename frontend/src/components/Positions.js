@@ -131,6 +131,13 @@ function Positions({ positions: initialPositions }) {
           Current Positions
           <span className="text-xs text-slate-500 font-normal">(Updates every 5s)</span>
         </CardTitle>
+        {/* DEBUG: Test button */}
+        <button 
+          onClick={() => alert('TEST BUTTON WORKS!')} 
+          className="bg-yellow-500 px-2 py-1 text-xs rounded"
+        >
+          TEST CLICK
+        </button>
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-[400px] pr-4">
