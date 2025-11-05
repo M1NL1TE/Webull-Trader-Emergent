@@ -456,13 +456,14 @@ async def get_order_history():
             wb.get_account_id()
         
         # Get historical orders - paper trading uses different status param
+        # Limit to 30 orders for better performance (was 50)
         if session.get('is_paper', True):
             try:
-                history = wb.get_history_orders(status='All', count=50)
+                history = wb.get_history_orders(status='All', count=30)
             except:
-                history = wb.get_history_orders(status='', count=50)
+                history = wb.get_history_orders(status='', count=30)
         else:
-            history = wb.get_history_orders(status='All', count=50)
+            history = wb.get_history_orders(status='All', count=30)
         
         # Enrich orders with ticker symbols for options (with caching to improve performance)
         ticker_cache = {}  # Cache ticker lookups to avoid duplicate API calls
