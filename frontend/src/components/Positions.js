@@ -233,6 +233,31 @@ function Positions({ positions: initialPositions }) {
                         </div>
                         <p className="text-xs text-blue-200">{entrySignal.reasons}</p>
                         
+                        {/* Grade Breakdown */}
+                        {entrySignal.grade_breakdown && (
+                          <div className="mt-2 pt-2 border-t border-blue-500/30">
+                            <p className="text-xs text-slate-400 mb-1">Technical Breakdown:</p>
+                            <div className="grid grid-cols-4 gap-2 text-xs">
+                              <div className="text-center p-1 rounded bg-slate-700/30">
+                                <div className="text-slate-400">RSI</div>
+                                <div className="text-blue-300 font-semibold">{entrySignal.grade_breakdown.rsi}</div>
+                              </div>
+                              <div className="text-center p-1 rounded bg-slate-700/30">
+                                <div className="text-slate-400">MACD</div>
+                                <div className="text-blue-300 font-semibold">{entrySignal.grade_breakdown.macd}</div>
+                              </div>
+                              <div className="text-center p-1 rounded bg-slate-700/30">
+                                <div className="text-slate-400">Candle</div>
+                                <div className="text-blue-300 font-semibold">{entrySignal.grade_breakdown.candle}</div>
+                              </div>
+                              <div className="text-center p-1 rounded bg-slate-700/30">
+                                <div className="text-slate-400">Volume</div>
+                                <div className="text-blue-300 font-semibold">{entrySignal.grade_breakdown.volume}</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
                         {/* SPY Entry Price */}
                         {entrySignal.entry_price && (
                           <div className="mt-2 pt-2 border-t border-blue-500/30">
