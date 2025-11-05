@@ -895,13 +895,20 @@ async def run_trading_bot(wb, settings):
                     elif current_price <= stop_loss_price:
                         logger.info(f"🛑 STOP LOSS HIT! P/L: {pnl_pct:.2f}%")
                         try:
-                            # Place MARKET SELL order for immediate execution at best price
+                            # Get current bid/ask to calculate mid price
+                            quote = wb.get_option_quote(stock='SPY', optionId=ticker_id)
+                            bid_price = float(quote['data'][0]['bidList'][0]['price'])
+                            ask_price = float(quote['data'][0]['askList'][0]['price'])
+                            mid_price = (bid_price + ask_price) / 2
+                            
+                            # Place LIMIT SELL order at mid price
+                            logger.info(f"Placing LIMIT sell order at mid price: ${mid_price:.2f} (bid: ${bid_price:.2f}, ask: ${ask_price:.2f})")
                             wb.place_order_option(
                                 optionId=ticker_id,
-                                lmtPrice=current_price,  # Still needed for API
-                                stpPrice=str(float(current_price) - 0.25),
+                                lmtPrice=mid_price,  # Use mid price
+                                stpPrice=str(float(mid_price) - 0.25),
                                 action='SELL',
-                                orderType='MKT',  # Market order for immediate fill
+                                orderType='LMT',  # Limit order at mid price
                                 enforce='GTC',
                                 quant=quantity
                             )
