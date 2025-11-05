@@ -496,6 +496,11 @@ async def run_trading_bot(wb, settings):
         logger.info("🤖 Trading bot started")
         send_notification("Bot Started\nTrading bot is now monitoring SPY for entry signals during market hours (9:30 AM - 4:00 PM EST)")
         
+        # Load persisted entry signal from database
+        saved_signal = await load_entry_signal_from_db()
+        if saved_signal:
+            bot_state.last_entry_signal = saved_signal
+        
         # Initialize variables (from original main)
         symbol = 'SPY'
         interval = 'm15'  # 15-minute candles for stronger S/D levels
