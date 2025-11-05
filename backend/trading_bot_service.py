@@ -796,6 +796,7 @@ async def run_trading_bot(wb, settings):
                                         'direction': 'PUT',
                                         'timestamp': datetime.now(timezone.utc).isoformat()
                                     }
+                                    await save_entry_signal_to_db(bot_state.last_entry_signal)
                                     
                                     send_notification(f"Put Trade Executed\n{', '.join(trade_reason)}\nPrice: ${current_price:.2f}\nGrade: {combined_grade}")
                                     bot_state.last_action = f"Placed PUT order at ${current_price:.2f}"
