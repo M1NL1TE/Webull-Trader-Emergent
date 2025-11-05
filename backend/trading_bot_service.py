@@ -757,8 +757,13 @@ async def run_trading_bot(wb, settings):
                         reasons = []
                         if not zone_signal:
                             reasons.append(f"Not in supply/demand zone (Price: ${current_price:.2f})")
-                        if combined_grade < 'C':
-                            reasons.append(f"Grade too low ({combined_grade} < C)")
+                        
+                        # Check grade properly (not alphabetical comparison)
+                        if zone_signal and current_grade_value < 3:
+                            reasons.append(f"Grade too low for zone trade ({combined_grade}, need C+)")
+                        elif not zone_signal and current_grade_value < 5:
+                            reasons.append(f"Grade too low for technical trade ({combined_grade}, need B+)")
+                        
                         if not orb_signal:
                             reasons.append(orb_message)
                         
