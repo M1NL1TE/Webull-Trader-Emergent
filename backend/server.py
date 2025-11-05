@@ -967,15 +967,15 @@ async def sell_position_at_market(request: SellPositionRequest):
         market_price = float(option_quote['data'][0]['bidList'][0]['price'])
         quantity = int(position['position'])
         
-        logger.info(f"Selling position: {quantity} contracts at market ${market_price}")
+        logger.info(f"Selling position: {quantity} contracts at market price")
         
-        # Place SELL order at current bid price (market-like execution)
+        # Place SELL MARKET order for immediate execution
         result = wb.place_order_option(
             optionId=ticker_id,
-            lmtPrice=market_price,
+            lmtPrice=market_price,  # Still needed for API, but not used for MKT orders
             stpPrice=str(market_price - 0.25),
             action='SELL',
-            orderType='LMT',
+            orderType='MKT',  # Market order for immediate fill at best available price
             enforce='GTC',
             quant=quantity
         )
