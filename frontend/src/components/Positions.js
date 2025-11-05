@@ -12,7 +12,7 @@ function Positions({ positions: initialPositions }) {
   const [stopLoss, setStopLoss] = useState(25);
   const [entrySignal, setEntrySignal] = useState(null);
   const [zones, setZones] = useState(null);
-  const [sellLoading, setSellLoading] = useState(false);
+  const [sellLoading, setSellLoading] = useState({}); // Changed to object to track per-position
   const [livePositions, setLivePositions] = useState(initialPositions);
   const [orderTimes, setOrderTimes] = useState({});
 
