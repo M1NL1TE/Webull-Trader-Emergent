@@ -883,6 +883,10 @@ async def place_option_trade(request: TradeRequest):
         if order_quantity < 1:
             raise HTTPException(status_code=400, detail="Insufficient funds for trade")
         
+        # Get current SPY price for entry signal
+        spy_quote = wb.get_quote(stock=request.symbol)
+        spy_current_price = float(spy_quote[0]['close'])
+        
         # Place market order for immediate execution
         result = wb.place_order_option(
             optionId=option['tickerId'],
@@ -901,7 +905,7 @@ async def place_option_trade(request: TradeRequest):
             'reasons': f'Manually placed {request.option_type.upper()} trade from Trade panel',
             'zones': None,
             'grade': 'N/A',
-            'entry_price': current_price,
+            'entry_price': spy_current_price,
             'direction': request.option_type.upper(),
             'timestamp': datetime.now(timezone.utc).isoformat(),
             'ticker_symbol': option['symbol']
