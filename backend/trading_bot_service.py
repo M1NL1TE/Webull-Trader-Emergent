@@ -1003,14 +1003,14 @@ def execute_put_trade(wb, symbol, trade_grade, account_info):
                 logger.error("Cannot afford even 1 contract")
                 return False
         
-        # Place the order
-        logger.info(f"Placing put order: {order_quantity} contracts at ${option_price}")
+        # Place market order for immediate execution
+        logger.info(f"Placing MARKET put order: {order_quantity} contracts")
         wb.place_order_option(
             optionId=filtered_chain[0]['put']['tickerId'],
-            lmtPrice=option_price,
+            lmtPrice=option_price,  # Still needed for API
             stpPrice=str(float(option_price) - 0.25),
             action='BUY',
-            orderType='LMT',
+            orderType='MKT',  # Market order for immediate fill
             enforce='GTC',
             quant=order_quantity
         )
