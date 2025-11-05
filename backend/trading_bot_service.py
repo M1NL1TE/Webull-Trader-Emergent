@@ -888,13 +888,13 @@ async def run_trading_bot(wb, settings):
                     elif current_price <= stop_loss_price:
                         logger.info(f"🛑 STOP LOSS HIT! P/L: {pnl_pct:.2f}%")
                         try:
-                            # Place SELL order (market order for faster execution)
+                            # Place MARKET SELL order for immediate execution at best price
                             wb.place_order_option(
                                 optionId=ticker_id,
-                                lmtPrice=current_price,
+                                lmtPrice=current_price,  # Still needed for API
                                 stpPrice=str(float(current_price) - 0.25),
                                 action='SELL',
-                                orderType='LMT',
+                                orderType='MKT',  # Market order for immediate fill
                                 enforce='GTC',
                                 quant=quantity
                             )
