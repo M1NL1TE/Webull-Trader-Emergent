@@ -883,13 +883,13 @@ async def place_option_trade(request: TradeRequest):
         if order_quantity < 1:
             raise HTTPException(status_code=400, detail="Insufficient funds for trade")
         
-        # Place order
+        # Place market order for immediate execution
         result = wb.place_order_option(
             optionId=option['tickerId'],
-            lmtPrice=option_price,
+            lmtPrice=option_price,  # Still needed for API, but not used for MKT orders
             stpPrice=str(option_price - 0.25),
             action='BUY',
-            orderType='LMT',
+            orderType='MKT',  # Market order for immediate fill
             enforce='GTC',
             quant=order_quantity
         )
