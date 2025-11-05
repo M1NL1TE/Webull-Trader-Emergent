@@ -18,6 +18,38 @@ from email.mime.multipart import MIMEMultipart
 
 logger = logging.getLogger(__name__)
 
+# Entry signal persistence functions
+async def save_entry_signal_to_db(entry_signal):
+    """Save entry signal to MongoDB for persistence across restarts"""
+    try:
+        from server import entry_signals_collection
+        # Add/update the entry signal with a fixed ID so we only keep the latest one
+        await entry_signals_collection.replace_one(
+            {'_id': 'current'},
+            {'_id': 'current', **entry_signal, 'saved_at': datetime.now(timezone.utc).isoformat()},
+            upsert=True
+        )
+        logger.info(f"✅ Entry signal saved to database: {entry_signal['signal_type']}")
+    except Exception as e:
+        logger.error(f"Error saving entry signal to DB: {e}")
+
+async def load_entry_signal_from_db():
+    """Load the last entry signal from MongoDB"""
+    try:
+        from server import entry_signals_collection
+        signal = await entry_signals_collection.find_one({'_id': 'current'})
+        if signal:
+            signal.pop('_id', None)  # Remove MongoDB _id
+            signal.pop('saved_at', None)  # Remove save timestamp
+            logger.info(f"✅ Loaded entry signal from database: {signal.get('signal_type')}")
+            return signal
+        logger.info("No saved entry signal found in database")
+        return None
+    except Exception as e:
+        logger.error(f"Error loading entry signal from DB: {e}")
+        return None
+
+
 # Bot state
 class BotState:
     def __init__(self):
