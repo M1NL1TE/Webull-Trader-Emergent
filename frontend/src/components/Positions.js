@@ -276,6 +276,32 @@ function Positions({ positions }) {
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Manual Sell Button */}
+                  <div className="pt-3 border-t border-slate-700">
+                    <button
+                      onClick={() => handleSellPosition(position.ticker.tickerId)}
+                      disabled={sellLoading}
+                      className="w-full py-2 px-4 bg-red-600 hover:bg-red-700 disabled:bg-red-800 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      {sellLoading ? (
+                        <>
+                          <div className="spinner w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Selling...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                          </svg>
+                          <span>Sell at Market</span>
+                        </>
+                      )}
+                    </button>
+                    <p className="text-xs text-slate-500 text-center mt-2">
+                      Close position at current market price
+                    </p>
+                  </div>
                 </div>
               );
             })}
