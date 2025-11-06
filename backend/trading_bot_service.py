@@ -119,37 +119,62 @@ def initialize_notifications():
         logger.info("Email notifications not configured")
 
 def send_email(subject: str, body: str):
-    """Send email notification - logs to file for review"""
+    """Send email notification via Gmail SMTP"""
     if not smtp_enabled or not notification_email:
         logger.warning("Email notifications not enabled")
         return
         
     try:
-        # Log notification to file (always works)
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        # Get SMTP credentials from environment
+        mail_username = os.getenv('MAIL_USERNAME')
+        mail_password = os.getenv('MAIL_PASSWORD')
+        mail_server = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+        mail_port = int(os.getenv('MAIL_PORT', '587'))
+        mail_from = os.getenv('MAIL_FROM', mail_username)
+        
+        if not mail_username or not mail_password:
+            logger.error("Gmail SMTP credentials not configured")
+            return
+        
+        # Create message
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = mail_from
+        msg['To'] = notification_email
+        
+        # Attach body
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Connect and send
+        with smtplib.SMTP(mail_server, mail_port, timeout=10) as server:
+            server.starttls()  # Upgrade connection to TLS
+            server.login(mail_username, mail_password)
+            server.sendmail(mail_from, [notification_email], msg.as_string())
+        
+        logger.info(f"✅ Email sent successfully: {subject}")
+        logger.info(f"   To: {notification_email}")
+        
+        # Also log to file as backup
         log_file = '/app/notifications.log'
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
         with open(log_file, 'a') as f:
             f.write(f"\n{'='*60}\n")
-            f.write(f"[{timestamp}] TO: {notification_email}\n")
+            f.write(f"[{timestamp}] EMAIL SENT TO: {notification_email}\n")
             f.write(f"SUBJECT: {subject}\n")
             f.write(f"{'='*60}\n")
             f.write(f"{body}\n")
             f.write(f"{'='*60}\n")
-        
-        logger.info(f"📧 Notification logged: {subject}")
-        logger.info(f"   Email would be sent to: {notification_email}")
-        logger.info(f"   Content logged to: {log_file}")
-        
-        # Also print to console for immediate visibility
-        print(f"\n📧 EMAIL NOTIFICATION:")
-        print(f"To: {notification_email}")
-        print(f"Subject: {subject}")
-        print(f"Body:\n{body}")
-        print(f"{'='*60}\n")
             
+    except smtplib.SMTPAuthenticationError:
+        logger.error("Gmail SMTP authentication failed - check app password")
+    except smtplib.SMTPException as e:
+        logger.error(f"SMTP error: {e}")
     except Exception as e:
-        logger.error(f"Failed to log notification: {e}")
+        logger.error(f"Failed to send email: {e}")
 
 def send_notification(message: str):
     """Send notification via all enabled methods (SMS and/or Email)"""
