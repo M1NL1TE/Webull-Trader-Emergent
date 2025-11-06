@@ -772,28 +772,32 @@ async def run_trading_bot(wb, settings):
                     grade_values = {'A+': 8, 'A': 7, 'B+': 6, 'B': 5, 'C+': 4, 'C': 3, 'D+': 2, 'D': 1}
                     current_grade_value = grade_values.get(combined_grade, 1)
                     
+                    # ONLY TRADE ON ZONE-BASED SIGNALS (ORB or Supply/Demand zones)
+                    # Pure technical signals are DISABLED per user request
+                    
                     # Zone-based signals (require C or higher = value >= 3)
                     if zone_signal == 'call' and current_grade_value >= 3:
                         trade_signal = 'call'
                         trade_reason.append(f"Demand zone bounce (Grade: {combined_grade})")
+                        trade_reason.append(f"Price: ${current_price:.2f} in demand zone ${zones['demand_bottom']:.2f}-${zones['demand_top']:.2f}")
                     elif zone_signal == 'put' and current_grade_value >= 3:
                         trade_signal = 'put'
                         trade_reason.append(f"Supply zone rejection (Grade: {combined_grade})")
+                        trade_reason.append(f"Price: ${current_price:.2f} in supply zone ${zones['supply_bottom']:.2f}-${zones['supply_top']:.2f}")
                     
-                    # Pure technical signals (require B or higher = value >= 5)
-                    elif current_grade_value >= 5:
-                        # Determine direction from RSI/MACD
+                    # DISABLED: Pure technical signals (too random, user preference)
+                    # Only ORB breakouts and supply/demand zone trades are allowed
+                    else:
+                        # Log why we're not trading
                         rsi = talib.RSI(df['close'])
                         rsi_value = rsi.iloc[-1]
                         
-                        if rsi_value < 40:
-                            trade_signal = 'call'
-                            trade_reason.append(f"Oversold RSI ({rsi_value:.1f}) with strong technicals")
-                            trade_reason.append(f"Grades: RSI={rsi_grade}, MACD={macd_grade}, Candle={candle_grade}, Volume={volume_grade} → {combined_grade}")
-                        elif rsi_value > 60:
-                            trade_signal = 'put'
-                            trade_reason.append(f"Overbought RSI ({rsi_value:.1f}) with strong technicals")
-                            trade_reason.append(f"Grades: RSI={rsi_grade}, MACD={macd_grade}, Candle={candle_grade}, Volume={volume_grade} → {combined_grade}")
+                        if not zone_signal:
+                            bot_state.no_trade_reason = f"Not in supply/demand zone. Grade: {combined_grade}, RSI: {rsi_value:.1f}"
+                            logger.info(f"❌ No trade: Not in zone (RSI={rsi_value:.1f}, Grade={combined_grade})")
+                        else:
+                            bot_state.no_trade_reason = f"In zone but grade too low. Grade: {combined_grade} (need C+ or higher)"
+                            logger.info(f"❌ No trade: Grade {combined_grade} too low for zone trade")
                     
                     # 5. EXECUTE OR LOG WHY NOT
                     if trade_signal:
