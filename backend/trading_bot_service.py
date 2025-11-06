@@ -973,14 +973,14 @@ def execute_call_trade(wb, symbol, trade_grade, account_info):
         ask_price = float(quote['data'][0]['askList'][0]['price'])
         mid_price = (bid_price + ask_price) / 2
         
-        # Place limit order at mid price for better fill
-        logger.info(f"Placing LIMIT call order at mid price: {order_quantity} contracts @ ${mid_price:.2f} (bid: ${bid_price:.2f}, ask: ${ask_price:.2f})")
+        # Place market order for immediate fill
+        logger.info(f"Placing MARKET call order: {order_quantity} contracts (reference price: ${mid_price:.2f}, bid: ${bid_price:.2f}, ask: ${ask_price:.2f})")
         wb.place_order_option(
             optionId=option_id,
-            lmtPrice=mid_price,  # Use mid price for better fill
+            lmtPrice=mid_price,  # Required by API but not used for MKT orders
             stpPrice=str(float(mid_price) - 0.25),
             action='BUY',
-            orderType='LMT',  # Limit order at mid price
+            orderType='MKT',  # Market order for immediate fill
             enforce='GTC',
             quant=order_quantity
         )
