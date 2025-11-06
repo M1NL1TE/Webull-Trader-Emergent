@@ -22,13 +22,33 @@ logger = logging.getLogger(__name__)
 last_heartbeat = datetime.now(timezone.utc)
 
 async def keep_alive_heartbeat():
-    """Background task that keeps the bot alive by updating heartbeat"""
+    """
+    Background task that keeps the bot alive by updating heartbeat.
+    Only runs during market hours (9:30 AM - 4:00 PM EST, Monday-Friday).
+    After hours and weekends, the bot is allowed to go inactive naturally.
+    """
     global last_heartbeat
     while True:
         try:
-            last_heartbeat = datetime.now(timezone.utc)
-            logger.debug(f"💓 Heartbeat: Bot alive at {last_heartbeat.strftime('%H:%M:%S')}")
-            await asyncio.sleep(60)  # Update every minute
+            # Check if we're in market hours
+            from pytz import timezone as pytz_timezone
+            eastern = pytz_timezone('US/Eastern')
+            now_eastern = datetime.now(eastern)
+            current_time = now_eastern.time()
+            is_weekday = now_eastern.weekday() < 5
+            market_open = dt_time(9, 30)
+            market_close = dt_time(16, 0)
+            
+            # Only update heartbeat during market hours
+            if is_weekday and market_open <= current_time <= market_close:
+                last_heartbeat = datetime.now(timezone.utc)
+                logger.debug(f"💓 Heartbeat: Bot alive at {last_heartbeat.strftime('%H:%M:%S')} (Market hours)")
+                await asyncio.sleep(60)  # Update every minute during market hours
+            else:
+                # Outside market hours - longer sleep, allow inactivity
+                logger.debug(f"💤 Heartbeat paused (outside market hours)")
+                await asyncio.sleep(600)  # Check every 10 minutes outside market hours
+                
         except Exception as e:
             logger.error(f"Heartbeat error: {e}")
             await asyncio.sleep(60)
