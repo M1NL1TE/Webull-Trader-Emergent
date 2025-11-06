@@ -1165,6 +1165,22 @@ async def get_trading_bot_status():
     
     return get_bot_status()
 
+@api_router.get("/bot/heartbeat")
+async def get_bot_heartbeat():
+    """Health check endpoint that returns bot heartbeat status"""
+    from trading_bot_service import last_heartbeat
+    
+    now = datetime.now(timezone.utc)
+    time_since_heartbeat = (now - last_heartbeat).total_seconds()
+    
+    return {
+        "alive": time_since_heartbeat < 120,  # Consider alive if heartbeat within 2 minutes
+        "last_heartbeat": last_heartbeat.isoformat(),
+        "seconds_since_heartbeat": time_since_heartbeat,
+        "bot_running": bot_state.running,
+        "current_time": now.isoformat()
+    }
+
 # Include the router in the main app
 app.include_router(api_router)
 
