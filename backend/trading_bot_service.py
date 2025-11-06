@@ -191,27 +191,56 @@ def send_notification(message: str):
     send_sms(message)
 
 def send_sms(message: str):
-    """Send SMS notification via Twilio"""
-    if not twilio_client:
-        logger.warning("Twilio not initialized, skipping SMS")
-        return
-        
-    try:
-        twilio_from = os.getenv('TWILIO_FROM_NUMBER')
-        twilio_to = os.getenv('TWILIO_TO_NUMBER')
-        
-        if not twilio_from or not twilio_to:
-            logger.warning("Twilio phone numbers not configured")
+    """Send SMS notification via configured provider (Telnyx or Twilio)"""
+    sms_provider = os.getenv('SMS_PROVIDER', 'twilio').lower()
+    
+    if sms_provider == 'telnyx':
+        try:
+            import telnyx
+            api_key = os.getenv('TELNYX_API_KEY')
+            from_number = os.getenv('TELNYX_FROM_NUMBER')
+            to_number = os.getenv('SMS_TO_NUMBER')
+            
+            if not api_key or not from_number or not to_number:
+                logger.warning("Telnyx credentials not configured")
+                return
+            
+            telnyx.api_key = api_key
+            msg = telnyx.Message.create(
+                from_=from_number,
+                to=to_number,
+                text=message
+            )
+            logger.info(f"✅ SMS sent via Telnyx: {message[:50]}... (ID: {msg.id})")
+        except ImportError:
+            logger.error("Telnyx SDK not installed. Run: pip install telnyx")
+        except Exception as e:
+            logger.error(f"Failed to send SMS via Telnyx: {e}")
+    
+    elif sms_provider == 'twilio':
+        if not twilio_client:
+            logger.warning("Twilio not initialized, skipping SMS")
             return
             
-        msg = twilio_client.messages.create(
-            to=twilio_to,
-            from_=twilio_from,
-            body=message
-        )
-        logger.info(f"SMS sent: {message} (SID: {msg.sid})")
-    except Exception as e:
-        logger.error(f"Failed to send SMS: {e}")
+        try:
+            twilio_from = os.getenv('TWILIO_FROM_NUMBER')
+            twilio_to = os.getenv('TWILIO_TO_NUMBER')
+            
+            if not twilio_from or not twilio_to:
+                logger.warning("Twilio phone numbers not configured")
+                return
+                
+            msg = twilio_client.messages.create(
+                to=twilio_to,
+                from_=twilio_from,
+                body=message
+            )
+            logger.info(f"SMS sent via Twilio: {message} (SID: {msg.sid})")
+        except Exception as e:
+            logger.error(f"Failed to send SMS via Twilio: {e}")
+    
+    else:
+        logger.warning(f"Unknown SMS provider: {sms_provider}")
 
 # Trade grades from original bot
 trade_grades = {
