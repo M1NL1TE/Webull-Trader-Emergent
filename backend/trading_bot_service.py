@@ -18,6 +18,21 @@ from email.mime.multipart import MIMEMultipart
 
 logger = logging.getLogger(__name__)
 
+# Keep-alive heartbeat to prevent platform sleep
+last_heartbeat = datetime.now(timezone.utc)
+
+async def keep_alive_heartbeat():
+    """Background task that keeps the bot alive by updating heartbeat"""
+    global last_heartbeat
+    while True:
+        try:
+            last_heartbeat = datetime.now(timezone.utc)
+            logger.debug(f"💓 Heartbeat: Bot alive at {last_heartbeat.strftime('%H:%M:%S')}")
+            await asyncio.sleep(60)  # Update every minute
+        except Exception as e:
+            logger.error(f"Heartbeat error: {e}")
+            await asyncio.sleep(60)
+
 # Entry signal persistence functions
 async def save_entry_signal_to_db(entry_signal):
     """Save entry signal to MongoDB for persistence across restarts"""
