@@ -586,6 +586,10 @@ async def run_trading_bot(wb, settings):
         
         logger.info(f"Bot settings: Profit target={profit_pct*100}%, Stop loss={loss_pct*100}%")
         
+        # Start keep-alive heartbeat task
+        asyncio.create_task(keep_alive_heartbeat())
+        logger.info("💓 Keep-alive heartbeat started")
+        
         # Calculate initial zones even if market is closed (for display purposes)
         try:
             stockId = wb.get_ticker(symbol)
