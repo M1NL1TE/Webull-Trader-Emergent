@@ -706,9 +706,14 @@ async def run_trading_bot(wb, settings):
                 bot_state.market_status = "Open"
                 logger.info(f"✅ Market open - checking for trades at {current_time}")
                 
-                # Get account info
-                account_info = wb.get_account()
-                stockId = wb.get_ticker(symbol)
+                # Get account info with retry logic
+                try:
+                    account_info = await retry_api_call(lambda: wb.get_account())
+                    stockId = await retry_api_call(lambda: wb.get_ticker(symbol))
+                except Exception as e:
+                    logger.error(f"Failed to get account info after retries: {e}")
+                    await asyncio.sleep(30)
+                    continue
                 
                 # Check for positions and orders
                 has_position = bool(account_info.get('positions'))
@@ -725,8 +730,13 @@ async def run_trading_bot(wb, settings):
                     # Look for entry signals
                     logger.info("No positions - analyzing for entry signals...")
                     
-                    # Get price data
-                    df = wb.get_bars(symbol, stockId, interval, 250, 1)  # Increased for 195-candle lookback (3 trading days)
+                    # Get price data with retry logic
+                    try:
+                        df = await retry_api_call(lambda: wb.get_bars(symbol, stockId, interval, 250, 1))
+                    except Exception as e:
+                        logger.error(f"Failed to get price data after retries: {e}")
+                        await asyncio.sleep(30)
+                        continue
                     
                     if df is None or len(df) < 50:
                         bot_state.no_trade_reason = "Insufficient price data"
