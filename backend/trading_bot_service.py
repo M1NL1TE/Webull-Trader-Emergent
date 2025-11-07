@@ -18,6 +18,27 @@ from email.mime.multipart import MIMEMultipart
 
 logger = logging.getLogger(__name__)
 
+# API retry helper for handling Webull API timeouts
+async def retry_api_call(func, max_retries=3, delay=2):
+    """
+    Retry an API call with exponential backoff.
+    Handles temporary timeouts without crashing the bot.
+    """
+    for attempt in range(max_retries):
+        try:
+            return func()
+        except Exception as e:
+            error_msg = str(e)
+            if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+                if attempt < max_retries - 1:
+                    wait_time = delay * (attempt + 1)
+                    logger.warning(f"⚠️ API timeout (attempt {attempt + 1}/{max_retries}), retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    continue
+            # If not a timeout or last attempt, raise the error
+            raise
+    raise Exception(f"API call failed after {max_retries} retries")
+
 # Keep-alive heartbeat to prevent platform sleep
 last_heartbeat = datetime.now(timezone.utc)
 
