@@ -1015,12 +1015,24 @@ async def run_trading_bot(wb, settings):
                         except Exception as e:
                             logger.error(f"❌ Error placing STOP LOSS order: {e}")
                 
+                # Clear any temporary errors after successful iteration
+                if bot_state.error_message and "timeout" in bot_state.error_message.lower():
+                    bot_state.error_message = None
+                
                 # Sleep before next check (15 seconds in original)
                 await asyncio.sleep(15)
                 
             except Exception as e:
-                logger.error(f"Error in trading loop iteration: {e}", exc_info=True)
-                bot_state.error_message = str(e)
+                error_msg = str(e)
+                logger.error(f"Error in trading loop iteration: {error_msg}", exc_info=True)
+                
+                # Only show persistent errors, not temporary timeouts
+                if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+                    logger.warning(f"⚠️ Temporary API timeout - will retry")
+                    bot_state.error_message = None  # Don't display timeout errors
+                else:
+                    bot_state.error_message = error_msg  # Show other errors
+                
                 await asyncio.sleep(60)  # Wait a bit longer on errors
                 
     except Exception as e:
