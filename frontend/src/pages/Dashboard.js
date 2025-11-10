@@ -72,7 +72,37 @@ function Dashboard({ setIsAuthenticated }) {
       fetchData();
     }, 30000);
 
-    return () => clearInterval(interval);
+    // Keep-alive ping during market hours to prevent platform sleep
+    const keepAlivePing = async () => {
+      const now = new Date();
+      const estTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const hours = estTime.getHours();
+      const minutes = estTime.getMinutes();
+      const dayOfWeek = estTime.getDay();
+      
+      // Check if market hours (9:30 AM - 4:00 PM EST, Monday-Friday)
+      const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+      const isMarketHours = (hours > 9 || (hours === 9 && minutes >= 30)) && hours < 16;
+      
+      if (isWeekday && isMarketHours) {
+        try {
+          // Make a lightweight ping to keep the backend active
+          await axios.get(`${API}/bot/heartbeat`, { timeout: 5000 });
+          console.log('💓 Keep-alive ping sent (market hours)');
+        } catch (error) {
+          console.warn('Keep-alive ping failed:', error.message);
+        }
+      }
+    };
+    
+    // Ping every 45 seconds during market hours (frontend-side keep-alive)
+    const keepAliveInterval = setInterval(keepAlivePing, 45000);
+    keepAlivePing(); // Initial ping
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(keepAliveInterval);
+    };
   }, []);
 
   const handleRefresh = () => {
