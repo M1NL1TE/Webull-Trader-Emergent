@@ -77,11 +77,11 @@ async def keep_alive_heartbeat():
                     async with aiohttp.ClientSession() as session:
                         async with session.get(f'{backend_url}/api/bot/heartbeat', timeout=aiohttp.ClientTimeout(total=5)) as response:
                             if response.status == 200:
-                                logger.debug(f"💓 Keep-alive ping successful at {last_heartbeat.strftime('%H:%M:%S')} (Market hours)")
+                                logger.info(f"💓 Keep-alive: Bot active at {last_heartbeat.strftime('%H:%M:%S')} EST (Market hours)")
                             else:
-                                logger.warning(f"Keep-alive ping returned status {response.status}")
+                                logger.warning(f"⚠️ Keep-alive ping returned status {response.status}")
                 except Exception as e:
-                    logger.warning(f"Keep-alive ping failed (will retry): {e}")
+                    logger.warning(f"⚠️ Keep-alive ping failed (will retry): {e}")
                 
                 await asyncio.sleep(60)  # Ping every minute during market hours
             else:
