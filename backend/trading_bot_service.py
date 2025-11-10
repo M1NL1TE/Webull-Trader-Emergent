@@ -44,11 +44,18 @@ last_heartbeat = datetime.now(timezone.utc)
 
 async def keep_alive_heartbeat():
     """
-    Background task that keeps the bot alive by updating heartbeat.
+    Background task that keeps the bot alive by making actual HTTP requests.
     Only runs during market hours (9:30 AM - 4:00 PM EST, Monday-Friday).
-    After hours and weekends, the bot is allowed to go inactive naturally.
+    
+    This makes REAL HTTP requests to the backend to signal activity to the platform,
+    not just memory updates. This prevents the platform from detecting inactivity.
     """
     global last_heartbeat
+    import aiohttp
+    
+    # Wait a bit before starting to ensure server is ready
+    await asyncio.sleep(10)
+    
     while True:
         try:
             # Check if we're in market hours
@@ -63,11 +70,23 @@ async def keep_alive_heartbeat():
             # Only update heartbeat during market hours
             if is_weekday and market_open <= current_time <= market_close:
                 last_heartbeat = datetime.now(timezone.utc)
-                logger.debug(f"💓 Heartbeat: Bot alive at {last_heartbeat.strftime('%H:%M:%S')} (Market hours)")
-                await asyncio.sleep(60)  # Update every minute during market hours
+                
+                # Make actual HTTP request to keep platform active
+                try:
+                    backend_url = os.getenv('BACKEND_URL', 'http://localhost:8001')
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(f'{backend_url}/api/bot/heartbeat', timeout=aiohttp.ClientTimeout(total=5)) as response:
+                            if response.status == 200:
+                                logger.debug(f"💓 Keep-alive ping successful at {last_heartbeat.strftime('%H:%M:%S')} (Market hours)")
+                            else:
+                                logger.warning(f"Keep-alive ping returned status {response.status}")
+                except Exception as e:
+                    logger.warning(f"Keep-alive ping failed (will retry): {e}")
+                
+                await asyncio.sleep(60)  # Ping every minute during market hours
             else:
                 # Outside market hours - longer sleep, allow inactivity
-                logger.debug(f"💤 Heartbeat paused (outside market hours)")
+                logger.debug(f"💤 Keep-alive paused (outside market hours)")
                 await asyncio.sleep(600)  # Check every 10 minutes outside market hours
                 
         except Exception as e:
