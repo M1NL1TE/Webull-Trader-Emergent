@@ -465,11 +465,20 @@ async def get_order_history():
         else:
             history = wb.get_history_orders(status='All', count=30)
         
-        # Enrich orders with ticker symbols for options (with caching to improve performance)
+        # Enrich orders with ticker symbols and entry signals
         ticker_cache = {}  # Cache ticker lookups to avoid duplicate API calls
+        
+        # Fetch all entry signals from database
+        entry_signals_list = []
+        try:
+            async for signal in entry_signals_collection.find({}).sort('timestamp', -1).limit(50):
+                entry_signals_list.append(signal)
+        except Exception as e:
+            logger.warning(f"Could not fetch entry signals: {e}")
         
         if isinstance(history, list):
             for order in history:
+                # Add ticker symbols for options
                 if order.get('tickerType') == 'OPTION' and order.get('belongTickerId'):
                     ticker_id = order['belongTickerId']
                     
@@ -492,6 +501,33 @@ async def get_order_history():
                             logger.warning(f"Could not lookup ticker for ID {ticker_id}: {e}")
                             order['underlyingSymbol'] = f"ID:{ticker_id}"
                             ticker_cache[ticker_id] = f"ID:{ticker_id}"
+                
+                # Match entry signal to order by timestamp (within 2 minutes)
+                order['entry_signal'] = None
+                if order.get('action') == 'BUY' and order.get('status') in ['Filled', 'Working']:
+                    order_time = order.get('createTime0') or order.get('createTime')
+                    if order_time:
+                        try:
+                            from datetime import datetime, timedelta
+                            order_dt = datetime.fromtimestamp(int(order_time) / 1000) if isinstance(order_time, (int, float)) else datetime.fromisoformat(str(order_time))
+                            
+                            # Find matching entry signal within 2 minutes
+                            for signal in entry_signals_list:
+                                if '_id' in signal and signal['_id'] == 'current':
+                                    signal_time_str = signal.get('timestamp') or signal.get('saved_at')
+                                    if signal_time_str:
+                                        signal_dt = datetime.fromisoformat(signal_time_str.replace('Z', '+00:00'))
+                                        time_diff = abs((order_dt - signal_dt).total_seconds())
+                                        
+                                        if time_diff < 120:  # Within 2 minutes
+                                            order['entry_signal'] = {
+                                                'type': signal.get('signal_type', 'Unknown'),
+                                                'reasons': signal.get('reasons', []),
+                                                'grade': signal.get('grade', 'N/A')
+                                            }
+                                            break
+                        except Exception as e:
+                            logger.debug(f"Could not match entry signal: {e}")
         
         return {"orders": history if isinstance(history, list) else []}
     except Exception as e:
