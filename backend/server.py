@@ -79,7 +79,7 @@ async def check_and_start_bot():
             session_data = await db.sessions.find_one({'user': 'default'})
             
             if session_data and not bot_state.running:
-                logger.info("🚀 Auto-starting trading bot on startup...")
+                logger.info("🚀 Auto-starting trading bot on startup (notifications suppressed to avoid spam)")
                 
                 wb = get_webull_instance(session_data.get('is_paper', True))
                 wb.api_login(
@@ -93,7 +93,7 @@ async def check_and_start_bot():
                     wb.get_account_id()
                 
                 trading_bot_task = asyncio.create_task(run_trading_bot(wb, settings))
-                logger.info("✅ Trading bot auto-started successfully")
+                logger.info("✅ Trading bot auto-started successfully (silent mode)")
             else:
                 logger.info("No valid session found for auto-start")
     except Exception as e:
