@@ -242,6 +242,36 @@ function OrderHistory() {
                         </div>
                       )}
                     </div>
+
+                    {/* Entry Signal Information */}
+                    {order.entry_signal && action === 'BUY' && (
+                      <div className="mt-3 pt-3 border-t border-slate-700">
+                        <div className="text-xs text-slate-300">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-slate-400">Trade Reason:</span>
+                            <Badge variant="outline" className="text-blue-400 border-blue-700 text-xs">
+                              {order.entry_signal.type}
+                            </Badge>
+                            {order.entry_signal.grade && (
+                              <Badge variant="outline" className="text-purple-400 border-purple-700 text-xs">
+                                Grade: {order.entry_signal.grade}
+                              </Badge>
+                            )}
+                          </div>
+                          {order.entry_signal.reasons && (
+                            <div className="text-slate-400 mt-1 text-xs">
+                              {Array.isArray(order.entry_signal.reasons) ? (
+                                order.entry_signal.reasons.map((reason, idx) => (
+                                  <div key={idx}>• {reason}</div>
+                                ))
+                              ) : (
+                                <div>{order.entry_signal.reasons}</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
