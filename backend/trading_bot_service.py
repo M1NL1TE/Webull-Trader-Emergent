@@ -1096,15 +1096,15 @@ async def run_trading_bot(wb, settings):
         bot_state.running = False
         logger.info("🛑 Trading bot stopped")
 
-def execute_call_trade(wb, symbol, trade_grade, account_info):
+def execute_call_trade(wb, symbol, trade_grade, account_info, signal_type='zone'):
     """Execute call option trade based on your original buy_call logic"""
     try:
-        # Filter options for calls
-        filtered_chain = filter_options_for_trade(wb, symbol, 'call')
+        # Filter options for calls with signal type for DTE selection
+        filtered_chain, dte = filter_options_for_trade(wb, symbol, 'call', signal_type)
         
-        if not filtered_chain:
+        if not filtered_chain or dte is None:
             logger.error("No suitable call options found")
-            return False
+            return False, None
         
         # Calculate order quantity based on trade grade and account value
         account_value = float(account_info['accountMembers'][1]['value'])
