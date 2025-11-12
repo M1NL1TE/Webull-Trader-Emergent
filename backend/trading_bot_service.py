@@ -902,7 +902,7 @@ async def run_trading_bot(wb, settings):
                         # EXECUTE ACTUAL TRADE
                         try:
                             if trade_signal == 'call':
-                                success = execute_call_trade(wb, symbol, combined_grade, account_info)
+                                success, dte = execute_call_trade(wb, symbol, combined_grade, account_info, signal_type='zone')
                                 if success:
                                     # Store entry details with technical breakdown
                                     bot_state.last_entry_signal = {
@@ -918,19 +918,20 @@ async def run_trading_bot(wb, settings):
                                         },
                                         'entry_price': current_price,
                                         'direction': 'CALL',
+                                        'dte': dte,
                                         'timestamp': datetime.now(timezone.utc).isoformat()
                                     }
                                     await save_entry_signal_to_db(bot_state.last_entry_signal)
                                     
-                                    send_notification(f"Call Trade Executed\n{', '.join(trade_reason)}\nPrice: ${current_price:.2f}\nGrade: {combined_grade}")
-                                    bot_state.last_action = f"Placed CALL order at ${current_price:.2f}"
-                                    logger.info("✅ Call order placed successfully")
+                                    send_notification(f"Call Trade Executed ({dte}DTE)\n{', '.join(trade_reason)}\nPrice: ${current_price:.2f}\nGrade: {combined_grade}")
+                                    bot_state.last_action = f"Placed CALL order at ${current_price:.2f} ({dte}DTE)"
+                                    logger.info(f"✅ Call order placed successfully ({dte}DTE)")
                                 else:
                                     logger.error("❌ Failed to place call order")
                                     bot_state.no_trade_reason = "Order placement failed"
                             
                             elif trade_signal == 'put':
-                                success = execute_put_trade(wb, symbol, combined_grade, account_info)
+                                success, dte = execute_put_trade(wb, symbol, combined_grade, account_info, signal_type='zone')
                                 if success:
                                     # Store entry details with technical breakdown
                                     bot_state.last_entry_signal = {
@@ -946,13 +947,14 @@ async def run_trading_bot(wb, settings):
                                         },
                                         'entry_price': current_price,
                                         'direction': 'PUT',
+                                        'dte': dte,
                                         'timestamp': datetime.now(timezone.utc).isoformat()
                                     }
                                     await save_entry_signal_to_db(bot_state.last_entry_signal)
                                     
-                                    send_notification(f"Put Trade Executed\n{', '.join(trade_reason)}\nPrice: ${current_price:.2f}\nGrade: {combined_grade}")
-                                    bot_state.last_action = f"Placed PUT order at ${current_price:.2f}"
-                                    logger.info("✅ Put order placed successfully")
+                                    send_notification(f"Put Trade Executed ({dte}DTE)\n{', '.join(trade_reason)}\nPrice: ${current_price:.2f}\nGrade: {combined_grade}")
+                                    bot_state.last_action = f"Placed PUT order at ${current_price:.2f} ({dte}DTE)"
+                                    logger.info(f"✅ Put order placed successfully ({dte}DTE)")
                                 else:
                                     logger.error("❌ Failed to place put order")
                                     bot_state.no_trade_reason = "Order placement failed"
