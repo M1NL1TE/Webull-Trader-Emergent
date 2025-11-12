@@ -1212,27 +1212,55 @@ def execute_put_trade(wb, symbol, trade_grade, account_info):
         return False
 
 
-def filter_options_for_trade(wb, symbol, option_type):
-    """Filter SPY options based on strike price and volume (from your original code)"""
+def filter_options_for_trade(wb, symbol, option_type, signal_type='zone'):
+    """
+    Filter SPY options based on strike price and volume with dynamic expiry selection
+    
+    Expiry Logic:
+    - ORB signals: Always 0DTE (same day)
+    - Zone signals: 0DTE if before 1 PM EST, 1DTE if after 1 PM EST
+    """
     try:
-        current_date = datetime.now().date()
-        current_day = current_date.weekday()
+        from pytz import timezone as pytz_timezone
+        eastern = pytz_timezone('US/Eastern')
+        now_eastern = datetime.now(eastern)
+        current_time = now_eastern.time()
+        current_date = now_eastern.date()
         
-        # Determine minimum expiration date
-        if current_day == 4:  # Friday
-            min_days = 3
+        # Determine target expiration based on signal type and time
+        if signal_type == 'orb':
+            # ORB trades: Always 0DTE
+            target_dte = 0
+            logger.info("🎯 ORB trade: Selecting 0DTE options")
         else:
-            min_days = 1
-        min_date = current_date + timedelta(days=min_days)
+            # Zone trades: 0DTE before 1 PM, 1DTE after 1 PM EST
+            cutoff_time = dt_time(13, 0)  # 1 PM EST
+            if current_time < cutoff_time:
+                target_dte = 0
+                logger.info("📈 Zone trade before 1 PM: Selecting 0DTE options")
+            else:
+                target_dte = 1
+                logger.info("📈 Zone trade after 1 PM: Selecting 1DTE options")
         
         # Get expiration dates
         expiration_dates = wb.get_options_expiration_dates(symbol)
-        expiration_dates = [date for date in expiration_dates if datetime.strptime(date['date'], '%Y-%m-%d').date() >= min_date]
         
-        if not expiration_dates:
-            return None
+        # Find expiration matching target DTE
+        target_date = current_date + timedelta(days=target_dte)
         
-        expiration_date = expiration_dates[0]['date']
+        # Find closest matching expiration
+        expiration_date = None
+        for exp_data in expiration_dates:
+            exp_date = datetime.strptime(exp_data['date'], '%Y-%m-%d').date()
+            if exp_date >= target_date:
+                expiration_date = exp_data['date']
+                break
+        
+        if not expiration_date:
+            logger.error(f"No expiration found for {target_dte}DTE")
+            return None, None
+        
+        logger.info(f"Selected expiration: {expiration_date} ({target_dte}DTE)")
         
         # Get current price and calculate strike range
         current_price = float(wb.get_quote(stock=symbol)['close'])
@@ -1242,17 +1270,17 @@ def filter_options_for_trade(wb, symbol, option_type):
             call_options = wb.get_options(stock=symbol, count=-1, direction='call', expireDate=expiration_date)
             call_options = [opt for opt in call_options if rounded_price <= float(opt['strikePrice']) <= rounded_price + 5]
             call_options.sort(key=lambda x: int(wb.get_option_quote(stock=symbol, optionId=x['call']['tickerId'])['data'][0]['volume']), reverse=True)
-            return call_options
+            return call_options, target_dte
         
         elif option_type == 'put':
             put_options = wb.get_options(stock=symbol, count=-1, direction='put', expireDate=expiration_date)
             put_options = [opt for opt in put_options if rounded_price - 5 <= float(opt['strikePrice']) <= rounded_price]
             put_options.sort(key=lambda x: int(wb.get_option_quote(stock=symbol, optionId=x['put']['tickerId'])['data'][0]['volume']), reverse=True)
-            return put_options
+            return put_options, target_dte
         
     except Exception as e:
         logger.error(f"Error filtering options: {e}")
-        return None
+        return None, None
 
 
 def backfill_entry_signal(wb):
