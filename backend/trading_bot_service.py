@@ -1108,8 +1108,8 @@ async def run_trading_bot(wb, settings):
                     phase = tracking.get('phase', 'initial')
                     initial_quantity = tracking.get('initial_quantity', quantity)
                     
-                    # Determine if we should use override settings or DTE-based targets
-                    use_override = (settings_profit_pct != 0.50 or settings_loss_pct != 0.25)
+                    # Check if user enabled custom override in settings
+                    use_override = settings.get('override_profit_loss', False)
                     
                     if use_override:
                         profit_target_pct, stop_loss_pct, contracts_to_keep = get_profit_loss_targets(
