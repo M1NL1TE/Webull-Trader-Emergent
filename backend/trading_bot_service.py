@@ -1154,15 +1154,15 @@ def execute_call_trade(wb, symbol, trade_grade, account_info, signal_type='zone'
         return False, None
 
 
-def execute_put_trade(wb, symbol, trade_grade, account_info):
+def execute_put_trade(wb, symbol, trade_grade, account_info, signal_type='zone'):
     """Execute put option trade based on your original buy_put logic"""
     try:
-        # Filter options for puts
-        filtered_chain = filter_options_for_trade(wb, symbol, 'put')
+        # Filter options for puts with signal type for DTE selection
+        filtered_chain, dte = filter_options_for_trade(wb, symbol, 'put', signal_type)
         
-        if not filtered_chain:
+        if not filtered_chain or dte is None:
             logger.error("No suitable put options found")
-            return False
+            return False, None
         
         # Calculate order quantity
         account_value = float(account_info['accountMembers'][1]['value'])
