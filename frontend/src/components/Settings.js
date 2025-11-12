@@ -131,9 +131,47 @@ function Settings() {
           )}
 
           <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border-2 border-slate-700">
+              <div className="space-y-0.5">
+                <Label htmlFor="override_profit_loss" className="text-slate-200 font-medium">
+                  Override Default Targets
+                </Label>
+                <p className="text-sm text-slate-400">
+                  Use custom profit/loss instead of DTE-based trailing stops
+                </p>
+              </div>
+              <Switch
+                id="override_profit_loss"
+                data-testid="override-targets-toggle"
+                checked={settings.override_profit_loss}
+                onCheckedChange={(checked) => setSettings({ ...settings, override_profit_loss: checked })}
+              />
+            </div>
+
+            {!settings.override_profit_loss && (
+              <div className="p-4 bg-blue-500/10 border border-blue-700/30 rounded-lg">
+                <p className="text-sm text-blue-300 font-medium mb-2">
+                  ✅ Using DTE-Based Trailing Stops (Default)
+                </p>
+                <div className="text-xs text-blue-200/80 space-y-1">
+                  <p>• <strong>0DTE:</strong> 25% initial profit → partial sell, then 75% trailing stop</p>
+                  <p>• <strong>1DTE:</strong> 20% initial profit → partial sell, then 95% trailing stop</p>
+                  <p>• Trailing stop loss: 5% (locks in profit)</p>
+                </div>
+              </div>
+            )}
+
+            {settings.override_profit_loss && (
+              <div className="p-4 bg-amber-500/10 border border-amber-700/30 rounded-lg">
+                <p className="text-sm text-amber-300">
+                  ⚠️ Override enabled - custom targets will be used for all trades (no trailing stops)
+                </p>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="profit_percentage" className="text-slate-200">
-                Take Profit Percentage
+                Take Profit Percentage {!settings.override_profit_loss && <span className="text-slate-500 text-xs">(Override OFF - Not Used)</span>}
               </Label>
               <div className="flex items-center gap-4">
                 <Input
@@ -145,7 +183,8 @@ function Settings() {
                   step="1"
                   value={settings.profit_percentage}
                   onChange={(e) => setSettings({ ...settings, profit_percentage: parseFloat(e.target.value) })}
-                  className="bg-slate-800 border-slate-700 text-white"
+                  className={`bg-slate-800 border-slate-700 text-white ${!settings.override_profit_loss ? 'opacity-50' : ''}`}
+                  disabled={!settings.override_profit_loss}
                 />
                 <span className="text-slate-400 min-w-[40px]">{settings.profit_percentage}%</span>
               </div>
@@ -156,7 +195,7 @@ function Settings() {
 
             <div className="space-y-2">
               <Label htmlFor="loss_percentage" className="text-slate-200">
-                Stop Loss Percentage
+                Stop Loss Percentage {!settings.override_profit_loss && <span className="text-slate-500 text-xs">(Override OFF - Not Used)</span>}
               </Label>
               <div className="flex items-center gap-4">
                 <Input
@@ -168,7 +207,8 @@ function Settings() {
                   step="1"
                   value={settings.loss_percentage}
                   onChange={(e) => setSettings({ ...settings, loss_percentage: parseFloat(e.target.value) })}
-                  className="bg-slate-800 border-slate-700 text-white"
+                  className={`bg-slate-800 border-slate-700 text-white ${!settings.override_profit_loss ? 'opacity-50' : ''}`}
+                  disabled={!settings.override_profit_loss}
                 />
                 <span className="text-slate-400 min-w-[40px]">{settings.loss_percentage}%</span>
               </div>
