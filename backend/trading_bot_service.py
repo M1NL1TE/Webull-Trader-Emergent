@@ -18,6 +18,41 @@ from email.mime.multipart import MIMEMultipart
 
 logger = logging.getLogger(__name__)
 
+# Position tracking collection for trailing stops
+position_tracking_collection = None
+
+def get_profit_loss_targets(dte, trailing_phase=False, settings_override=None):
+    """
+    Get profit and loss targets based on DTE and position phase.
+    
+    Args:
+        dte: 0 or 1 (days to expiration)
+        trailing_phase: False for initial, True for trailing stop phase
+        settings_override: Dict with 'profit' and 'loss' percentages to override defaults
+        
+    Returns:
+        (profit_target_pct, stop_loss_pct, contracts_to_keep)
+    """
+    if settings_override:
+        return (settings_override['profit'], settings_override['loss'], 0)
+    
+    if not trailing_phase:
+        # Initial phase
+        if dte == 0:
+            # 0DTE: 25% profit, 25% loss, keep 1 contract for trailing
+            return (0.25, 0.25, 1)
+        else:
+            # 1DTE: 20% profit, 25% loss, keep 2 contracts for trailing
+            return (0.20, 0.25, 2)
+    else:
+        # Trailing phase (after initial profit target hit)
+        if dte == 0:
+            # 0DTE: 75% total profit (50% additional), 5% loss (lock in profit)
+            return (0.75, 0.05, 0)
+        else:
+            # 1DTE: 95% total profit (75% additional), 5% loss (lock in profit)
+            return (0.95, 0.05, 0)
+
 # API retry helper for handling Webull API timeouts
 async def retry_api_call(func, max_retries=3, delay=2):
     """
