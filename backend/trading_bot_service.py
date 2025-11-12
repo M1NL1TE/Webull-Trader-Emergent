@@ -643,11 +643,11 @@ async def run_trading_bot(wb, settings):
         zone_broken = False
         zone_break_candle_demand_price, zone_break_candle_supply_price = 0, 0
         
-        # Get settings
-        profit_pct = settings.get('profit_percentage', 50.0) / 100.0  # Convert to decimal
-        loss_pct = settings.get('loss_percentage', 25.0) / 100.0
+        # Get settings (used as override if needed)
+        settings_profit_pct = settings.get('profit_percentage', 50.0) / 100.0
+        settings_loss_pct = settings.get('loss_percentage', 25.0) / 100.0
         
-        logger.info(f"Bot settings: Profit target={profit_pct*100}%, Stop loss={loss_pct*100}%")
+        logger.info(f"Bot settings: Profit override={settings_profit_pct*100}%, Loss override={settings_loss_pct*100}%")
         
         # Start keep-alive heartbeat task
         asyncio.create_task(keep_alive_heartbeat())
