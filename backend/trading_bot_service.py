@@ -1136,7 +1136,7 @@ def execute_call_trade(wb, symbol, trade_grade, account_info, signal_type='zone'
         mid_price = (bid_price + ask_price) / 2
         
         # Place market order for immediate fill
-        logger.info(f"Placing MARKET call order: {order_quantity} contracts (reference price: ${mid_price:.2f}, bid: ${bid_price:.2f}, ask: ${ask_price:.2f})")
+        logger.info(f"Placing MARKET call order: {order_quantity} contracts @ {dte}DTE (reference price: ${mid_price:.2f}, bid: ${bid_price:.2f}, ask: ${ask_price:.2f})")
         wb.place_order_option(
             optionId=option_id,
             lmtPrice=mid_price,  # Required by API but not used for MKT orders
@@ -1147,11 +1147,11 @@ def execute_call_trade(wb, symbol, trade_grade, account_info, signal_type='zone'
             quant=order_quantity
         )
         
-        return True
+        return True, dte  # Return DTE for position tracking
         
     except Exception as e:
         logger.error(f"Error in execute_call_trade: {e}", exc_info=True)
-        return False
+        return False, None
 
 
 def execute_put_trade(wb, symbol, trade_grade, account_info):
