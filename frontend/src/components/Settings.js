@@ -16,7 +16,8 @@ function Settings() {
     auto_trading: false,
     profit_percentage: 50.0,
     loss_percentage: 25.0,
-    sms_notifications: false
+    sms_notifications: false,
+    override_profit_loss: false
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
