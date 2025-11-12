@@ -781,7 +781,7 @@ async def run_trading_bot(wb, settings):
                         # Execute ORB trade
                         try:
                             if orb_signal == 'call':
-                                success = execute_call_trade(wb, symbol, 'A+', account_info)  # ORB gets A+ grade
+                                success, dte = execute_call_trade(wb, symbol, 'A+', account_info, signal_type='orb')
                                 if success:
                                     bot_state.last_entry_signal = {
                                         'signal_type': 'ORB Breakout',
@@ -790,14 +790,15 @@ async def run_trading_bot(wb, settings):
                                         'grade': 'A+',
                                         'entry_price': current_price,
                                         'direction': 'CALL',
+                                        'dte': dte,
                                         'timestamp': datetime.now(timezone.utc).isoformat()
                                     }
                                     await save_entry_signal_to_db(bot_state.last_entry_signal)
-                                    send_notification(f"ORB Call Trade\n{orb_message}\nORB breakout strategy")
-                                    bot_state.last_action = f"ORB CALL at {current_time}"
-                                    logger.info("✅ ORB call order placed")
+                                    send_notification(f"ORB Call Trade ({dte}DTE)\n{orb_message}\nORB breakout strategy")
+                                    bot_state.last_action = f"ORB CALL at {current_time} ({dte}DTE)"
+                                    logger.info(f"✅ ORB call order placed ({dte}DTE)")
                             elif orb_signal == 'put':
-                                success = execute_put_trade(wb, symbol, 'A+', account_info)  # ORB gets A+ grade
+                                success, dte = execute_put_trade(wb, symbol, 'A+', account_info, signal_type='orb')
                                 if success:
                                     bot_state.last_entry_signal = {
                                         'signal_type': 'ORB Breakout',
@@ -806,12 +807,13 @@ async def run_trading_bot(wb, settings):
                                         'grade': 'A+',
                                         'entry_price': current_price,
                                         'direction': 'PUT',
+                                        'dte': dte,
                                         'timestamp': datetime.now(timezone.utc).isoformat()
                                     }
                                     await save_entry_signal_to_db(bot_state.last_entry_signal)
-                                    send_notification(f"ORB Put Trade\n{orb_message}\nORB breakout strategy")
-                                    bot_state.last_action = f"ORB PUT at {current_time}"
-                                    logger.info("✅ ORB put order placed")
+                                    send_notification(f"ORB Put Trade ({dte}DTE)\n{orb_message}\nORB breakout strategy")
+                                    bot_state.last_action = f"ORB PUT at {current_time} ({dte}DTE)"
+                                    logger.info(f"✅ ORB put order placed ({dte}DTE)")
                         except Exception as e:
                             logger.error(f"Error executing ORB trade: {e}", exc_info=True)
                             bot_state.no_trade_reason = f"ORB trade error: {str(e)}"
