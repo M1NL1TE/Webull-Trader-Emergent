@@ -624,20 +624,9 @@ async def run_trading_bot(wb, settings):
         bot_state.error_message = None
         logger.info("🤖 Trading bot started")
         
-        # Only send notification during market hours to avoid spam from restarts
-        from pytz import timezone as pytz_timezone
-        eastern = pytz_timezone('US/Eastern')
-        now_eastern = datetime.now(eastern)
-        current_time = now_eastern.time()
-        is_weekday = now_eastern.weekday() < 5
-        market_open = dt_time(9, 0)  # Start notifications from 9 AM
-        market_close = dt_time(16, 30)  # Stop at 4:30 PM
-        
-        if is_weekday and market_open <= current_time <= market_close:
-            send_notification("Bot Started\nTrading bot is now monitoring SPY for entry signals during market hours (9:30 AM - 4:00 PM EST)")
-            logger.info("📧 Bot start notification sent (market hours)")
-        else:
-            logger.info("🔕 Bot start notification suppressed (outside market hours)")
+        # COMPLETELY DISABLE "Bot Started" email notifications per user request
+        # Bot start notifications are too noisy due to frequent preview environment restarts
+        logger.info("🔕 Bot start notification disabled (user preference)")
         
         # Load persisted entry signal from database
         saved_signal = await load_entry_signal_from_db()
