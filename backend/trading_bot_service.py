@@ -18,8 +18,57 @@ from email.mime.multipart import MIMEMultipart
 
 logger = logging.getLogger(__name__)
 
-# Position tracking collection for trailing stops
+# Position tracking collection for trailing stops (initialized from server.py)
 position_tracking_collection = None
+
+async def save_position_tracking(ticker_id, dte, entry_price, quantity, direction):
+    """Save position tracking data for trailing stop logic"""
+    try:
+        from server import position_tracking_collection
+        await position_tracking_collection.replace_one(
+            {'ticker_id': ticker_id},
+            {
+                'ticker_id': ticker_id,
+                'dte': dte,
+                'entry_price': entry_price,
+                'initial_quantity': quantity,
+                'remaining_quantity': quantity,
+                'direction': direction,
+                'phase': 'initial',  # 'initial' or 'trailing'
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            },
+            upsert=True
+        )
+        logger.info(f"✅ Position tracking saved for {ticker_id}: {dte}DTE, {quantity} contracts")
+    except Exception as e:
+        logger.error(f"Error saving position tracking: {e}")
+
+async def get_position_tracking(ticker_id):
+    """Get position tracking data"""
+    try:
+        from server import position_tracking_collection
+        return await position_tracking_collection.find_one({'ticker_id': ticker_id})
+    except Exception as e:
+        logger.error(f"Error getting position tracking: {e}")
+        return None
+
+async def update_position_phase(ticker_id, phase, remaining_quantity):
+    """Update position to trailing phase after initial profit target hit"""
+    try:
+        from server import position_tracking_collection
+        await position_tracking_collection.update_one(
+            {'ticker_id': ticker_id},
+            {
+                '$set': {
+                    'phase': phase,
+                    'remaining_quantity': remaining_quantity,
+                    'phase_updated': datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+        logger.info(f"✅ Position phase updated: {ticker_id} → {phase}, {remaining_quantity} contracts remaining")
+    except Exception as e:
+        logger.error(f"Error updating position phase: {e}")
 
 def get_profit_loss_targets(dte, trailing_phase=False, settings_override=None):
     """
