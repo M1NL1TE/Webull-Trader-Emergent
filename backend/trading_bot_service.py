@@ -1067,7 +1067,7 @@ async def run_trading_bot(wb, settings):
                         logger.info(f"No trade: {bot_state.no_trade_reason}")
                     
                 elif has_position and not has_open_orders:
-                    # Monitor position for exit
+                    # Monitor position for exit with trailing stop logic
                     logger.info("Monitoring open position...")
                     position = account_info['positions'][0]
                     current_ticker = position['ticker']['symbol']
@@ -1094,65 +1094,118 @@ async def run_trading_bot(wb, settings):
                     ticker_id = position['ticker']['tickerId']
                     quantity = int(position['position'])
                     
-                    # Calculate profit/loss targets
-                    target_price = cost_price * (1 + profit_pct)
-                    stop_loss_price = cost_price * (1 - loss_pct)
+                    # Get position tracking data
+                    tracking = await get_position_tracking(ticker_id)
                     
+                    if not tracking:
+                        # No tracking data - check if we have DTE from entry signal
+                        dte = bot_state.last_entry_signal.get('dte', 1) if bot_state.last_entry_signal else 1
+                        await save_position_tracking(ticker_id, dte, cost_price, quantity, 
+                                                     bot_state.last_entry_signal.get('direction', 'UNKNOWN') if bot_state.last_entry_signal else 'UNKNOWN')
+                        tracking = await get_position_tracking(ticker_id)
+                    
+                    dte = tracking['dte']
+                    phase = tracking.get('phase', 'initial')
+                    initial_quantity = tracking.get('initial_quantity', quantity)
+                    
+                    # Determine if we should use override settings or DTE-based targets
+                    use_override = (settings_profit_pct != 0.50 or settings_loss_pct != 0.25)
+                    
+                    if use_override:
+                        profit_target_pct, stop_loss_pct, contracts_to_keep = get_profit_loss_targets(
+                            dte, trailing_phase=(phase == 'trailing'),
+                            settings_override={'profit': settings_profit_pct, 'loss': settings_loss_pct}
+                        )
+                    else:
+                        # Check if quantity is too low for trailing stops
+                        min_quantity = 2 if dte == 0 else 3  # Need at least 2 for 0DTE, 3 for 1DTE
+                        if initial_quantity < min_quantity and phase == 'initial':
+                            logger.info(f"⚠️ Quantity too low ({initial_quantity}) for trailing stops, using regular targets")
+                            profit_target_pct, stop_loss_pct, contracts_to_keep = (0.25 if dte == 0 else 0.20, 0.25, 0)
+                        else:
+                            profit_target_pct, stop_loss_pct, contracts_to_keep = get_profit_loss_targets(
+                                dte, trailing_phase=(phase == 'trailing')
+                            )
+                    
+                    target_price = cost_price * (1 + profit_target_pct)
+                    stop_loss_price = cost_price * (1 - stop_loss_pct)
                     pnl_pct = ((current_price - cost_price) / cost_price) * 100
                     
-                    logger.info(f"Position P/L: {pnl_pct:.2f}% (Target: +{profit_pct*100}%, Stop: -{loss_pct*100}%)")
-                    bot_state.current_signal = f"Monitoring position: P/L {pnl_pct:.2f}%"
+                    logger.info(f"Position P/L: {pnl_pct:.2f}% ({dte}DTE, {phase} phase, Target: +{profit_target_pct*100}%, Stop: -{stop_loss_pct*100}%)")
+                    bot_state.current_signal = f"Monitoring {dte}DTE position ({phase}): P/L {pnl_pct:.2f}%"
                     
                     # CHECK FOR EXIT CONDITIONS
                     if current_price >= target_price:
                         logger.info(f"🎯 PROFIT TARGET REACHED! P/L: {pnl_pct:.2f}%")
                         try:
-                            # Get current bid/ask to calculate mid price
                             quote = wb.get_option_quote(stock='SPY', optionId=ticker_id)
                             bid_price = float(quote['data'][0]['bidList'][0]['price'])
                             ask_price = float(quote['data'][0]['askList'][0]['price'])
                             mid_price = (bid_price + ask_price) / 2
                             
-                            # Place MARKET SELL order for immediate fill
-                            logger.info(f"Placing MARKET sell order (reference price: ${mid_price:.2f}, bid: ${bid_price:.2f}, ask: ${ask_price:.2f})")
-                            wb.place_order_option(
-                                optionId=ticker_id,
-                                lmtPrice=mid_price,  # Required by API but not used for MKT orders
-                                stpPrice=str(float(mid_price) - 0.25),
-                                action='SELL',
-                                orderType='MKT',  # Market order for immediate fill
-                                enforce='GTC',
-                                quant=quantity
-                            )
-                            logger.info(f"✅ SELL order placed: {quantity} contracts at market price")
-                            send_notification(f"Profit Target Hit!\nSold {quantity} contracts at {pnl_pct:.2f}% profit\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
-                            bot_state.last_action = f"SOLD at +{pnl_pct:.2f}% profit"
+                            # Determine how many contracts to sell
+                            if phase == 'initial' and contracts_to_keep > 0 and quantity > contracts_to_keep:
+                                # Initial profit target - sell all but X contracts
+                                contracts_to_sell = quantity - contracts_to_keep
+                                logger.info(f"📊 Trailing stop strategy: Selling {contracts_to_sell} contracts, keeping {contracts_to_keep} for trailing")
+                                
+                                wb.place_order_option(
+                                    optionId=ticker_id,
+                                    lmtPrice=mid_price,
+                                    stpPrice=str(float(mid_price) - 0.25),
+                                    action='SELL',
+                                    orderType='MKT',
+                                    enforce='GTC',
+                                    quant=contracts_to_sell
+                                )
+                                logger.info(f"✅ Partial SELL order placed: {contracts_to_sell} contracts at market price")
+                                send_notification(f"Profit Target Hit! ({dte}DTE)\nSold {contracts_to_sell}/{quantity} contracts at {pnl_pct:.2f}% profit\nKeeping {contracts_to_keep} for trailing stop\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
+                                
+                                # Update to trailing phase
+                                await update_position_phase(ticker_id, 'trailing', contracts_to_keep)
+                                bot_state.last_action = f"SOLD {contracts_to_sell} at +{pnl_pct:.2f}% profit (keeping {contracts_to_keep})"
+                            else:
+                                # Trailing profit target or regular sell - sell all remaining
+                                logger.info(f"📊 Selling all {quantity} remaining contracts")
+                                wb.place_order_option(
+                                    optionId=ticker_id,
+                                    lmtPrice=mid_price,
+                                    stpPrice=str(float(mid_price) - 0.25),
+                                    action='SELL',
+                                    orderType='MKT',
+                                    enforce='GTC',
+                                    quant=quantity
+                                )
+                                logger.info(f"✅ SELL order placed: {quantity} contracts at market price")
+                                phase_msg = " (Trailing Stop)" if phase == 'trailing' else ""
+                                send_notification(f"Profit Target Hit{phase_msg}! ({dte}DTE)\nSold {quantity} contracts at {pnl_pct:.2f}% profit\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
+                                bot_state.last_action = f"SOLD {quantity} at +{pnl_pct:.2f}% profit{phase_msg}"
                         except Exception as e:
                             logger.error(f"❌ Error placing SELL order: {e}")
                             
                     elif current_price <= stop_loss_price:
                         logger.info(f"🛑 STOP LOSS HIT! P/L: {pnl_pct:.2f}%")
                         try:
-                            # Get current bid/ask to calculate mid price
                             quote = wb.get_option_quote(stock='SPY', optionId=ticker_id)
                             bid_price = float(quote['data'][0]['bidList'][0]['price'])
                             ask_price = float(quote['data'][0]['askList'][0]['price'])
                             mid_price = (bid_price + ask_price) / 2
                             
-                            # Place MARKET SELL order for immediate fill
-                            logger.info(f"Placing MARKET sell order for stop loss (reference price: ${mid_price:.2f}, bid: ${bid_price:.2f}, ask: ${ask_price:.2f})")
+                            # Sell all remaining contracts
                             wb.place_order_option(
                                 optionId=ticker_id,
-                                lmtPrice=mid_price,  # Required by API but not used for MKT orders
+                                lmtPrice=mid_price,
                                 stpPrice=str(float(mid_price) - 0.25),
                                 action='SELL',
-                                orderType='MKT',  # Market order for immediate fill
+                                orderType='MKT',
                                 enforce='GTC',
                                 quant=quantity
                             )
+                            phase_msg = f" ({phase} phase)" if phase == 'trailing' else ""
+                            loss_or_profit = "profit" if pnl_pct > 0 else "loss"
                             logger.info(f"✅ STOP LOSS SELL order placed: {quantity} contracts at market price")
-                            send_notification(f"Stop Loss Triggered!\nSold {quantity} contracts at {pnl_pct:.2f}% loss\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
-                            bot_state.last_action = f"SOLD at {pnl_pct:.2f}% loss (stop loss)"
+                            send_notification(f"Stop Loss Triggered{phase_msg}! ({dte}DTE)\nSold {quantity} contracts at {pnl_pct:.2f}% {loss_or_profit}\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
+                            bot_state.last_action = f"SOLD {quantity} at {pnl_pct:.2f}% {loss_or_profit} (stop loss)"
                         except Exception as e:
                             logger.error(f"❌ Error placing STOP LOSS order: {e}")
                 
