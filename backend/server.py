@@ -35,6 +35,7 @@ db = client[os.environ['DB_NAME']]
 sessions_collection = db['sessions']
 settings_collection = db['settings']
 entry_signals_collection = db['entry_signals']  # New collection for persisting entry signals
+position_tracking_collection = db['position_tracking']  # New collection for tracking positions with trailing stops
 
 # App password from environment
 APP_PASSWORD = os.environ.get('APP_PASSWORD', 'changeme123')
