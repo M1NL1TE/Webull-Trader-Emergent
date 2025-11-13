@@ -827,6 +827,13 @@ async def run_trading_bot(wb, settings):
                 
                 bot_state.position_status = "Position Open" if has_position else "No Position"
                 
+                # Update current price for display (always, regardless of position status)
+                try:
+                    quick_quote = await retry_api_call(lambda: wb.get_quote(stock=symbol))
+                    bot_state.current_price = float(quick_quote['close'])
+                except Exception as e:
+                    logger.debug(f"Could not fetch quick quote for price display: {e}")
+                
                 # ALWAYS calculate ORB levels (even with positions, for display purposes)
                 if bot_state.orb_status.get('high', 0) == 0:
                     orb_signal, orb_message = check_orb_breakout(wb, symbol, current_time)
