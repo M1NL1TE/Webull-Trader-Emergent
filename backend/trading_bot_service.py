@@ -849,6 +849,22 @@ async def run_trading_bot(wb, settings):
                 bot_state.market_status = "Open"
                 logger.info(f"✅ Market open - checking for trades at {current_time}")
                 
+                # Send "Bot Online" notification once per day (first time market opens)
+                if not await check_daily_notification_sent('bot_online'):
+                    send_notification(
+                        f"🤖 Trading Bot Online\n"
+                        f"Bot is now active and monitoring SPY for trading signals.\n\n"
+                        f"Market Hours: 9:30 AM - 4:00 PM EST\n"
+                        f"Started: {now_eastern.strftime('%I:%M %p %Z')}\n\n"
+                        f"You'll receive notifications for:\n"
+                        f"• Trade entries (calls/puts)\n"
+                        f"• Profit target hits\n"
+                        f"• Stop loss triggers\n"
+                        f"• End of day summary"
+                    )
+                    await mark_daily_notification_sent('bot_online')
+                    logger.info("📧 Daily 'Bot Online' notification sent")
+                
                 # Get account info with retry logic
                 try:
                     account_info = await retry_api_call(lambda: wb.get_account())
