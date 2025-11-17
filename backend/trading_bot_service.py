@@ -841,6 +841,30 @@ async def run_trading_bot(wb, settings):
                     bot_state.market_status = "Closed (After Hours)"
                     bot_state.current_signal = "Market closed for the day"
                     logger.info("Market closed for the day")
+                    
+                    # Send "Bot Finished" notification once per day (when market closes)
+                    if not await check_daily_notification_sent('bot_finished'):
+                        # Get some stats for the end-of-day summary
+                        try:
+                            account_info = wb.get_account()
+                            positions_count = len(account_info.get('positions', []))
+                            open_orders_count = len(account_info.get('openOrders', []))
+                            
+                            send_notification(
+                                f"🏁 Trading Bot Finished for Today\n"
+                                f"Market closed at 4:00 PM EST\n\n"
+                                f"Status:\n"
+                                f"• Open Positions: {positions_count}\n"
+                                f"• Open Orders: {open_orders_count}\n"
+                                f"• Bot Status: Idle (waiting for tomorrow)\n\n"
+                                f"The bot will resume monitoring when market opens tomorrow at 9:30 AM EST.\n\n"
+                                f"Check your dashboard for detailed P/L and trade history."
+                            )
+                            await mark_daily_notification_sent('bot_finished')
+                            logger.info("📧 Daily 'Bot Finished' notification sent")
+                        except Exception as e:
+                            logger.error(f"Could not send end-of-day notification: {e}")
+                    
                     # Keep ORB levels visible after hours (don't reset)
                     await asyncio.sleep(3600)  # Check every hour after close
                     continue
