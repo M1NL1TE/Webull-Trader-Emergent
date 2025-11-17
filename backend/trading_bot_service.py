@@ -696,6 +696,44 @@ def get_volume_candle_grade(df):
     else:
         return 'D'
 
+async def check_daily_notification_sent(notification_type):
+    """Check if we've already sent a notification today"""
+    try:
+        from server import db
+        from pytz import timezone as pytz_timezone
+        eastern = pytz_timezone('US/Eastern')
+        today = datetime.now(eastern).date().isoformat()
+        
+        result = await db.daily_notifications.find_one({
+            'type': notification_type,
+            'date': today
+        })
+        return result is not None
+    except Exception as e:
+        logger.error(f"Error checking daily notification: {e}")
+        return False
+
+async def mark_daily_notification_sent(notification_type):
+    """Mark that we've sent a notification today"""
+    try:
+        from server import db
+        from pytz import timezone as pytz_timezone
+        eastern = pytz_timezone('US/Eastern')
+        today = datetime.now(eastern).date().isoformat()
+        
+        await db.daily_notifications.replace_one(
+            {'type': notification_type, 'date': today},
+            {
+                'type': notification_type,
+                'date': today,
+                'sent_at': datetime.now(timezone.utc).isoformat()
+            },
+            upsert=True
+        )
+        logger.info(f"✅ Marked {notification_type} notification as sent for {today}")
+    except Exception as e:
+        logger.error(f"Error marking daily notification: {e}")
+
 async def run_trading_bot(wb, settings):
     """
     Main trading bot loop - async version of original main() function
@@ -708,9 +746,8 @@ async def run_trading_bot(wb, settings):
         bot_state.error_message = None
         logger.info("🤖 Trading bot started")
         
-        # COMPLETELY DISABLE "Bot Started" email notifications per user request
-        # Bot start notifications are too noisy due to frequent preview environment restarts
-        logger.info("🔕 Bot start notification disabled (user preference)")
+        # Smart daily notification system (not spammy!)
+        logger.info("📧 Smart notification system active (once per day)")
         
         # Load persisted entry signal from database
         saved_signal = await load_entry_signal_from_db()
