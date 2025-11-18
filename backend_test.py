@@ -710,58 +710,59 @@ class WebullBackendTester:
             "test_results": {}
         }
         
-        # Test 1: App Password Authentication
+        # Test 1: MongoDB Connection
         overall_result["tests_run"] += 1
-        app_auth_success = self.test_app_password_auth()
-        overall_result["test_results"]["app_password_auth"] = app_auth_success
-        if app_auth_success:
+        mongodb_success = await self.setup_mongodb_connection()
+        overall_result["test_results"]["mongodb_connection"] = mongodb_success
+        if mongodb_success:
             overall_result["tests_passed"] += 1
         else:
-            overall_result["critical_failures"].append("App password authentication failed")
+            overall_result["critical_failures"].append("MongoDB connection failed")
+            return overall_result  # Can't continue without MongoDB
         
-        # Test 2: Session Restore (optional)
-        session_restored = self.test_session_restore()
-        overall_result["test_results"]["session_restore"] = session_restored
-        if not session_restored:
-            overall_result["minor_issues"].append("No existing Webull session found - authentication required")
-        
-        # Test 3: Activities Endpoint Structure
+        # Test 2: Position Tracking Collection
         overall_result["tests_run"] += 1
-        activities_result = self.test_activities_endpoint_structure()
-        overall_result["test_results"]["activities_endpoint"] = activities_result
-        
-        if activities_result["success"]:
+        collection_result = await self.test_position_tracking_collection()
+        overall_result["test_results"]["position_tracking_collection"] = collection_result
+        if collection_result["success"]:
             overall_result["tests_passed"] += 1
-            
-            # Test 4: P/L Calculation Values (only if endpoint works)
-            overall_result["tests_run"] += 1
-            pl_result = self.test_pl_calculation_values(activities_result)
-            overall_result["test_results"]["pl_calculation"] = pl_result
-            
-            if pl_result["success"]:
-                overall_result["tests_passed"] += 1
-            else:
-                overall_result["critical_failures"].extend(pl_result["errors"])
-            
-            # Test 5: Time Period Filtering (only if endpoint works)
-            overall_result["tests_run"] += 1
-            time_result = self.test_time_period_filtering(activities_result)
-            overall_result["test_results"]["time_filtering"] = time_result
-            
-            if time_result["success"]:
-                overall_result["tests_passed"] += 1
-            else:
-                overall_result["minor_issues"].extend(time_result["errors"])
-                
         else:
-            if activities_result.get("status_code") == 401:
-                overall_result["critical_failures"].append("Activities endpoint requires Webull authentication")
-            else:
-                overall_result["critical_failures"].append(f"Activities endpoint failed: {activities_result.get('error')}")
+            overall_result["critical_failures"].append(f"Position tracking collection test failed: {collection_result.get('error')}")
+        
+        # Test 3: Position Tracking Logic
+        overall_result["tests_run"] += 1
+        logic_result = await self.test_position_tracking_logic()
+        overall_result["test_results"]["position_tracking_logic"] = logic_result
+        if logic_result["success"]:
+            overall_result["tests_passed"] += 1
+        else:
+            overall_result["critical_failures"].extend(logic_result["errors"])
+        
+        # Test 4: Profit/Loss Target Calculations
+        overall_result["tests_run"] += 1
+        targets_result = await self.test_profit_loss_targets()
+        overall_result["test_results"]["profit_loss_targets"] = targets_result
+        if targets_result["success"]:
+            overall_result["tests_passed"] += 1
+        else:
+            overall_result["critical_failures"].extend(targets_result["errors"])
+        
+        # Test 5: Critical Bug Fix Scenario
+        overall_result["tests_run"] += 1
+        bugfix_result = await self.test_critical_bug_fix_scenario()
+        overall_result["test_results"]["critical_bug_fix"] = bugfix_result
+        if bugfix_result["success"]:
+            overall_result["tests_passed"] += 1
+            self.log("🎉 CRITICAL BUG FIX VERIFIED: New positions start with 'initial' phase and 25% stop-loss")
+        else:
+            overall_result["critical_failures"].extend(bugfix_result["errors"])
+        
+        # Clean up MongoDB connection
+        await self.cleanup_mongodb_connection()
         
         # Overall success determination
         overall_result["success"] = (
-            overall_result["tests_passed"] >= 2 and  # At least app auth + endpoint structure
+            overall_result["tests_passed"] >= 4 and  # At least MongoDB + collection + logic + targets
             len(overall_result["critical_failures"]) == 0
         )
         
