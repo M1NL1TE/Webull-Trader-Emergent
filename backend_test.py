@@ -562,9 +562,9 @@ class WebullBackendTester:
             
             # Test 1DTE trailing phase
             profit_pct, stop_loss_pct, contracts_to_keep = get_profit_loss_targets(1, trailing_phase=True)
-            if profit_pct == 0.60 and stop_loss_pct == 0.05 and contracts_to_keep == 0:
+            if profit_pct == 0.95 and stop_loss_pct == 0.05 and contracts_to_keep == 0:
                 result["dte_1_trailing"] = True
-                self.log("✅ 1DTE trailing phase: 60% profit, 5% stop-loss, keep 0 contracts")
+                self.log("✅ 1DTE trailing phase: 95% profit, 5% stop-loss, keep 0 contracts")
             else:
                 result["errors"].append(f"1DTE trailing incorrect: {profit_pct}, {stop_loss_pct}, {contracts_to_keep}")
             
