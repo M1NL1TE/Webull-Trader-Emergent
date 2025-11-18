@@ -697,9 +697,9 @@ class WebullBackendTester:
     
     async def run_comprehensive_test(self) -> Dict[str, Any]:
         """Run comprehensive backend test suite"""
-        self.log("=" * 60)
-        self.log("STARTING WEBULL BACKEND P/L CALCULATION TESTS")
-        self.log("=" * 60)
+        self.log("=" * 80)
+        self.log("STARTING POSITION TRACKING BUG FIX TESTS")
+        self.log("=" * 80)
         
         overall_result = {
             "success": False,
