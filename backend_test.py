@@ -328,7 +328,7 @@ class WebullBackendTester:
         }
         
         try:
-            if not self.db:
+            if self.db is None:
                 result["error"] = "MongoDB connection not established"
                 return result
             
@@ -392,7 +392,7 @@ class WebullBackendTester:
         }
         
         try:
-            if not self.db:
+            if self.db is None:
                 result["errors"].append("MongoDB connection not established")
                 return result
             
@@ -595,7 +595,7 @@ class WebullBackendTester:
         }
         
         try:
-            if not self.db:
+            if self.db is None:
                 result["errors"].append("MongoDB connection not established")
                 return result
             
