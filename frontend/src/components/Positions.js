@@ -16,13 +16,43 @@ function Positions({ positions: initialPositions }) {
   const [livePositions, setLivePositions] = useState(initialPositions);
   const [orderTimes, setOrderTimes] = useState({});
 
+  // Helper function to calculate DTE-based targets
+  const calculateDTETargets = (dte, phase = 'initial', overrideSettings = null) => {
+    if (overrideSettings && overrideSettings.override_profit_loss) {
+      return {
+        profit: overrideSettings.profit_percentage,
+        loss: overrideSettings.loss_percentage
+      };
+    }
+    
+    if (phase === 'initial') {
+      if (dte === 0) {
+        return { profit: 25, loss: 25 }; // 0DTE initial
+      } else {
+        return { profit: 20, loss: 25 }; // 1DTE initial
+      }
+    } else {
+      // Trailing phase
+      if (dte === 0) {
+        return { profit: 75, loss: 5 }; // 0DTE trailing
+      } else {
+        return { profit: 95, loss: 5 }; // 1DTE trailing
+      }
+    }
+  };
+
   useEffect(() => {
-    // Fetch settings to get profit/loss targets
+    // Fetch settings to check for override
     const fetchSettings = async () => {
       try {
         const response = await axios.get(`${API}/settings`);
-        setProfitTarget(response.data.profit_percentage || 50);
-        setStopLoss(response.data.loss_percentage || 25);
+        // Don't directly use settings values - they might be overridden
+        // We'll calculate targets based on DTE instead
+        const hasOverride = response.data.override_profit_loss;
+        if (hasOverride) {
+          setProfitTarget(response.data.profit_percentage || 50);
+          setStopLoss(response.data.loss_percentage || 25);
+        }
       } catch (error) {
         console.error('Error fetching settings:', error);
       }
