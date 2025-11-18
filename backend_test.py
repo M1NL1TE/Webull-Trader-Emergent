@@ -27,6 +27,8 @@ class WebullBackendTester:
         self.session = requests.Session()
         self.app_token = None
         self.authenticated = False
+        self.mongo_client = None
+        self.db = None
         
     def log(self, message: str, level: str = "INFO"):
         """Log test messages with timestamp"""
