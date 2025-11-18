@@ -1181,12 +1181,23 @@ async def run_trading_bot(wb, settings):
                     # Get position tracking data
                     tracking = await get_position_tracking(ticker_id)
                     
+                    # Check if this is a new position vs continuation of existing position
+                    # If tracking exists but quantity is different from remaining_quantity, it's a NEW position
+                    is_new_position = False
                     if not tracking:
-                        # No tracking data - check if we have DTE from entry signal
+                        is_new_position = True
+                    elif tracking.get('remaining_quantity', 0) != quantity:
+                        # Quantity mismatch means this is a new position (not a continuation)
+                        is_new_position = True
+                        logger.info(f"Detected NEW position (qty={quantity}) vs old tracking (remaining_qty={tracking.get('remaining_quantity')})")
+                    
+                    if is_new_position:
+                        # New position - create fresh tracking data with 'initial' phase
                         dte = bot_state.last_entry_signal.get('dte', 1) if bot_state.last_entry_signal else 1
                         await save_position_tracking(ticker_id, dte, cost_price, quantity, 
                                                      bot_state.last_entry_signal.get('direction', 'UNKNOWN') if bot_state.last_entry_signal else 'UNKNOWN')
                         tracking = await get_position_tracking(ticker_id)
+                        logger.info(f"✅ New position tracking created: {ticker_id}, phase=initial, qty={quantity}")
                     
                     dte = tracking['dte']
                     phase = tracking.get('phase', 'initial')
