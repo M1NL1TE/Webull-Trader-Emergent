@@ -102,26 +102,23 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Fix P/L (Profit/Loss) calculation in ProfitLossWidget. User reported that P/L was showing $0 for all time filters despite having trading activity in Webull paper trading account."
+user_problem_statement: "Fix critical bug in trailing stop logic. Bot is selling contracts at 5% loss immediately after purchase instead of using the 25% initial stop-loss for 0DTE contracts. Root cause: New positions are incorrectly entering 'trailing' phase immediately instead of starting in 'initial' phase."
 
 backend:
-  - task: "P/L Calculation from Filled Orders"
+  - task: "Position Tracking State Management Bug Fix"
     implemented: true
-    working: true
-    file: "/app/backend/server.py"
+    working: "NA"
+    file: "/app/backend/trading_bot_service.py"
     stuck_count: 0
-    priority: "high"
-    needs_retesting: false
+    priority: "critical"
+    needs_retesting: true
     status_history:
-      - working: "NA"
+      - working: false
         agent: "user"
-        comment: "User reported P/L showing $0 for all time filters"
-      - working: true
+        comment: "Bot selling contracts at 5% loss immediately after purchase. Should use 25% initial stop-loss for 0DTE contracts but appears to be using 5% trailing stop-loss instead. Positions incorrectly marked as 'trailing' phase from the start."
+      - working: "NA"
         agent: "main"
-        comment: "Fixed P/L calculation. Root cause: get_activities() returned empty data for paper trading accounts. Solution: Modified /api/account/activities endpoint to fetch filled orders and calculate P/L using FIFO matching of buy/sell orders. Calculation formula: (sell_price - buy_price) * quantity * multiplier. Successfully tested via curl, returns correct P/L values: Month=-$70, Year=-$833, All Time=-$833"
-      - working: true
-        agent: "testing"
-        comment: "✅ COMPREHENSIVE BACKEND TESTING COMPLETED: Created backend_test.py and ran full test suite. All tests passed (4/4). /api/account/activities endpoint working perfectly: 1) App password auth successful 2) Session restore successful 3) Endpoint returns correct structure with success/code/msg/data fields 4) P/L calculation values exactly match expected: Today=$0, Week=$0, Month=-$70, Year=-$833, All Time=-$833 5) Time period filtering logic is correct 6) FIFO buy/sell matching working properly with 6 filled orders across 3 ticker IDs 7) Backend logs show detailed P/L calculation: -$70 (Oct), -$130 (Aug), -$633 (Aug) = -$833 total. No critical issues found."
+        comment: "FIXED: Root cause identified - when a new position is opened with the same ticker_id as a previous position, the old tracking data (with phase='trailing' and lower remaining_quantity) was being reused. Fix implemented in lines 1181-1204: Added is_new_position detection by comparing current quantity vs tracking.remaining_quantity. If quantities don't match, it's a NEW position and fresh tracking is created with phase='initial'. This ensures each new trade starts with correct 25% stop-loss (0DTE) or 20% stop-loss (1DTE) in initial phase, then transitions to trailing phase only after hitting profit target and partial sell."
 
 frontend:
   - task: "ProfitLossWidget Display P/L"
