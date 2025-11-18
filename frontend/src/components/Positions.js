@@ -256,9 +256,13 @@ function Positions({ positions: initialPositions }) {
               // Calculate current P/L percentage
               const plPercentage = costPrice > 0 ? ((lastPrice - costPrice) / costPrice) * 100 : 0;
               
-              // Calculate target prices
-              const profitTargetPrice = costPrice * (1 + profitTarget / 100);
-              const stopLossPrice = costPrice * (1 - stopLoss / 100);
+              // Get DTE from entry signal for this position
+              const positionDTE = entrySignal?.dte !== undefined ? entrySignal.dte : 1;
+              const targets = calculateDTETargets(positionDTE, 'initial');
+              
+              // Calculate target prices using DTE-based targets
+              const profitTargetPrice = costPrice * (1 + targets.profit / 100);
+              const stopLossPrice = costPrice * (1 - targets.loss / 100);
 
               return (
                 <div
