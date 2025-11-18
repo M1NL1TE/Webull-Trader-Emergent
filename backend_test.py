@@ -792,13 +792,13 @@ class WebullBackendTester:
         
         return overall_result
 
-def main():
+async def main():
     """Main test execution"""
     tester = WebullBackendTester()
-    result = tester.run_comprehensive_test()
+    result = await tester.run_comprehensive_test()
     
     # Exit with appropriate code
     sys.exit(0 if result["success"] else 1)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
