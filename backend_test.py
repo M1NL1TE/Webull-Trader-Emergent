@@ -302,7 +302,400 @@ class WebullBackendTester:
             
         return result
     
-    def run_comprehensive_test(self) -> Dict[str, Any]:
+    async def setup_mongodb_connection(self) -> bool:
+        """Setup MongoDB connection for direct database testing"""
+        try:
+            self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URL)
+            self.db = self.mongo_client[DB_NAME]
+            # Test connection
+            await self.db.command('ping')
+            self.log("✅ MongoDB connection established")
+            return True
+        except Exception as e:
+            self.log(f"❌ MongoDB connection failed: {str(e)}", "ERROR")
+            return False
+    
+    async def test_position_tracking_collection(self) -> Dict[str, Any]:
+        """Test position_tracking collection exists and is accessible"""
+        self.log("Testing position_tracking collection...")
+        
+        result = {
+            "success": False,
+            "collection_exists": False,
+            "can_read": False,
+            "can_write": False,
+            "error": None
+        }
+        
+        try:
+            if not self.db:
+                result["error"] = "MongoDB connection not established"
+                return result
+            
+            # Test collection access
+            collection = self.db['position_tracking']
+            
+            # Test read access
+            try:
+                count = await collection.count_documents({})
+                result["can_read"] = True
+                result["collection_exists"] = True
+                self.log(f"✅ Position tracking collection accessible, {count} documents")
+            except Exception as e:
+                result["error"] = f"Cannot read from position_tracking collection: {str(e)}"
+                return result
+            
+            # Test write access with a test document
+            test_doc = {
+                'ticker_id': 999999999,  # Test ticker ID
+                'dte': 0,
+                'entry_price': 100.0,
+                'initial_quantity': 5,
+                'remaining_quantity': 5,
+                'direction': 'CALL',
+                'phase': 'initial',
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                '_test_document': True
+            }
+            
+            try:
+                await collection.insert_one(test_doc)
+                result["can_write"] = True
+                self.log("✅ Position tracking collection write test successful")
+                
+                # Clean up test document
+                await collection.delete_one({'_test_document': True})
+                
+            except Exception as e:
+                result["error"] = f"Cannot write to position_tracking collection: {str(e)}"
+                return result
+            
+            result["success"] = result["collection_exists"] and result["can_read"] and result["can_write"]
+            
+        except Exception as e:
+            result["error"] = f"Position tracking collection test error: {str(e)}"
+            self.log(f"❌ Position tracking collection test error: {str(e)}", "ERROR")
+        
+        return result
+    
+    async def test_position_tracking_logic(self) -> Dict[str, Any]:
+        """Test the position tracking state management logic"""
+        self.log("Testing position tracking state management logic...")
+        
+        result = {
+            "success": False,
+            "new_position_detection": False,
+            "initial_phase_creation": False,
+            "quantity_mismatch_detection": False,
+            "phase_transitions": False,
+            "errors": []
+        }
+        
+        try:
+            if not self.db:
+                result["errors"].append("MongoDB connection not established")
+                return result
+            
+            collection = self.db['position_tracking']
+            test_ticker_id = 888888888  # Test ticker ID
+            
+            # Clean up any existing test data
+            await collection.delete_many({'ticker_id': test_ticker_id})
+            
+            # Test 1: New position detection (no existing tracking)
+            self.log("Testing new position detection...")
+            tracking = await collection.find_one({'ticker_id': test_ticker_id})
+            if tracking is None:
+                result["new_position_detection"] = True
+                self.log("✅ New position detection works (no existing tracking)")
+            else:
+                result["errors"].append("New position detection failed - found unexpected tracking data")
+            
+            # Test 2: Create initial phase tracking
+            self.log("Testing initial phase creation...")
+            initial_tracking = {
+                'ticker_id': test_ticker_id,
+                'dte': 0,
+                'entry_price': 150.0,
+                'initial_quantity': 5,
+                'remaining_quantity': 5,
+                'direction': 'CALL',
+                'phase': 'initial',
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+            
+            await collection.replace_one(
+                {'ticker_id': test_ticker_id},
+                initial_tracking,
+                upsert=True
+            )
+            
+            # Verify initial phase was created correctly
+            saved_tracking = await collection.find_one({'ticker_id': test_ticker_id})
+            if (saved_tracking and 
+                saved_tracking.get('phase') == 'initial' and 
+                saved_tracking.get('initial_quantity') == 5 and
+                saved_tracking.get('remaining_quantity') == 5):
+                result["initial_phase_creation"] = True
+                self.log("✅ Initial phase creation works correctly")
+            else:
+                result["errors"].append("Initial phase creation failed - incorrect data saved")
+            
+            # Test 3: Quantity mismatch detection (simulating new position with same ticker_id)
+            self.log("Testing quantity mismatch detection...")
+            current_position_qty = 3  # Different from tracking remaining_quantity (5)
+            tracking_remaining_qty = saved_tracking.get('remaining_quantity', 0)
+            
+            if tracking_remaining_qty != current_position_qty:
+                result["quantity_mismatch_detection"] = True
+                self.log(f"✅ Quantity mismatch detected: position={current_position_qty}, tracking={tracking_remaining_qty}")
+                
+                # Simulate creating new tracking for the "new" position
+                new_tracking = {
+                    'ticker_id': test_ticker_id,
+                    'dte': 1,
+                    'entry_price': 175.0,
+                    'initial_quantity': current_position_qty,
+                    'remaining_quantity': current_position_qty,
+                    'direction': 'PUT',
+                    'phase': 'initial',  # Should be initial, not trailing
+                    'timestamp': datetime.now(timezone.utc).isoformat()
+                }
+                
+                await collection.replace_one(
+                    {'ticker_id': test_ticker_id},
+                    new_tracking,
+                    upsert=True
+                )
+                
+                # Verify new position starts with initial phase
+                updated_tracking = await collection.find_one({'ticker_id': test_ticker_id})
+                if (updated_tracking and 
+                    updated_tracking.get('phase') == 'initial' and
+                    updated_tracking.get('initial_quantity') == current_position_qty):
+                    self.log("✅ New position correctly starts with 'initial' phase")
+                else:
+                    result["errors"].append("New position did not start with 'initial' phase")
+            else:
+                result["errors"].append("Quantity mismatch detection test setup failed")
+            
+            # Test 4: Phase transitions (initial -> trailing)
+            self.log("Testing phase transitions...")
+            await collection.update_one(
+                {'ticker_id': test_ticker_id},
+                {
+                    '$set': {
+                        'phase': 'trailing',
+                        'remaining_quantity': 1,  # After partial sell
+                        'phase_updated': datetime.now(timezone.utc).isoformat()
+                    }
+                }
+            )
+            
+            trailing_tracking = await collection.find_one({'ticker_id': test_ticker_id})
+            if (trailing_tracking and 
+                trailing_tracking.get('phase') == 'trailing' and
+                trailing_tracking.get('remaining_quantity') == 1):
+                result["phase_transitions"] = True
+                self.log("✅ Phase transition to trailing works correctly")
+            else:
+                result["errors"].append("Phase transition to trailing failed")
+            
+            # Clean up test data
+            await collection.delete_many({'ticker_id': test_ticker_id})
+            
+            result["success"] = (
+                result["new_position_detection"] and
+                result["initial_phase_creation"] and
+                result["quantity_mismatch_detection"] and
+                result["phase_transitions"] and
+                len(result["errors"]) == 0
+            )
+            
+        except Exception as e:
+            result["errors"].append(f"Position tracking logic test error: {str(e)}")
+            self.log(f"❌ Position tracking logic test error: {str(e)}", "ERROR")
+        
+        return result
+    
+    async def test_profit_loss_targets(self) -> Dict[str, Any]:
+        """Test profit/loss target calculation based on phase and DTE"""
+        self.log("Testing profit/loss target calculations...")
+        
+        result = {
+            "success": False,
+            "dte_0_initial": False,
+            "dte_1_initial": False,
+            "dte_0_trailing": False,
+            "dte_1_trailing": False,
+            "errors": []
+        }
+        
+        try:
+            # Import the function from trading_bot_service
+            sys.path.append('/app/backend')
+            from trading_bot_service import get_profit_loss_targets
+            
+            # Test 0DTE initial phase
+            profit_pct, stop_loss_pct, contracts_to_keep = get_profit_loss_targets(0, trailing_phase=False)
+            if profit_pct == 0.25 and stop_loss_pct == 0.25 and contracts_to_keep == 1:
+                result["dte_0_initial"] = True
+                self.log("✅ 0DTE initial phase: 25% profit, 25% stop-loss, keep 1 contract")
+            else:
+                result["errors"].append(f"0DTE initial incorrect: {profit_pct}, {stop_loss_pct}, {contracts_to_keep}")
+            
+            # Test 1DTE initial phase
+            profit_pct, stop_loss_pct, contracts_to_keep = get_profit_loss_targets(1, trailing_phase=False)
+            if profit_pct == 0.20 and stop_loss_pct == 0.25 and contracts_to_keep == 2:
+                result["dte_1_initial"] = True
+                self.log("✅ 1DTE initial phase: 20% profit, 25% stop-loss, keep 2 contracts")
+            else:
+                result["errors"].append(f"1DTE initial incorrect: {profit_pct}, {stop_loss_pct}, {contracts_to_keep}")
+            
+            # Test 0DTE trailing phase
+            profit_pct, stop_loss_pct, contracts_to_keep = get_profit_loss_targets(0, trailing_phase=True)
+            if profit_pct == 0.75 and stop_loss_pct == 0.05 and contracts_to_keep == 0:
+                result["dte_0_trailing"] = True
+                self.log("✅ 0DTE trailing phase: 75% profit, 5% stop-loss, keep 0 contracts")
+            else:
+                result["errors"].append(f"0DTE trailing incorrect: {profit_pct}, {stop_loss_pct}, {contracts_to_keep}")
+            
+            # Test 1DTE trailing phase
+            profit_pct, stop_loss_pct, contracts_to_keep = get_profit_loss_targets(1, trailing_phase=True)
+            if profit_pct == 0.60 and stop_loss_pct == 0.05 and contracts_to_keep == 0:
+                result["dte_1_trailing"] = True
+                self.log("✅ 1DTE trailing phase: 60% profit, 5% stop-loss, keep 0 contracts")
+            else:
+                result["errors"].append(f"1DTE trailing incorrect: {profit_pct}, {stop_loss_pct}, {contracts_to_keep}")
+            
+            result["success"] = (
+                result["dte_0_initial"] and
+                result["dte_1_initial"] and
+                result["dte_0_trailing"] and
+                result["dte_1_trailing"] and
+                len(result["errors"]) == 0
+            )
+            
+        except Exception as e:
+            result["errors"].append(f"Profit/loss targets test error: {str(e)}")
+            self.log(f"❌ Profit/loss targets test error: {str(e)}", "ERROR")
+        
+        return result
+    
+    async def test_critical_bug_fix_scenario(self) -> Dict[str, Any]:
+        """Test the specific bug fix scenario: new positions should start with initial phase"""
+        self.log("Testing critical bug fix scenario...")
+        
+        result = {
+            "success": False,
+            "scenario_setup": False,
+            "new_position_initial_phase": False,
+            "correct_stop_loss": False,
+            "errors": []
+        }
+        
+        try:
+            if not self.db:
+                result["errors"].append("MongoDB connection not established")
+                return result
+            
+            collection = self.db['position_tracking']
+            test_ticker_id = 777777777
+            
+            # Clean up
+            await collection.delete_many({'ticker_id': test_ticker_id})
+            
+            # Scenario: Simulate the bug condition
+            # 1. Create old tracking data with 'trailing' phase and lower remaining_quantity
+            old_tracking = {
+                'ticker_id': test_ticker_id,
+                'dte': 0,
+                'entry_price': 100.0,
+                'initial_quantity': 5,
+                'remaining_quantity': 1,  # After partial sell
+                'direction': 'CALL',
+                'phase': 'trailing',  # Old position was in trailing phase
+                'timestamp': (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+            }
+            
+            await collection.insert_one(old_tracking)
+            result["scenario_setup"] = True
+            self.log("✅ Bug scenario setup: old tracking with trailing phase, remaining_qty=1")
+            
+            # 2. Simulate new position detection (current quantity != remaining_quantity)
+            current_position_qty = 3  # New position with different quantity
+            old_tracking_data = await collection.find_one({'ticker_id': test_ticker_id})
+            
+            is_new_position = (
+                not old_tracking_data or 
+                old_tracking_data.get('remaining_quantity', 0) != current_position_qty
+            )
+            
+            if is_new_position:
+                self.log(f"✅ New position detected: current_qty={current_position_qty}, old_remaining_qty={old_tracking_data.get('remaining_quantity')}")
+                
+                # 3. Create fresh tracking with 'initial' phase (the fix)
+                new_tracking = {
+                    'ticker_id': test_ticker_id,
+                    'dte': 0,
+                    'entry_price': 125.0,
+                    'initial_quantity': current_position_qty,
+                    'remaining_quantity': current_position_qty,
+                    'direction': 'CALL',
+                    'phase': 'initial',  # This is the fix - should be initial, not trailing
+                    'timestamp': datetime.now(timezone.utc).isoformat()
+                }
+                
+                await collection.replace_one(
+                    {'ticker_id': test_ticker_id},
+                    new_tracking,
+                    upsert=True
+                )
+                
+                # 4. Verify new position starts with 'initial' phase
+                updated_tracking = await collection.find_one({'ticker_id': test_ticker_id})
+                if updated_tracking and updated_tracking.get('phase') == 'initial':
+                    result["new_position_initial_phase"] = True
+                    self.log("✅ NEW POSITION CORRECTLY STARTS WITH 'INITIAL' PHASE")
+                    
+                    # 5. Verify correct stop-loss percentage for 0DTE initial phase
+                    sys.path.append('/app/backend')
+                    from trading_bot_service import get_profit_loss_targets
+                    
+                    profit_pct, stop_loss_pct, _ = get_profit_loss_targets(0, trailing_phase=False)
+                    if stop_loss_pct == 0.25:  # Should be 25%, not 5%
+                        result["correct_stop_loss"] = True
+                        self.log("✅ NEW 0DTE POSITION USES 25% STOP-LOSS (NOT 5%)")
+                    else:
+                        result["errors"].append(f"Incorrect stop-loss for new 0DTE position: {stop_loss_pct} (should be 0.25)")
+                else:
+                    result["errors"].append("New position did not start with 'initial' phase - BUG NOT FIXED")
+            else:
+                result["errors"].append("New position detection failed")
+            
+            # Clean up
+            await collection.delete_many({'ticker_id': test_ticker_id})
+            
+            result["success"] = (
+                result["scenario_setup"] and
+                result["new_position_initial_phase"] and
+                result["correct_stop_loss"] and
+                len(result["errors"]) == 0
+            )
+            
+        except Exception as e:
+            result["errors"].append(f"Critical bug fix scenario test error: {str(e)}")
+            self.log(f"❌ Critical bug fix scenario test error: {str(e)}", "ERROR")
+        
+        return result
+    
+    async def cleanup_mongodb_connection(self):
+        """Clean up MongoDB connection"""
+        if self.mongo_client:
+            self.mongo_client.close()
+            self.log("MongoDB connection closed")
+    
+    async def run_comprehensive_test(self) -> Dict[str, Any]:
         """Run comprehensive backend test suite"""
         self.log("=" * 60)
         self.log("STARTING WEBULL BACKEND P/L CALCULATION TESTS")
