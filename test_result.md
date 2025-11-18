@@ -121,38 +121,17 @@ backend:
         comment: "FIXED: Root cause identified - when a new position is opened with the same ticker_id as a previous position, the old tracking data (with phase='trailing' and lower remaining_quantity) was being reused. Fix implemented in lines 1181-1204: Added is_new_position detection by comparing current quantity vs tracking.remaining_quantity. If quantities don't match, it's a NEW position and fresh tracking is created with phase='initial'. This ensures each new trade starts with correct 25% stop-loss (0DTE) or 20% stop-loss (1DTE) in initial phase, then transitions to trailing phase only after hitting profit target and partial sell."
 
 frontend:
-  - task: "ProfitLossWidget Display P/L"
+  - task: "No frontend changes required for this fix"
     implemented: true
-    working: true
-    file: "/app/frontend/src/components/ProfitLossWidget.js"
+    working: "NA"
+    file: "N/A"
     stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: false
-        agent: "user"
-        comment: "Widget showing $0 for all time periods"
-      - working: "NA"
-        agent: "main"
-        comment: "Updated widget to use new pl_summary data structure from backend API. Added console logging for debugging. Backend now returns correct P/L values. Needs frontend testing."
-      - working: true
-        agent: "testing"
-        comment: "✅ PROFITLOSSWIDGET WORKING CORRECTLY: Comprehensive testing completed. Frontend successfully fetches P/L data from backend API (/api/account/activities). Console logs confirm: 'Activities response: {success: true}' and 'Found pl_summary: {today: 0, week: 0, month: -70, year: -833, all_time: -833}'. Widget displays correct P/L value of $833.00 in red color for All Time period. Backend integration working perfectly. Time period selector present and functional. Widget shows proper negative formatting with red color and down arrow icon."
-  
-  - task: "P/L by Symbol Display"
-    implemented: true
-    working: true
-    file: "/app/frontend/src/components/ProfitLossBySymbol.js"
-    stuck_count: 0
-    priority: "high"
+    priority: "low"
     needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Created new ProfitLossBySymbol component to display P/L breakdown by security/symbol like Webull app. Backend returns pl_by_symbol array with symbol names and P/L amounts. Component added to Dashboard overview tab."
-      - working: true
-        agent: "testing"
-        comment: "✅ P/L BY SYMBOL COMPONENT WORKING: Component successfully implemented and visible on dashboard. Backend API returns correct pl_by_symbol data with 3 symbols: COIN $295.0P 2025-08-22 (-$633), COIN $290.0P 2025-08-22 (-$130), CONY $6.0P 2025-10-17 (-$70). Component loads and displays in right panel of Overview tab. Frontend integration with backend API confirmed working. Component shows loading state initially then displays symbol breakdown data."
+        comment: "This bug fix is backend-only. No frontend changes needed."
 
 metadata:
   created_by: "main_agent"
