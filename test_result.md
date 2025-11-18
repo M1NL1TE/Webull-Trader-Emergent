@@ -135,22 +135,17 @@ frontend:
 
 metadata:
   created_by: "main_agent"
-  version: "1.0"
-  test_sequence: 1
-  run_ui: true
+  version: "2.0"
+  test_sequence: 2
+  run_ui: false
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Position Tracking State Management Bug Fix"
   stuck_tasks: []
   test_all: false
-  test_priority: "high_first"
+  test_priority: "critical_first"
 
 agent_communication:
   - agent: "main"
-    message: "Fixed P/L calculation issue. Backend now calculates P/L from filled orders using FIFO matching. Curl test shows correct values. Frontend updated to display new pl_summary structure. Please test: 1) Backend /api/account/activities endpoint returns correct pl_summary 2) Frontend ProfitLossWidget displays P/L correctly for all time filters (Today, Week, Month, Year, All Time). Expected P/L: Today=$0, Week=$0, Month=-$70, Year=-$833, All Time=-$833"
-  - agent: "testing"
-    message: "✅ BACKEND P/L CALCULATION FIX VERIFIED: Comprehensive testing completed with 100% success rate. The /api/account/activities endpoint is working perfectly and returning exact expected P/L values. FIFO matching algorithm correctly processes 6 filled orders across 3 different option contracts. All time period calculations are accurate. Backend implementation is solid and ready for production. Frontend testing can now proceed to verify the ProfitLossWidget displays these values correctly."
-  - agent: "main"
-    message: "Updated both backend and frontend to add per-symbol P/L breakdown feature (user requested). Backend now returns pl_by_symbol array with symbol names (e.g., 'COIN $295P 2025-08-22') and their P/L. Created new ProfitLossBySymbol component displayed in Dashboard. Backend verified via curl. Need frontend testing to verify: 1) ProfitLossWidget shows correct P/L for all time periods 2) ProfitLossBySymbol component displays breakdown by symbol correctly"
-  - agent: "testing"
-    message: "🎯 FRONTEND P/L FEATURES TESTING COMPLETED - BOTH FEATURES WORKING CORRECTLY: ✅ ProfitLossWidget: Successfully displays correct P/L values ($833.00 for All Time, proper red formatting, time period selector functional). Console logs confirm backend integration working: 'Activities response: {success: true}' and 'Found pl_summary: {all_time: -833}'. ✅ ProfitLossBySymbol: Component implemented and loading correctly, backend returns proper symbol breakdown data (3 symbols with correct P/L values). Both features are production-ready. User's original issue of P/L showing $0 has been resolved - widget now shows correct -$833.00 value."
+    message: "🔧 CRITICAL BUG FIX IMPLEMENTED: Fixed position tracking state management in trading_bot_service.py (lines 1181-1204). Root cause: When bot opened a new position with same ticker_id as a previous position, old tracking data (phase='trailing', low remaining_quantity) was being reused instead of creating fresh tracking with phase='initial'. Fix: Added is_new_position detection logic that compares current position quantity vs tracking.remaining_quantity. If they don't match, creates new tracking entry with phase='initial'. This ensures: 1) 0DTE positions start with 25% initial stop-loss (not 5%) 2) 1DTE positions start with 20% initial stop-loss 3) Positions only enter 'trailing' phase after hitting profit target and executing partial sell. NEEDS TESTING: Please verify the bot now correctly initializes new positions in 'initial' phase with proper stop-loss percentages, and only transitions to 'trailing' phase after partial sell."
