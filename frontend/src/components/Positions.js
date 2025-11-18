@@ -399,12 +399,17 @@ function Positions({ positions: initialPositions }) {
                   
                   {/* Bot Targets */}
                   <div className="pt-3 border-t border-slate-700">
-                    <p className="text-xs text-slate-500 mb-2">Bot Exit Targets:</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs text-slate-500">Bot Exit Targets:</p>
+                      <span className="text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                        {positionDTE}DTE
+                      </span>
+                    </div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="p-2 rounded bg-green-500/10 border border-green-500/30">
                         <div className="flex items-center justify-between">
                           <span className="text-green-400">Profit:</span>
-                          <span className="text-green-300 font-semibold">+{profitTarget}%</span>
+                          <span className="text-green-300 font-semibold">+{targets.profit}%</span>
                         </div>
                         <div className="text-green-400 font-mono mt-1">
                           ${profitTargetPrice.toFixed(2)}
@@ -413,7 +418,7 @@ function Positions({ positions: initialPositions }) {
                       <div className="p-2 rounded bg-red-500/10 border border-red-500/30">
                         <div className="flex items-center justify-between">
                           <span className="text-red-400">Stop:</span>
-                          <span className="text-red-300 font-semibold">-{stopLoss}%</span>
+                          <span className="text-red-300 font-semibold">-{targets.loss}%</span>
                         </div>
                         <div className="text-red-400 font-mono mt-1">
                           ${stopLossPrice.toFixed(2)}
