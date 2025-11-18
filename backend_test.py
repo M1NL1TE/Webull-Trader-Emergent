@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
 """
-Backend Test Suite for Webull Trading App P/L Calculation
-Tests the /api/account/activities endpoint and P/L calculation functionality
+Backend Test Suite for Webull Trading App - Position Tracking Bug Fix Testing
+Tests the position tracking state management fix for trading bot service
 """
 
 import requests
 import json
 import os
 import sys
+import asyncio
+import motor.motor_asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
 
 # Get backend URL from frontend .env
 BACKEND_URL = "https://tradewizard-21.preview.emergentagent.com/api"
 APP_PASSWORD = "WebullTrader2024!Secure"
+
+# MongoDB connection for direct testing
+MONGO_URL = "mongodb://localhost:27017"
+DB_NAME = "test_database"
 
 class WebullBackendTester:
     def __init__(self):
