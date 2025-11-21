@@ -826,9 +826,9 @@ class WebullBackendTester:
             self.log("MongoDB connection closed")
     
     async def run_comprehensive_test(self) -> Dict[str, Any]:
-        """Run comprehensive backend test suite"""
+        """Run comprehensive backend test suite for P/L by Symbol consolidation"""
         self.log("=" * 80)
-        self.log("STARTING POSITION TRACKING BUG FIX TESTS")
+        self.log("STARTING P/L BY SYMBOL CONSOLIDATION TESTS")
         self.log("=" * 80)
         
         overall_result = {
@@ -840,65 +840,83 @@ class WebullBackendTester:
             "test_results": {}
         }
         
-        # Test 1: MongoDB Connection
+        # Test 1: App Password Authentication
         overall_result["tests_run"] += 1
-        mongodb_success = await self.setup_mongodb_connection()
-        overall_result["test_results"]["mongodb_connection"] = mongodb_success
-        if mongodb_success:
+        auth_success = self.test_app_password_auth()
+        overall_result["test_results"]["app_password_auth"] = auth_success
+        if auth_success:
             overall_result["tests_passed"] += 1
         else:
-            overall_result["critical_failures"].append("MongoDB connection failed")
-            return overall_result  # Can't continue without MongoDB
+            overall_result["minor_issues"].append("App password authentication failed")
         
-        # Test 2: Position Tracking Collection
+        # Test 2: Session Restore (optional - may not have existing session)
         overall_result["tests_run"] += 1
-        collection_result = await self.test_position_tracking_collection()
-        overall_result["test_results"]["position_tracking_collection"] = collection_result
-        if collection_result["success"]:
+        session_success = self.test_session_restore()
+        overall_result["test_results"]["session_restore"] = session_success
+        if session_success:
             overall_result["tests_passed"] += 1
         else:
-            overall_result["critical_failures"].append(f"Position tracking collection test failed: {collection_result.get('error')}")
+            overall_result["minor_issues"].append("No existing Webull session found")
         
-        # Test 3: Position Tracking Logic
+        # Test 3: Activities Endpoint Structure
         overall_result["tests_run"] += 1
-        logic_result = await self.test_position_tracking_logic()
-        overall_result["test_results"]["position_tracking_logic"] = logic_result
-        if logic_result["success"]:
+        activities_result = self.test_activities_endpoint_structure()
+        overall_result["test_results"]["activities_endpoint"] = activities_result
+        if activities_result["success"]:
             overall_result["tests_passed"] += 1
+            self.log("✅ Activities endpoint accessible and has correct structure")
         else:
-            overall_result["critical_failures"].extend(logic_result["errors"])
+            if activities_result["status_code"] == 401:
+                overall_result["minor_issues"].append("Activities endpoint requires authentication")
+            else:
+                overall_result["critical_failures"].append(f"Activities endpoint failed: {activities_result.get('error')}")
         
-        # Test 4: Profit/Loss Target Calculations
-        overall_result["tests_run"] += 1
-        targets_result = await self.test_profit_loss_targets()
-        overall_result["test_results"]["profit_loss_targets"] = targets_result
-        if targets_result["success"]:
-            overall_result["tests_passed"] += 1
+        # Test 4: P/L by Symbol Consolidation (MAIN TEST)
+        if activities_result["success"]:
+            overall_result["tests_run"] += 1
+            consolidation_result = self.test_pl_by_symbol_consolidation(activities_result)
+            overall_result["test_results"]["pl_by_symbol_consolidation"] = consolidation_result
+            if consolidation_result["success"]:
+                overall_result["tests_passed"] += 1
+                self.log("🎉 P/L BY SYMBOL CONSOLIDATION WORKING CORRECTLY!")
+            else:
+                overall_result["critical_failures"].extend(consolidation_result["errors"])
         else:
-            overall_result["critical_failures"].extend(targets_result["errors"])
+            overall_result["critical_failures"].append("Cannot test P/L consolidation - activities endpoint failed")
         
-        # Test 5: Critical Bug Fix Scenario
-        overall_result["tests_run"] += 1
-        bugfix_result = await self.test_critical_bug_fix_scenario()
-        overall_result["test_results"]["critical_bug_fix"] = bugfix_result
-        if bugfix_result["success"]:
-            overall_result["tests_passed"] += 1
-            self.log("🎉 CRITICAL BUG FIX VERIFIED: New positions start with 'initial' phase and 25% stop-loss")
-        else:
-            overall_result["critical_failures"].extend(bugfix_result["errors"])
+        # Test 5: P/L Aggregation Accuracy
+        if activities_result["success"]:
+            overall_result["tests_run"] += 1
+            accuracy_result = self.test_symbol_aggregation_accuracy(activities_result)
+            overall_result["test_results"]["pl_aggregation_accuracy"] = accuracy_result
+            if accuracy_result["success"]:
+                overall_result["tests_passed"] += 1
+            else:
+                overall_result["minor_issues"].extend(accuracy_result["errors"])
         
-        # Clean up MongoDB connection
-        await self.cleanup_mongodb_connection()
+        # Test 6: P/L Calculation Values (existing test)
+        if activities_result["success"]:
+            overall_result["tests_run"] += 1
+            pl_values_result = self.test_pl_calculation_values(activities_result)
+            overall_result["test_results"]["pl_calculation_values"] = pl_values_result
+            if pl_values_result["success"]:
+                overall_result["tests_passed"] += 1
+            else:
+                overall_result["minor_issues"].extend(pl_values_result["errors"])
         
-        # Overall success determination
+        # Overall success determination - focus on P/L consolidation
+        consolidation_working = overall_result["test_results"].get("pl_by_symbol_consolidation", {}).get("success", False)
+        activities_accessible = overall_result["test_results"].get("activities_endpoint", {}).get("success", False)
+        
         overall_result["success"] = (
-            overall_result["tests_passed"] >= 4 and  # At least MongoDB + collection + logic + targets
+            consolidation_working and  # Main feature must work
+            activities_accessible and  # Endpoint must be accessible
             len(overall_result["critical_failures"]) == 0
         )
         
         # Summary
         self.log("=" * 60)
-        self.log("TEST SUMMARY")
+        self.log("P/L BY SYMBOL CONSOLIDATION TEST SUMMARY")
         self.log("=" * 60)
         self.log(f"Tests Run: {overall_result['tests_run']}")
         self.log(f"Tests Passed: {overall_result['tests_passed']}")
@@ -915,10 +933,16 @@ class WebullBackendTester:
             for issue in overall_result["minor_issues"]:
                 self.log(f"  ⚠️ {issue}")
         
+        # Specific P/L consolidation results
+        if consolidation_working:
+            consolidation_data = overall_result["test_results"]["pl_by_symbol_consolidation"]
+            symbols_found = consolidation_data.get("symbols_found", [])
+            self.log(f"\n✅ P/L CONSOLIDATION SUCCESS: Found symbols {symbols_found}")
+        
         if overall_result["success"]:
-            self.log("\n🎉 OVERALL RESULT: SUCCESS")
+            self.log("\n🎉 OVERALL RESULT: P/L BY SYMBOL CONSOLIDATION IS WORKING!")
         else:
-            self.log("\n💥 OVERALL RESULT: FAILURE")
+            self.log("\n💥 OVERALL RESULT: P/L BY SYMBOL CONSOLIDATION HAS ISSUES")
         
         return overall_result
 
