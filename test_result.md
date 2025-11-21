@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Fix critical bug in trailing stop logic. Bot is selling contracts at 5% loss immediately after purchase instead of using the 25% initial stop-loss for 0DTE contracts. Root cause: New positions are incorrectly entering 'trailing' phase immediately instead of starting in 'initial' phase."
+user_problem_statement: "1. Fix critical bug in trailing stop logic - COMPLETED. 2. Fix Playwright login for live trading (paper OFF) - COMPLETED. 3. Consolidate P/L by Symbol widget to show total per ticker instead of per contract - IN PROGRESS."
 
 backend:
   - task: "Position Tracking State Management Bug Fix"
