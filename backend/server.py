@@ -316,7 +316,7 @@ async def login(request: LoginRequest):
         raise
     except Exception as e:
         error_msg = str(e)
-        logger.error(f"Login error: {error_msg}")
+        logger.error(f"Login error: {error_msg}", exc_info=True)
         
         # Provide helpful error messages
         if "timeout" in error_msg.lower():
@@ -328,6 +328,11 @@ async def login(request: LoginRequest):
             raise HTTPException(
                 status_code=500,
                 detail="Browser automation error. Please contact support if this persists."
+            )
+        elif "account" in error_msg.lower():
+            raise HTTPException(
+                status_code=500,
+                detail=f"Account access error: {error_msg}. Please verify your account credentials and try again."
             )
         
         raise HTTPException(status_code=500, detail=f"Login failed: {error_msg}")
