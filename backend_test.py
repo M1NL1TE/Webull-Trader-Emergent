@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Backend Test Suite for Webull Trading App - Position Tracking Bug Fix Testing
-Tests the position tracking state management fix for trading bot service
+Backend Test Suite for Webull Trading App - P/L by Symbol Consolidation Testing
+Tests the P/L by Symbol consolidation feature that aggregates P/L by underlying ticker symbol
 """
 
 import requests
