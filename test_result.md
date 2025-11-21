@@ -122,6 +122,36 @@ backend:
       - working: true
         agent: "testing"
         comment: "✅ CRITICAL BUG FIX VERIFIED: Comprehensive testing completed with 5/5 tests passing. MongoDB position_tracking collection is accessible and functional. Position tracking logic correctly detects new positions when quantity mismatches occur (current_qty != tracking.remaining_quantity). New positions are properly initialized with phase='initial' instead of inheriting old 'trailing' phase data. Profit/loss targets are correct: 0DTE initial (25% profit, 25% stop-loss), 1DTE initial (20% profit, 25% stop-loss), 0DTE trailing (75% profit, 5% stop-loss), 1DTE trailing (95% profit, 5% stop-loss). Critical bug scenario tested: when old tracking has phase='trailing' and remaining_qty=1, new position with qty=3 correctly creates fresh tracking with phase='initial' and uses 25% stop-loss (not 5%). Backend APIs are functional and trading bot service is running properly."
+  
+  - task: "Playwright Login Fix for Live Trading"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "user"
+        comment: "Login failed with paper trading OFF (live trading mode). Error: 'Login failed. Please check: 1. Username and password are correct 2. Device ID is valid...'"
+      - working: true
+        agent: "main"
+        comment: "FIXED: Root cause was missing Playwright browser binaries. Installed chromium and chromium-headless-shell (v1187). Also added explicit get_account_id() call for paper trading mode and improved error logging. Login should now work for both paper and live trading modes."
+  
+  - task: "Consolidate P/L by Symbol"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "user"
+        comment: "P/L by Symbol widget shows individual option contracts (SPY $683.0C 2025-11-04, SPY $680.0C 2025-11-13, etc.). User wants consolidated totals per ticker symbol (SPY: total, COIN: total, CONY: total)."
+      - working: "NA"
+        agent: "main"
+        comment: "Modified calculate_pl_from_orders function in server.py to aggregate P/L by underlying symbol only (SPY, COIN, CONY) instead of full contract details. Changed logic to extract just the ticker symbol and sum all contracts for each symbol. Backend ready for testing."
 
 frontend:
   - task: "No frontend changes required for this fix"
