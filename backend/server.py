@@ -276,6 +276,16 @@ async def login(request: LoginRequest):
             token_expire=tokens.get('TokenExpire', '2099-01-01T00:00:00.000+0000')
         )
         
+        # For paper trading, explicitly get account ID (api_login doesn't do this for paper)
+        if request.is_paper:
+            logger.info("Getting paper account ID...")
+            account_id = wb.get_account_id()
+            if not account_id:
+                raise HTTPException(status_code=500, detail="Failed to get paper account ID")
+            logger.info(f"Paper account ID: {account_id}")
+        else:
+            logger.info(f"Live account ID: {wb._account_id}")
+        
         # Get trade token
         logger.info("Getting trade token...")
         if not wb.get_trade_token(request.trade_pin):
