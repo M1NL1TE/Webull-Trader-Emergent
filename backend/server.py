@@ -692,33 +692,28 @@ def calculate_pl_from_orders(orders, wb=None):
         logger.info(f"Ticker ID {ticker_id}: {len(buys)} buys, {len(sells)} sells")
         
         # Initialize symbol P/L tracking
-        symbol_name = None
+        underlying_symbol = None
         ticker_total_pl = 0.0
         
-        # Try to get symbol name from orders
+        # Try to get underlying symbol name from orders (just the ticker, not full contract details)
         for order in buys + sells:
             if order.get('tickerType') == 'OPTION' and order.get('belongTickerId'):
-                # For options, try to get underlying symbol
+                # For options, get underlying symbol only
                 try:
                     if wb:
                         ticker_info = wb.get_quote(tId=order['belongTickerId'])
                         if ticker_info and 'symbol' in ticker_info:
-                            symbol_name = ticker_info['symbol']
-                            # Add option details
-                            option_type = order.get('optionType', '').upper()
-                            strike = order.get('optionExercisePrice', '')
-                            exp_date = order.get('optionExpireDate', '')
-                            symbol_name = f"{symbol_name} ${strike}{option_type[0] if option_type else 'P'} {exp_date}"
+                            underlying_symbol = ticker_info['symbol']
                             break
                 except Exception as e:
                     logger.warning(f"Could not lookup symbol for ticker {order.get('belongTickerId')}: {e}")
             # For stocks, symbol might be in ticker field
             elif isinstance(order.get('ticker'), dict) and order['ticker'].get('symbol'):
-                symbol_name = order['ticker']['symbol']
+                underlying_symbol = order['ticker']['symbol']
                 break
         
-        if not symbol_name:
-            symbol_name = f"Unknown (ID: {ticker_id})"
+        if not underlying_symbol:
+            underlying_symbol = f"Unknown (ID: {ticker_id})"
         
         # Simple FIFO matching
         for sell in sells:
