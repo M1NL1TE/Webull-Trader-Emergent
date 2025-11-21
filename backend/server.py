@@ -247,7 +247,7 @@ async def login(request: LoginRequest):
                 detail="Valid Device ID (32-character hex string) is required. See instructions on login page."
             )
         
-        logger.info(f"Starting Playwright authentication for user: {request.username[:5]}...")
+        logger.info(f"Starting Playwright authentication for user: {request.username[:5]}..., is_paper: {request.is_paper}")
         
         # Use Playwright to authenticate and capture tokens (now async)
         tokens = await authenticate_webull_playwright(
@@ -256,7 +256,10 @@ async def login(request: LoginRequest):
             did=request.device_id
         )
         
+        logger.info(f"Playwright auth result: {tokens.keys() if tokens else 'None'}")
+        
         if not tokens or not tokens.get('AccessToken'):
+            logger.error(f"Authentication failed - no access token. Tokens received: {tokens}")
             raise HTTPException(
                 status_code=401,
                 detail="Login failed. Please check:\n1. Username and password are correct\n2. Device ID is valid (32-char hex from browser)\n3. No CAPTCHA appeared (DID should prevent this)\n\nIf CAPTCHA appears, you may need a fresh DID from a new browser login."
