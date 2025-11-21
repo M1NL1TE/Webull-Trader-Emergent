@@ -106,6 +106,7 @@ class WebullBackendTester:
                 "response_data": None,
                 "structure_valid": False,
                 "pl_summary_present": False,
+                "pl_by_symbol_present": False,
                 "orders_present": False,
                 "error": None
             }
@@ -130,15 +131,18 @@ class WebullBackendTester:
                     if result["structure_valid"]:
                         data_section = data.get("data", {})
                         result["pl_summary_present"] = "pl_summary" in data_section
+                        result["pl_by_symbol_present"] = "pl_by_symbol" in data_section
                         result["orders_present"] = "orders" in data_section
                         
-                        if result["pl_summary_present"] and result["orders_present"]:
+                        if result["pl_summary_present"] and result["pl_by_symbol_present"] and result["orders_present"]:
                             result["success"] = True
-                            self.log("✅ Activities endpoint structure is valid")
+                            self.log("✅ Activities endpoint structure is valid with pl_by_symbol")
                         else:
                             missing = []
                             if not result["pl_summary_present"]:
                                 missing.append("pl_summary")
+                            if not result["pl_by_symbol_present"]:
+                                missing.append("pl_by_symbol")
                             if not result["orders_present"]:
                                 missing.append("orders")
                             result["error"] = f"Missing required fields in data: {missing}"
@@ -165,6 +169,7 @@ class WebullBackendTester:
                 "response_data": None,
                 "structure_valid": False,
                 "pl_summary_present": False,
+                "pl_by_symbol_present": False,
                 "orders_present": False
             }
     
