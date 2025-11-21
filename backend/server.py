@@ -777,11 +777,14 @@ def calculate_pl_from_orders(orders, wb=None):
                 logger.warning(f"Error calculating P/L for sell order: {e}")
                 continue
         
-        # Store per-symbol P/L
+        # Aggregate P/L by underlying symbol (consolidate all contracts for same ticker)
         if ticker_total_pl != 0:  # Only include symbols with realized P/L
-            pl_by_symbol_dict[symbol_name] = ticker_total_pl
+            if underlying_symbol in pl_by_symbol_dict:
+                pl_by_symbol_dict[underlying_symbol] += ticker_total_pl
+            else:
+                pl_by_symbol_dict[underlying_symbol] = ticker_total_pl
     
-    # Convert to list format for frontend
+    # Convert to list format for frontend, sorted by P/L (negative first, then positive)
     pl_by_symbol_list = [
         {'symbol': symbol, 'pl': pl}
         for symbol, pl in sorted(pl_by_symbol_dict.items(), key=lambda x: x[1])
