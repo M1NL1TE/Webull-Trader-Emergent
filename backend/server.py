@@ -366,6 +366,18 @@ async def restore_session():
         logger.error(f"Restore session error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.post("/auth/logout")
+async def logout():
+    """Logout and clear session"""
+    try:
+        # Delete session from database
+        await db.sessions.delete_one({'session_type': 'webull'})
+        logger.info("Session cleared successfully")
+        return {"success": True, "message": "Logged out successfully"}
+    except Exception as e:
+        logger.error(f"Logout error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.get("/account")
 async def get_account():
     """Get account information"""
