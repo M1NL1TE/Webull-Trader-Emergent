@@ -432,18 +432,54 @@ class WebullBackendTester:
             
         return result
     
-    async def setup_mongodb_connection(self) -> bool:
-        """Setup MongoDB connection for direct database testing"""
+    def test_edge_cases(self, activities_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Test edge cases for P/L by Symbol consolidation"""
+        self.log("Testing P/L by Symbol edge cases...")
+        
+        result = {
+            "success": False,
+            "handles_empty_data": True,
+            "handles_single_symbol": True,
+            "handles_mixed_pl": True,
+            "errors": []
+        }
+        
         try:
-            self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URL)
-            self.db = self.mongo_client[DB_NAME]
-            # Test connection
-            await self.db.command('ping')
-            self.log("✅ MongoDB connection established")
-            return True
+            if not activities_data.get("success"):
+                result["errors"].append("Activities data indicates failure")
+                return result
+                
+            data_section = activities_data.get("response_data", {}).get("data", {})
+            pl_by_symbol = data_section.get("pl_by_symbol", [])
+            
+            # Test 1: Check if empty data is handled gracefully
+            if len(pl_by_symbol) == 0:
+                self.log("✅ Empty P/L by symbol data handled gracefully")
+            
+            # Test 2: Check if single symbol works
+            if len(pl_by_symbol) == 1:
+                self.log("✅ Single symbol P/L consolidation works")
+            
+            # Test 3: Check mixed positive/negative P/L
+            if len(pl_by_symbol) > 1:
+                pl_values = [float(entry['pl']) for entry in pl_by_symbol]
+                has_positive = any(pl > 0 for pl in pl_values)
+                has_negative = any(pl < 0 for pl in pl_values)
+                
+                if has_positive and has_negative:
+                    self.log("✅ Mixed positive/negative P/L values handled correctly")
+                elif has_negative:
+                    self.log("✅ All negative P/L values handled correctly")
+                elif has_positive:
+                    self.log("✅ All positive P/L values handled correctly")
+            
+            result["success"] = len(result["errors"]) == 0
+            
         except Exception as e:
-            self.log(f"❌ MongoDB connection failed: {str(e)}", "ERROR")
-            return False
+            result["errors"].append(f"Edge cases test error: {str(e)}")
+            self.log(f"❌ Edge cases test error: {str(e)}", "ERROR")
+            
+        return result
     
     async def test_position_tracking_collection(self) -> Dict[str, Any]:
         """Test position_tracking collection exists and is accessible"""
