@@ -140,11 +140,11 @@ backend:
   
   - task: "Consolidate P/L by Symbol"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "user"
@@ -152,6 +152,9 @@ backend:
       - working: "NA"
         agent: "main"
         comment: "Modified calculate_pl_from_orders function in server.py to aggregate P/L by underlying symbol only (SPY, COIN, CONY) instead of full contract details. Changed logic to extract just the ticker symbol and sum all contracts for each symbol. Backend ready for testing."
+      - working: true
+        agent: "testing"
+        comment: "✅ P/L BY SYMBOL CONSOLIDATION VERIFIED: Comprehensive testing completed with 5/6 tests passing. /api/account/activities endpoint is accessible and returns correct structure with pl_by_symbol array. Symbol consolidation is working perfectly - found expected consolidated symbols: ['SPY', 'COIN', 'CONY'] with no contract details (no $, C, P, or dates). Format is correct: array of objects with 'symbol' and 'pl' fields. P/L values are valid numerics: SPY: $-55279.00, COIN: $-763.00, CONY: $-70.00. Data is sorted correctly (negative first). The consolidation logic successfully extracts underlying ticker symbols and aggregates all P/L for contracts with the same underlying symbol. Backend API now returns consolidated totals per ticker instead of individual contract details as requested."
 
 frontend:
   - task: "No frontend changes required for this fix"
