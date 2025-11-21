@@ -174,10 +174,10 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Position Tracking State Management Bug Fix"
+    - "Consolidate P/L by Symbol"
   stuck_tasks: []
   test_all: false
-  test_priority: "critical_first"
+  test_priority: "high_first"
 
 agent_communication:
   - agent: "main"
