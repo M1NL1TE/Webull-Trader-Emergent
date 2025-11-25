@@ -110,9 +110,18 @@ function Dashboard({ setIsAuthenticated }) {
     fetchData();
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    toast.success('Logged out successfully');
+  const handleLogout = async () => {
+    try {
+      // Call backend to clear session
+      await axios.post(`${API}/auth/logout`);
+      setIsAuthenticated(false);
+      toast.success('Logged out successfully');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still log out on frontend even if backend fails
+      setIsAuthenticated(false);
+      toast.success('Logged out');
+    }
   };
 
   if (loading) {
