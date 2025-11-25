@@ -53,9 +53,44 @@ is_paper_trading = True
 # Trading bot task
 trading_bot_task = None
 
+# Function to ensure Playwright browsers are installed
+def ensure_playwright_browsers():
+    """Check and install Playwright browsers if missing"""
+    import subprocess
+    from pathlib import Path
+    
+    # Check if chromium browser exists
+    browser_path = Path('/pw-browsers/chromium_headless_shell-1187/chrome-linux/headless_shell')
+    
+    if not browser_path.exists():
+        logger.warning("⚠️ Playwright browsers not found. Installing...")
+        try:
+            # Install chromium browser
+            result = subprocess.run(
+                ['python3', '-m', 'playwright', 'install', 'chromium'],
+                cwd='/app/backend',
+                capture_output=True,
+                text=True,
+                timeout=300  # 5 minutes timeout
+            )
+            
+            if result.returncode == 0:
+                logger.info("✅ Playwright browsers installed successfully")
+            else:
+                logger.error(f"❌ Failed to install Playwright browsers: {result.stderr}")
+        except subprocess.TimeoutExpired:
+            logger.error("❌ Playwright browser installation timed out")
+        except Exception as e:
+            logger.error(f"❌ Error installing Playwright browsers: {e}")
+    else:
+        logger.info("✅ Playwright browsers already installed")
+
 # Initialize Twilio on startup
 @app.on_event("startup")
 async def startup_event():
+    # Ensure Playwright browsers are installed
+    ensure_playwright_browsers()
+    
     initialize_notifications()
     logger.info("Application startup complete")
     
