@@ -344,6 +344,22 @@ async def login(request: LoginRequest):
         
         logger.info("✅ Login successful!")
         
+        # CRITICAL: If bot is running, restart it with new session to switch paper/live mode
+        global trading_bot_task
+        if bot_state.running:
+            logger.warning(f"⚠️ Bot was running. Restarting to switch to {'LIVE' if not request.is_paper else 'PAPER'} mode...")
+            bot_state.running = False
+            if trading_bot_task:
+                trading_bot_task.cancel()
+                await asyncio.sleep(1)  # Give it time to stop
+            
+            # Get settings
+            settings = await settings_collection.find_one({'user': 'default'}) or {'auto_trading': False}
+            if settings.get('auto_trading', False):
+                # Restart bot with new session
+                trading_bot_task = asyncio.create_task(run_trading_bot(wb, settings))
+                logger.info(f"✅ Bot restarted in {'LIVE' if not request.is_paper else 'PAPER'} trading mode")
+        
         return LoginResponse(
             success=True,
             message="Login successful via Playwright automation",
