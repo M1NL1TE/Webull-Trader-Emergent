@@ -1373,7 +1373,7 @@ def execute_call_trade(wb, symbol, trade_grade, account_info, signal_type='zone'
         
         # Place market order for immediate fill
         logger.info(f"Placing MARKET call order: {order_quantity} contracts @ {dte}DTE (reference price: ${mid_price:.2f}, bid: ${bid_price:.2f}, ask: ${ask_price:.2f})")
-        wb.place_order_option(
+        order_result = wb.place_order_option(
             optionId=option_id,
             lmtPrice=mid_price,  # Required by API but not used for MKT orders
             stpPrice=str(float(mid_price) - 0.25),
@@ -1383,6 +1383,12 @@ def execute_call_trade(wb, symbol, trade_grade, account_info, signal_type='zone'
             quant=order_quantity
         )
         
+        # Validate order was actually placed
+        if not order_result or not order_result.get('success', False):
+            logger.error(f"❌ Order placement failed: {order_result}")
+            return False, None
+        
+        logger.info(f"✅ Order confirmed by Webull API: {order_result}")
         return True, dte  # Return DTE for position tracking
         
     except Exception as e:
