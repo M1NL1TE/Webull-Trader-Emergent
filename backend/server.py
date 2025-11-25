@@ -59,15 +59,15 @@ def ensure_playwright_browsers():
     import subprocess
     from pathlib import Path
     
-    # Check if chromium browser exists
+    # Check if chromium browser exists (build 1187 for Playwright 1.55.0)
     browser_path = Path('/pw-browsers/chromium_headless_shell-1187/chrome-linux/headless_shell')
     
     if not browser_path.exists():
         logger.warning("⚠️ Playwright browsers not found. Installing...")
         try:
-            # Install chromium browser
+            # Install chromium browser with --force to ensure correct version
             result = subprocess.run(
-                ['python3', '-m', 'playwright', 'install', 'chromium'],
+                ['python3', '-m', 'playwright', 'install', 'chromium', '--force'],
                 cwd='/app/backend',
                 capture_output=True,
                 text=True,
@@ -83,7 +83,7 @@ def ensure_playwright_browsers():
         except Exception as e:
             logger.error(f"❌ Error installing Playwright browsers: {e}")
     else:
-        logger.info("✅ Playwright browsers already installed")
+        logger.info("✅ Playwright browsers (build 1187) already installed")
 
 # Initialize Twilio on startup
 @app.on_event("startup")
