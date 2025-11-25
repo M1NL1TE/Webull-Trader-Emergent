@@ -14,6 +14,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasAppAccess, setHasAppAccess] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [attemptedRestore, setAttemptedRestore] = useState(false);
 
   useEffect(() => {
     // Check if user has app access token
@@ -22,16 +23,24 @@ function App() {
       setHasAppAccess(true);
     }
     
-    // Try to restore Webull session
+    // Try to restore Webull session ONLY ONCE
     const restoreSession = async () => {
-      try {
-        const response = await axios.post(`${API}/auth/restore`);
-        if (response.data.success) {
-          setIsAuthenticated(true);
+      // Only attempt restore if we're NOT explicitly on the login page
+      // and haven't attempted restore yet
+      if (!attemptedRestore && window.location.pathname !== '/login') {
+        setAttemptedRestore(true);
+        try {
+          const response = await axios.post(`${API}/auth/restore`);
+          if (response.data.success) {
+            setIsAuthenticated(true);
+          }
+        } catch (error) {
+          console.log('No previous session found');
+          setIsAuthenticated(false);
+        } finally {
+          setLoading(false);
         }
-      } catch (error) {
-        console.log('No previous session found');
-      } finally {
+      } else {
         setLoading(false);
       }
     };
@@ -41,7 +50,7 @@ function App() {
     } else {
       setLoading(false);
     }
-  }, []);
+  }, [attemptedRestore]);
 
   // Show password gate first
   if (!hasAppAccess) {
