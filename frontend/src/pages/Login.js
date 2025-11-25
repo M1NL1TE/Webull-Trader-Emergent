@@ -24,6 +24,27 @@ function Login({ setIsAuthenticated }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validate all required fields
+    if (!formData.username || formData.username.trim() === '') {
+      toast.error('Username is required');
+      return;
+    }
+    
+    if (!formData.password || formData.password.trim() === '') {
+      toast.error('Password is required');
+      return;
+    }
+    
+    if (!formData.trade_pin || formData.trade_pin.trim() === '') {
+      toast.error('6-digit trade PIN is required');
+      return;
+    }
+    
+    if (formData.trade_pin.length !== 6 || !/^\d{6}$/.test(formData.trade_pin)) {
+      toast.error('Trade PIN must be exactly 6 digits');
+      return;
+    }
+    
     if (!formData.device_id || formData.device_id.length !== 32) {
       toast.error('Device ID must be exactly 32 characters! See instructions above for how to get it.');
       return;
