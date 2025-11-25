@@ -82,20 +82,43 @@ python3 -m playwright install chromium
 ## Troubleshooting
 
 ### Login fails with "Executable doesn't exist"
-- **Cause:** Browsers are missing
-- **Fix:** Run `python3 -m playwright install chromium` or restart the backend (auto-install)
-
-### Wrong browser version installed
-- **Cause:** Browser version doesn't match Playwright library
-- **Fix:** 
+- **Cause:** Browsers are missing or wrong version installed
+- **Fix (Quick):** Run this command immediately:
   ```bash
-  pip show playwright  # Check version
-  python3 -m playwright install chromium  # Install matching browser
+  cd /app/backend && python3 -m playwright install chromium --force
+  ```
+- **Fix (Auto):** Restart the backend (auto-install should fix it)
+
+### Wrong browser version installed (1194 instead of 1187)
+- **Cause:** System reinstalled browsers during restart, but installed wrong version
+- **Symptoms:** Error says looking for build 1187 but only 1194 is installed
+- **Fix:** Force reinstall correct version:
+  ```bash
+  cd /app/backend
+  pip show playwright  # Verify version 1.55.0
+  python3 -m playwright install chromium --force
   ```
 
 ### Browsers keep getting deleted
-- **Cause:** Platform/container cleanup
-- **Fix:** The auto-install function in `server.py` handles this automatically
+- **Cause:** Platform/container cleanup or redeployment
+- **Fix:** The auto-install function in `server.py` should handle this automatically
+- **If auto-install fails:** Run manual command above
+
+### Auto-install runs but installs wrong version
+- **Cause:** The auto-install uses `playwright install` which might install cached/wrong version
+- **Fix:** After any login failure, run:
+  ```bash
+  cd /app/backend && python3 -m playwright install chromium --force
+  ```
+  The `--force` flag ensures correct version is downloaded
+
+### Quick Fix Command (Copy & Paste)
+```bash
+cd /app/backend && python3 -m playwright install chromium --force && sudo supervisorctl restart backend
+```
+This command:
+1. Installs correct browser version (1187 for Playwright 1.55.0)
+2. Restarts backend to pick up new browsers
 
 ## Technical Details
 
