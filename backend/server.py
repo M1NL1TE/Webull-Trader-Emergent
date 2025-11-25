@@ -340,39 +340,38 @@ async def login(request: LoginRequest):
             'is_paper': request.is_paper,
             'device_id': request.device_id
         }
-        await save_session(session_data)
-        
-        logger.info(f"✅ Session saved to database (is_paper: {request.is_paper})")
-        
-        # CRITICAL: If bot is running, restart it with new session to switch paper/live mode
-        global trading_bot_task
+        # CRITICAL: Check old session BEFORE saving new one to detect mode switches
         old_is_paper = None
+        global trading_bot_task
         if bot_state.running:
-            # Check what mode the bot was in
             try:
                 old_session = await db.sessions.find_one({'session_type': 'webull'})
                 old_is_paper = old_session.get('is_paper', True) if old_session else True
             except:
                 old_is_paper = True
+        
+        await save_session(session_data)
+        
+        logger.info(f"✅ Session saved to database (is_paper: {request.is_paper})")
+        
+        # If bot is running and mode changed, restart it with new session
+        if bot_state.running and old_is_paper is not None and old_is_paper != request.is_paper:
+            logger.warning(f"⚠️ Bot mode switch detected: {'PAPER' if old_is_paper else 'LIVE'} → {'PAPER' if request.is_paper else 'LIVE'}. Restarting bot...")
+            bot_state.running = False
+            if trading_bot_task:
+                trading_bot_task.cancel()
+                await asyncio.sleep(1)  # Give it time to stop
             
-            # Only restart if mode is different
-            if old_is_paper != request.is_paper:
-                logger.warning(f"⚠️ Bot mode switch detected: {'PAPER' if old_is_paper else 'LIVE'} → {'PAPER' if request.is_paper else 'LIVE'}. Restarting bot...")
-                bot_state.running = False
-                if trading_bot_task:
-                    trading_bot_task.cancel()
-                    await asyncio.sleep(1)  # Give it time to stop
-                
-                # Get settings
-                settings = await settings_collection.find_one({'user': 'default'}) or {'auto_trading': False}
-                if settings.get('auto_trading', False):
-                    # Restart bot with NEW wb instance using correct mode
-                    trading_bot_task = asyncio.create_task(run_trading_bot(wb, settings))
-                    logger.info(f"✅ Bot restarted in {'LIVE' if not request.is_paper else 'PAPER'} trading mode")
-                else:
-                    logger.info("Auto-trading is disabled, not restarting bot")
+            # Get settings
+            settings = await settings_collection.find_one({'user': 'default'}) or {'auto_trading': False}
+            if settings.get('auto_trading', False):
+                # Restart bot with NEW wb instance using correct mode
+                trading_bot_task = asyncio.create_task(run_trading_bot(wb, settings))
+                logger.info(f"✅ Bot restarted in {'LIVE' if not request.is_paper else 'PAPER'} trading mode")
             else:
-                logger.info(f"Bot mode unchanged ({'PAPER' if request.is_paper else 'LIVE'}), no restart needed")
+                logger.info("Auto-trading is disabled, not restarting bot")
+        elif bot_state.running:
+            logger.info(f"Bot mode unchanged ({'PAPER' if request.is_paper else 'PAPER'}), no restart needed")
         
         return LoginResponse(
             success=True,
