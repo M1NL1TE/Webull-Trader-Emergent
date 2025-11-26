@@ -63,7 +63,7 @@ def ensure_playwright_browsers():
     browser_path = Path('/pw-browsers/chromium_headless_shell-1187/chrome-linux/headless_shell')
     
     if not browser_path.exists():
-        logger.warning("⚠️ Playwright browsers not found. Installing...")
+        logger.warning("⚠️ Playwright browsers (build 1187) not found. Installing...")
         try:
             # Install chromium browser with --force to ensure correct version
             result = subprocess.run(
@@ -74,8 +74,23 @@ def ensure_playwright_browsers():
                 timeout=300  # 5 minutes timeout
             )
             
+            logger.info(f"Playwright install output: {result.stdout[:500]}")
+            if result.stderr:
+                logger.warning(f"Playwright install stderr: {result.stderr[:500]}")
+            
             if result.returncode == 0:
-                logger.info("✅ Playwright browsers installed successfully")
+                # Verify correct version was installed
+                if browser_path.exists():
+                    logger.info("✅ Playwright browsers (build 1187) installed successfully")
+                else:
+                    logger.error(f"⚠️ Playwright install succeeded but build 1187 not found. Checking what was installed...")
+                    wrong_version = Path('/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell')
+                    if wrong_version.exists():
+                        logger.error("❌ WRONG VERSION: Build 1194 was installed instead of 1187!")
+                        logger.error("This is likely due to platform/container base image having wrong version cached.")
+                        logger.error("🔧 MANUAL FIX REQUIRED: Run 'python3 -m playwright install chromium --force' manually")
+                    else:
+                        logger.error("❌ Unknown browser version installed. Check /pw-browsers/")
             else:
                 logger.error(f"❌ Failed to install Playwright browsers: {result.stderr}")
         except subprocess.TimeoutExpired:
