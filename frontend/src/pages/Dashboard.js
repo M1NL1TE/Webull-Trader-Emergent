@@ -66,11 +66,11 @@ function Dashboard({ setIsAuthenticated }) {
   useEffect(() => {
     fetchData();
     
-    // Auto-refresh every 30 seconds for general dashboard data
+    // Auto-refresh every 15 seconds to match backend price update frequency
     // (Positions component has its own 5-second refresh for real-time pricing)
     const interval = setInterval(() => {
       fetchData();
-    }, 30000);
+    }, 15000);
 
     // Keep-alive ping during market hours to prevent platform sleep
     const keepAlivePing = async () => {
