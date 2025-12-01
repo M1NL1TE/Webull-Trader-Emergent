@@ -315,6 +315,14 @@ async def login(request: LoginRequest):
         
         logger.info(f"Starting Playwright authentication for user: {request.username[:5]}..., is_paper: {request.is_paper}")
         
+        # Ensure browsers are installed before attempting Playwright auth
+        logger.info("Verifying Playwright browsers before login...")
+        if not ensure_playwright_browsers():
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to install Playwright browsers. Please try again or contact support."
+            )
+        
         # Use Playwright to authenticate and capture tokens (now async)
         tokens = await authenticate_webull_playwright(
             username=request.username,
