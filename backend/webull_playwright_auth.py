@@ -70,7 +70,28 @@ class WebullPlaywrightAuth:
             logger.info("Playwright browser started with DID cookie")
             return True
         except Exception as e:
-            logger.error(f"Failed to start browser: {e}")
+            error_msg = str(e)
+            logger.error(f"Failed to start browser: {error_msg}")
+            
+            # Check if it's a browser executable error
+            if "Executable doesn't exist" in error_msg or "browser" in error_msg.lower():
+                logger.error("⚠️ Browser error detected - attempting auto-install...")
+                try:
+                    # Try to reinstall browsers
+                    import subprocess
+                    result = subprocess.run(
+                        ['python3', '-m', 'playwright', 'install', 'chromium', '--force'],
+                        capture_output=True,
+                        text=True,
+                        timeout=300
+                    )
+                    if result.returncode == 0:
+                        logger.info("✅ Browsers reinstalled. Please retry login.")
+                    else:
+                        logger.error(f"❌ Browser reinstall failed: {result.stderr}")
+                except Exception as install_error:
+                    logger.error(f"Failed to auto-install browsers: {install_error}")
+            
             return False
 
     async def close_browser(self):
