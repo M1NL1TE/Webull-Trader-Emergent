@@ -16,16 +16,35 @@ When browsers are missing, you'll see this error:
 BrowserType.launch: Executable doesn't exist at /pw-browsers/chromium_headless_shell-1187/...
 ```
 
-## Solution 1: Automatic Installation (Recommended)
+## Solution 1: Automatic Installation (Recommended) ✅
 
-The backend now automatically checks and installs Playwright browsers on startup. This is handled in `server.py` via the `ensure_playwright_browsers()` function.
+The backend now has **3 layers of auto-installation** to ensure browsers are always available:
+
+### Layer 1: Startup Check
+- Runs when backend starts
+- Checks if build 1187 exists
+- **Detects wrong version (1194)** and removes it
+- Auto-installs correct version
+
+### Layer 2: Pre-Login Check
+- Runs before every login attempt
+- Verifies browsers are present
+- Auto-installs if missing
+- Prevents login failures due to missing browsers
+
+### Layer 3: Error Recovery
+- Catches browser launch errors during authentication
+- Detects "Executable doesn't exist" errors
+- Auto-installs browsers on the fly
+- Asks user to retry login
 
 **How it works:**
-- On startup, checks if `/pw-browsers/chromium_headless_shell-1187/chrome-linux/headless_shell` exists
-- If missing, automatically runs `playwright install chromium`
-- Logs the installation status
+1. **Startup:** `ensure_playwright_browsers()` checks for build 1187
+2. **If wrong version found:** Deletes build 1194, installs 1187
+3. **Before login:** Verifies and installs if needed
+4. **On error:** Catches browser errors and auto-installs
 
-**No action needed** - browsers will auto-install on first startup!
+**Result:** You should NEVER need to manually install browsers again!
 
 ## Solution 2: Manual Installation
 
