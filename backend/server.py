@@ -54,18 +54,39 @@ is_paper_trading = True
 trading_bot_task = None
 
 # Function to ensure Playwright browsers are installed
-def ensure_playwright_browsers():
-    """Check and install Playwright browsers if missing"""
+def ensure_playwright_browsers(force=False):
+    """Check and install Playwright browsers if missing or wrong version"""
     import subprocess
     from pathlib import Path
     
     # Check if chromium browser exists (build 1187 for Playwright 1.55.0)
     browser_path = Path('/pw-browsers/chromium_headless_shell-1187/chrome-linux/headless_shell')
+    wrong_version = Path('/pw-browsers/chromium_headless_shell-1194')
     
-    if not browser_path.exists():
+    needs_install = False
+    
+    # Check if wrong version is installed
+    if wrong_version.exists() and not browser_path.exists():
+        logger.warning("⚠️ WRONG VERSION detected: Build 1194 found, need 1187. Removing and reinstalling...")
+        try:
+            import shutil
+            shutil.rmtree(str(wrong_version))
+            shutil.rmtree('/pw-browsers/chromium-1194', ignore_errors=True)
+            logger.info("Removed wrong browser version (1194)")
+        except Exception as e:
+            logger.error(f"Failed to remove wrong version: {e}")
+        needs_install = True
+    elif not browser_path.exists():
         logger.warning("⚠️ Playwright browsers (build 1187) not found. Installing...")
+        needs_install = True
+    elif force:
+        logger.info("🔄 Force reinstall requested")
+        needs_install = True
+    
+    if needs_install:
         try:
             # Install chromium browser with --force to ensure correct version
+            logger.info("Installing Playwright browsers (build 1187)...")
             result = subprocess.run(
                 ['python3', '-m', 'playwright', 'install', 'chromium', '--force'],
                 cwd='/app/backend',
@@ -74,31 +95,26 @@ def ensure_playwright_browsers():
                 timeout=300  # 5 minutes timeout
             )
             
-            logger.info(f"Playwright install output: {result.stdout[:500]}")
-            if result.stderr:
-                logger.warning(f"Playwright install stderr: {result.stderr[:500]}")
-            
             if result.returncode == 0:
                 # Verify correct version was installed
                 if browser_path.exists():
                     logger.info("✅ Playwright browsers (build 1187) installed successfully")
+                    return True
                 else:
-                    logger.error(f"⚠️ Playwright install succeeded but build 1187 not found. Checking what was installed...")
-                    wrong_version = Path('/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell')
-                    if wrong_version.exists():
-                        logger.error("❌ WRONG VERSION: Build 1194 was installed instead of 1187!")
-                        logger.error("This is likely due to platform/container base image having wrong version cached.")
-                        logger.error("🔧 MANUAL FIX REQUIRED: Run 'python3 -m playwright install chromium --force' manually")
-                    else:
-                        logger.error("❌ Unknown browser version installed. Check /pw-browsers/")
+                    logger.error(f"⚠️ Playwright install succeeded but build 1187 not found!")
+                    return False
             else:
-                logger.error(f"❌ Failed to install Playwright browsers: {result.stderr}")
+                logger.error(f"❌ Failed to install Playwright browsers: {result.stderr[:500]}")
+                return False
         except subprocess.TimeoutExpired:
             logger.error("❌ Playwright browser installation timed out")
+            return False
         except Exception as e:
             logger.error(f"❌ Error installing Playwright browsers: {e}")
+            return False
     else:
         logger.info("✅ Playwright browsers (build 1187) already installed")
+        return True
 
 # Initialize Twilio on startup
 @app.on_event("startup")
