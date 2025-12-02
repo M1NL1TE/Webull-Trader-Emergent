@@ -1002,9 +1002,47 @@ async def run_trading_bot(wb, settings):
                     if in_demand_zone:
                         zone_signal = 'call'
                         logger.info(f"💚 Price in DEMAND zone: ${zones['demand_bottom']:.2f} - ${zones['demand_top']:.2f}")
+                        
+                        # Send email notification when entering demand zone (only once per entry)
+                        if not bot_state.in_demand_zone:
+                            bot_state.in_demand_zone = True
+                            bot_state.in_supply_zone = False
+                            try:
+                                send_notification(
+                                    f"📍 Price Entered DEMAND Zone\n\n"
+                                    f"Current Price: ${current_price:.2f}\n"
+                                    f"Demand Zone: ${zones['demand_bottom']:.2f} - ${zones['demand_top']:.2f}\n"
+                                    f"Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}\n\n"
+                                    f"Bot is analyzing for potential CALL entry..."
+                                )
+                                logger.info("✅ Demand zone notification sent")
+                            except Exception as e:
+                                logger.error(f"Failed to send demand zone notification: {e}")
                     elif in_supply_zone:
                         zone_signal = 'put'
                         logger.info(f"🔴 Price in SUPPLY zone: ${zones['supply_bottom']:.2f} - ${zones['supply_top']:.2f}")
+                        
+                        # Send email notification when entering supply zone (only once per entry)
+                        if not bot_state.in_supply_zone:
+                            bot_state.in_supply_zone = True
+                            bot_state.in_demand_zone = False
+                            try:
+                                send_notification(
+                                    f"📍 Price Entered SUPPLY Zone\n\n"
+                                    f"Current Price: ${current_price:.2f}\n"
+                                    f"Supply Zone: ${zones['supply_bottom']:.2f} - ${zones['supply_top']:.2f}\n"
+                                    f"Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}\n\n"
+                                    f"Bot is analyzing for potential PUT entry..."
+                                )
+                                logger.info("✅ Supply zone notification sent")
+                            except Exception as e:
+                                logger.error(f"Failed to send supply zone notification: {e}")
+                    else:
+                        # Price exited both zones - reset flags
+                        if bot_state.in_demand_zone or bot_state.in_supply_zone:
+                            logger.info(f"💤 Price exited zones: ${current_price:.2f}")
+                        bot_state.in_demand_zone = False
+                        bot_state.in_supply_zone = False
                     
                     # 3. CALCULATE TECHNICAL GRADES
                     try:
