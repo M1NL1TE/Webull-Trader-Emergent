@@ -469,6 +469,13 @@ async def restore_session():
             uuid=session['uuid']
         )
         
+        # CRITICAL: Restore trade token for order placement
+        if 'trade_token' in session and session['trade_token']:
+            wb._trade_token = session['trade_token']
+            logger.info("✅ Trade token restored from session")
+        else:
+            logger.warning("⚠️ No trade token in session - orders will fail!")
+        
         return {"success": True, "is_paper": session.get('is_paper', True)}
     except Exception as e:
         logger.error(f"Restore session error: {e}")
