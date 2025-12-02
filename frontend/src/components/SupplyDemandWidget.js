@@ -14,7 +14,7 @@ function SupplyDemandWidget() {
 
   useEffect(() => {
     fetchZones();
-    const interval = setInterval(fetchZones, 10000);
+    const interval = setInterval(fetchZones, 5000);
     return () => clearInterval(interval);
   }, []);
 
