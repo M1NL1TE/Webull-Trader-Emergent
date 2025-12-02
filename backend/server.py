@@ -610,6 +610,7 @@ async def get_order_history():
         
         # Get historical orders - paper trading uses different status param
         # Limit to 30 orders for better performance (was 50)
+        logger.info(f"Fetching order history for {'PAPER' if session.get('is_paper') else 'LIVE'} account...")
         if session.get('is_paper', True):
             try:
                 history = wb.get_history_orders(status='All', count=30)
@@ -617,6 +618,7 @@ async def get_order_history():
                 history = wb.get_history_orders(status='', count=30)
         else:
             history = wb.get_history_orders(status='All', count=30)
+        logger.info(f"Webull returned {len(history) if history else 0} orders")
         
         # Enrich orders with ticker symbols and entry signals
         ticker_cache = {}  # Cache ticker lookups to avoid duplicate API calls
