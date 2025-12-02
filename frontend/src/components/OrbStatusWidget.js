@@ -15,7 +15,7 @@ function OrbStatusWidget() {
   useEffect(() => {
     fetchOrbStatus();
     // Refresh every 10 seconds
-    const interval = setInterval(fetchOrbStatus, 10000);
+    const interval = setInterval(fetchOrbStatus, 5000);
     return () => clearInterval(interval);
   }, []);
 
