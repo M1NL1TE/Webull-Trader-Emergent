@@ -1308,8 +1308,8 @@ async def run_trading_bot(wb, settings):
                 if bot_state.error_message and "timeout" in bot_state.error_message.lower():
                     bot_state.error_message = None
                 
-                # Sleep before next check (15 seconds in original)
-                await asyncio.sleep(15)
+                # Sleep before next check (5 seconds for responsive price updates)
+                await asyncio.sleep(5)
                 
             except Exception as e:
                 error_msg = str(e)
