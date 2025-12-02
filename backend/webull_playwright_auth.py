@@ -77,10 +77,11 @@ class WebullPlaywrightAuth:
             if "Executable doesn't exist" in error_msg or "browser" in error_msg.lower():
                 logger.error("⚠️ Browser error detected - attempting auto-install...")
                 try:
-                    # Try to reinstall browsers
+                    # Try to reinstall browsers using the same Python interpreter
                     import subprocess
+                    import sys
                     result = subprocess.run(
-                        ['python3', '-m', 'playwright', 'install', 'chromium', '--force'],
+                        [sys.executable, '-m', 'playwright', 'install', 'chromium', '--force'],
                         capture_output=True,
                         text=True,
                         timeout=300
