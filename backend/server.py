@@ -370,7 +370,9 @@ async def login(request: LoginRequest):
         if not wb.get_trade_token(request.trade_pin):
             raise HTTPException(status_code=401, detail="Invalid trade PIN")
         
-        # Save session including tokens and DID
+        logger.info(f"✅ Trade token obtained: {wb._trade_token[:20]}..." if wb._trade_token else "❌ No trade token")
+        
+        # Save session including tokens, DID, and TRADE TOKEN
         session_data = {
             'session_type': 'webull',
             'access_token': tokens['AccessToken'],
@@ -379,7 +381,8 @@ async def login(request: LoginRequest):
             'uuid': tokens['UUID'],
             'account_id': wb._account_id,
             'is_paper': request.is_paper,
-            'device_id': request.device_id
+            'device_id': request.device_id,
+            'trade_token': wb._trade_token  # CRITICAL: Save trade token for order placement
         }
         # CRITICAL: Check old session BEFORE saving new one to detect mode switches
         old_is_paper = None
