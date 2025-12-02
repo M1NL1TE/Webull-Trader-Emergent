@@ -86,9 +86,11 @@ def ensure_playwright_browsers(force=False):
     if needs_install:
         try:
             # Install chromium browser with --force to ensure correct version
+            # Use sys.executable to ensure we use the same Python interpreter
+            import sys
             logger.info("Installing Playwright browsers (build 1187)...")
             result = subprocess.run(
-                ['python3', '-m', 'playwright', 'install', 'chromium', '--force'],
+                [sys.executable, '-m', 'playwright', 'install', 'chromium', '--force'],
                 cwd='/app/backend',
                 capture_output=True,
                 text=True,
