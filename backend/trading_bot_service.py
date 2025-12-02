@@ -243,6 +243,9 @@ class BotState:
         self.no_trade_reason = "Initializing..."
         self.current_price = 0
         self.last_entry_signal = None  # Store last trade entry details
+        self.in_supply_zone = False  # Track if currently in supply zone
+        self.in_demand_zone = False  # Track if currently in demand zone
+        self.last_zone_notification = None  # Track last zone notification to prevent spam
         
 bot_state = BotState()
 
