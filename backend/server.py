@@ -158,6 +158,13 @@ async def check_and_start_bot():
                     uuid=session_data['uuid']
                 )
                 
+                # CRITICAL: Restore trade token for bot order placement
+                if 'trade_token' in session_data and session_data['trade_token']:
+                    wb._trade_token = session_data['trade_token']
+                    logger.info("✅ Bot startup: Trade token restored")
+                else:
+                    logger.warning("⚠️ Bot startup: No trade token - bot orders will fail!")
+                
                 if session_data.get('is_paper', True):
                     wb.get_account_id()
                 
