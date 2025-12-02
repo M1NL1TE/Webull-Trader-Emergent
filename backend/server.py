@@ -1042,6 +1042,13 @@ async def place_option_trade(request: TradeRequest):
             uuid=session['uuid']
         )
         
+        # CRITICAL: Restore trade token for order placement
+        if 'trade_token' in session and session['trade_token']:
+            wb._trade_token = session['trade_token']
+            logger.info("Manual trade: Trade token restored")
+        else:
+            raise HTTPException(status_code=401, detail="No trade token found. Please log out and log in again.")
+        
         account_info = wb.get_account()
         account_value = float(account_info['accountMembers'][1]['value'])
         
