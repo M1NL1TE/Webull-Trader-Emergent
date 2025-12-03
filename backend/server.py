@@ -562,21 +562,27 @@ async def get_positions():
         
         positions = wb.get_positions()
         
-        # Enrich option positions with full symbol details
+        # Enrich option positions with full symbol details from entry signals
+        # This is faster and more reliable than querying Webull API
         for pos in positions:
             if pos.get('assetType') == 'OPTION' and pos.get('tickerId'):
                 try:
-                    # Get option details to extract strike, expiration, type
-                    option_id = pos['tickerId']
-                    # Try to get option symbol from Webull API
-                    option_quote = wb.get_option_quote(stock='SPY', optionId=option_id)
-                    if option_quote and option_quote.get('data'):
-                        option_data = option_quote['data'][0]
-                        # Build full option symbol: SPY251204P00683000
-                        symbol = option_data.get('symbol', '')
-                        if symbol:
-                            pos['ticker']['optionSymbol'] = symbol
-                            logger.info(f"Enriched position with option symbol: {symbol}")
+                    option_id = str(pos['tickerId'])
+                    # Check if we have an entry signal for this ticker
+                    entry_signal = await db.entry_signals.find_one({'ticker_id': option_id})
+                    if entry_signal and entry_signal.get('ticker_symbol'):
+                        symbol = entry_signal['ticker_symbol']
+                        pos['ticker']['optionSymbol'] = symbol
+                        logger.info(f"Enriched position with symbol from entry signal: {symbol}")
+                    else:
+                        # Fallback: try to get from Webull API (slower)
+                        option_quote = wb.get_option_quote(stock='SPY', optionId=option_id)
+                        if option_quote and option_quote.get('data') and option_quote['data']:
+                            option_data = option_quote['data'][0]
+                            symbol = option_data.get('symbol', '')
+                            if symbol:
+                                pos['ticker']['optionSymbol'] = symbol
+                                logger.info(f"Enriched position with symbol from API: {symbol}")
                 except Exception as e:
                     logger.warning(f"Could not enrich option position {option_id}: {e}")
         
