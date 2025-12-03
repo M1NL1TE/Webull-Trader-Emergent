@@ -1325,8 +1325,17 @@ async def run_trading_bot(wb, settings):
                         logger.info(f"🛑 STOP LOSS HIT! P/L: {pnl_pct:.2f}%")
                         try:
                             quote = wb.get_option_quote(stock='SPY', optionId=ticker_id)
-                            bid_price = float(quote['data'][0]['bidList'][0]['price'])
-                            ask_price = float(quote['data'][0]['askList'][0]['price'])
+                            
+                            # Check if bid/ask lists are available
+                            if (not quote.get('data') or not quote['data'] or 
+                                not quote['data'][0].get('bidList') or not quote['data'][0]['bidList'] or
+                                not quote['data'][0].get('askList') or not quote['data'][0]['askList']):
+                                logger.error(f"❌ Cannot get quote for stop loss - bid/ask lists empty. Using last price ${current_price:.2f}")
+                                bid_price = current_price
+                                ask_price = current_price
+                            else:
+                                bid_price = float(quote['data'][0]['bidList'][0]['price'])
+                                ask_price = float(quote['data'][0]['askList'][0]['price'])
                             mid_price = (bid_price + ask_price) / 2
                             
                             # Sell all remaining contracts
