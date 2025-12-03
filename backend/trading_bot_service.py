@@ -1393,17 +1393,31 @@ def execute_call_trade(wb, symbol, trade_grade, account_info, signal_type='zone'
         
         # Ensure at least 1 contract
         if order_quantity < 1:
+            logger.warning(f"Grade-based quantity is 0. Trying cheaper options or minimum 1 contract...")
             for option in filtered_chain:
                 option_price = wb.get_option_quote(stock=symbol, optionId=option['call']['tickerId'])['data'][0]['askList'][0]['price']
-                new_order_quantity = (account_value * trade_pct) / (float(option_price) * 100)
+                contract_cost = float(option_price) * 100
+                new_order_quantity = (account_value * trade_pct) / contract_cost
+                
                 if new_order_quantity >= 1:
                     filtered_chain.remove(option)
                     filtered_chain.insert(0, option)
                     order_quantity = math.floor(new_order_quantity)
+                    logger.info(f"Found affordable option: ${option_price:.2f} gives {order_quantity} contracts")
                     break
             else:
-                logger.error("Cannot afford even 1 contract")
-                return False
+                # If no option fits the grade percentage, check if account can afford any option at all
+                cheapest_option = filtered_chain[-1]  # Last option is usually cheapest
+                cheapest_price = wb.get_option_quote(stock=symbol, optionId=cheapest_option['call']['tickerId'])['data'][0]['askList'][0]['price']
+                cheapest_cost = float(cheapest_price) * 100
+                
+                if account_value >= cheapest_cost:
+                    logger.warning(f"Grade allows ${account_value * trade_pct:.2f} but cheapest contract is ${cheapest_cost:.2f}. Using minimum 1 contract.")
+                    order_quantity = 1
+                    filtered_chain = [cheapest_option]
+                else:
+                    logger.error(f"Cannot afford even 1 contract: Account=${account_value:.2f}, Cheapest=${cheapest_cost:.2f}")
+                    return False, None
         
         # Get bid/ask to calculate mid price
         option_id = filtered_chain[0]['call']['tickerId']
