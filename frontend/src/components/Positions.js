@@ -214,7 +214,8 @@ function Positions({ positions: initialPositions }) {
               const quantity = position.position || 0;
               const costPrice = parseFloat(position.costPrice || 0);
               const lastPrice = parseFloat(position.lastPrice || 0);
-              const rawSymbol = position.ticker?.symbol || 'N/A';
+              // Use optionSymbol if available (for options), otherwise use regular symbol
+              const rawSymbol = position.ticker?.optionSymbol || position.ticker?.symbol || 'N/A';
               
               // Parse option symbol: SPY251104C00683000 -> SPY $683 / 04 Nov Call
               const parseOptionSymbol = (symbol) => {
