@@ -77,16 +77,23 @@ function Positions({ positions: initialPositions }) {
         const positions = response.data.positions || [];
         
         // Cache option symbols to prevent flickering
-        // Once we get a full symbol, keep using it even if API doesn't return it next time
+        // IMPORTANT: Only cache full symbols (>10 chars), never overwrite with partial symbols
         setSymbolCache(prevCache => {
           const newCache = { ...prevCache };
           positions.forEach(pos => {
             const tickerId = pos.tickerId;
             const optionSymbol = pos.ticker?.optionSymbol;
             
-            // If we got a full option symbol, cache it
+            // Only cache if:
+            // 1. We got a full option symbol (length > 10, like SPY251203P00682000)
+            // 2. We don't already have a cached symbol, OR the new one is better
             if (optionSymbol && optionSymbol.length > 10) {
+              console.log(`Caching option symbol for ${tickerId}: ${optionSymbol}`);
               newCache[tickerId] = optionSymbol;
+            } else if (prevCache[tickerId]) {
+              // Keep existing cache even if API didn't return full symbol this time
+              console.log(`Using cached symbol for ${tickerId}: ${prevCache[tickerId]}`);
+              newCache[tickerId] = prevCache[tickerId];
             }
           });
           return newCache;
