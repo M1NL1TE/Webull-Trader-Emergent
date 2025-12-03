@@ -856,6 +856,16 @@ class my_webull :
 
         response = requests.post(self._urls.place_option_orders(self._account_id), json=data, headers=headers, timeout=self.timeout)
         if response.status_code != 200:
+            # Log detailed error information for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"❌ Webull order placement failed:")
+            logger.error(f"  Status: {response.status_code}")
+            logger.error(f"  Reason: {response.reason}")
+            logger.error(f"  Response body: {response.text[:500]}")
+            logger.error(f"  Request data: {data}")
+            logger.error(f"  Account ID: {self._account_id}")
+            logger.error(f"  Has trade token: {bool(self._trade_token)}")
             raise Exception('place_option_order failed', response.status_code, response.reason)
         return response.json()
 
