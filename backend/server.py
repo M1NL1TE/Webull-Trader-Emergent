@@ -1112,13 +1112,15 @@ async def place_option_trade(request: TradeRequest):
             logger.warning(f"Could not fetch SPY price, using approximate: {e}")
             spy_current_price = option_price * 100  # Rough estimate from option price
         
-        # Place market order for immediate execution
+        # Place LIMIT order at ask price for immediate execution (like market order)
+        # Use ask price for BUY orders to ensure fill (pay what sellers are asking)
+        logger.info(f"Manual trade: Placing LIMIT order at ASK price ${option_price:.2f} for {order_quantity} contracts")
         result = wb.place_order_option(
             optionId=option['tickerId'],
-            lmtPrice=option_price,  # Still needed for API, but not used for MKT orders
-            stpPrice=str(option_price - 0.25),
+            lmtPrice=option_price,  # Use ask price for aggressive fill (option_price from quote is ask)
+            stpPrice=None,  # Not needed for limit orders
             action='BUY',
-            orderType='MKT',  # Market order for immediate fill
+            orderType='LMT',  # Limit order (Webull rejects MKT+GTC on live accounts)
             enforce='GTC',
             quant=order_quantity
         )
