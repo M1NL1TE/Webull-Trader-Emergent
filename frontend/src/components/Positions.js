@@ -278,8 +278,10 @@ function Positions({ positions: initialPositions }) {
               };
               
               const parsed = parseOptionSymbol(rawSymbol);
-              const displaySymbol = parsed.strike ? `${parsed.ticker} ${parsed.strike} ${parsed.type}` : rawSymbol;
-              const displayDate = parsed.date ? `${parsed.date}` : '';
+              // Use cached/parsed symbol, but show loading state if we only have partial data
+              const hasFullData = parsed.strike && parsed.type && parsed.date;
+              const displaySymbol = hasFullData ? `${parsed.ticker} ${parsed.strike} ${parsed.type}` : `${parsed.ticker || rawSymbol} ...`;
+              const displayDate = parsed.date ? `${parsed.date}` : '...';
               
               // Calculate current P/L percentage
               const plPercentage = costPrice > 0 ? ((lastPrice - costPrice) / costPrice) * 100 : 0;
