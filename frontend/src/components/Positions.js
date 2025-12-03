@@ -278,17 +278,21 @@ function Positions({ positions: initialPositions }) {
                 };
               };
               
-              // Parse the symbol
-              const parsed = parseOptionSymbol(rawSymbol);
+              // Use ref cache to prevent flickering - stores last known good value
+              const tickerIdKey = position.tickerId;
               
-              // If we have full data, update cache for this ticker
-              const tickerIdForCache = position.tickerId;
-              if (parsed.strike && parsed.type && !symbolCache[tickerIdForCache]) {
-                // Update cache immediately in render
-                symbolCache[tickerIdForCache] = rawSymbol;
+              // If we have a cached full symbol, always use it
+              let symbolToUse = rawSymbol;
+              if (symbolCacheRef.current[tickerIdKey]) {
+                symbolToUse = symbolCacheRef.current[tickerIdKey];
+              } else if (rawSymbol && rawSymbol.length > 10) {
+                // Cache this full symbol for future renders
+                symbolCacheRef.current[tickerIdKey] = rawSymbol;
+                symbolToUse = rawSymbol;
               }
               
-              const displaySymbol = parsed.strike ? `${parsed.ticker} ${parsed.strike} ${parsed.type}` : rawSymbol;
+              const parsed = parseOptionSymbol(symbolToUse);
+              const displaySymbol = parsed.strike ? `${parsed.ticker} ${parsed.strike} ${parsed.type}` : symbolToUse;
               const displayDate = parsed.date ? `${parsed.date}` : '';
               
               // Calculate current P/L percentage
