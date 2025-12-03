@@ -1330,12 +1330,13 @@ async def run_trading_bot(wb, settings):
                             mid_price = (bid_price + ask_price) / 2
                             
                             # Sell all remaining contracts
+                            # For SELL orders, use bid price (what buyers are willing to pay)
                             wb.place_order_option(
                                 optionId=ticker_id,
-                                lmtPrice=mid_price,
-                                stpPrice=str(float(mid_price) - 0.25),
+                                lmtPrice=bid_price,  # Use bid price for SELL orders
+                                stpPrice=None,
                                 action='SELL',
-                                orderType='MKT',
+                                orderType='LMT',  # Limit order (Webull rejects MKT+GTC on live)
                                 enforce='GTC',
                                 quant=quantity
                             )
