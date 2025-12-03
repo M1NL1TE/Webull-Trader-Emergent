@@ -1087,10 +1087,17 @@ async def place_option_trade(request: TradeRequest):
         option_price = float(option_quote['data'][0]['askList'][0]['price'])
         
         # Calculate quantity
-        order_quantity = math.floor((account_value * trade_pct) / (option_price * 100))
+        capital_to_use = account_value * trade_pct
+        contract_cost = option_price * 100
+        order_quantity = math.floor(capital_to_use / contract_cost)
+        
+        logger.info(f"Manual trade calculation: Account=${account_value:.2f}, Grade={request.trade_grade} ({trade_pct*100}%), Capital=${capital_to_use:.2f}, Option=${option_price:.2f}, Contract=${contract_cost:.2f}, Quantity={order_quantity}")
         
         if order_quantity < 1:
-            raise HTTPException(status_code=400, detail="Insufficient funds for trade")
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Insufficient funds: Account ${account_value:.2f}, need ${contract_cost:.2f} per contract but grade {request.trade_grade} allows ${capital_to_use:.2f} ({trade_pct*100}%)"
+            )
         
         # Get current SPY price for entry signal (use option price as fallback)
         try:
