@@ -1426,14 +1426,15 @@ def execute_call_trade(wb, symbol, trade_grade, account_info, signal_type='zone'
         ask_price = float(quote['data'][0]['askList'][0]['price'])
         mid_price = (bid_price + ask_price) / 2
         
-        # Place market order for immediate fill
-        logger.info(f"Placing MARKET call order: {order_quantity} contracts @ {dte}DTE (reference price: ${mid_price:.2f}, bid: ${bid_price:.2f}, ask: ${ask_price:.2f})")
+        # Place LIMIT order at ask price for immediate fill (like market order)
+        # Use ask price for BUY orders to ensure fill (pay what sellers are asking)
+        logger.info(f"Placing LIMIT call order at ASK: {order_quantity} contracts @ {dte}DTE (limit price: ${ask_price:.2f}, bid: ${bid_price:.2f}, ask: ${ask_price:.2f})")
         order_result = wb.place_order_option(
             optionId=option_id,
-            lmtPrice=mid_price,  # Required by API but not used for MKT orders
-            stpPrice=str(float(mid_price) - 0.25),
+            lmtPrice=ask_price,  # Use ask price for aggressive fill
+            stpPrice=None,  # Not needed for limit orders
             action='BUY',
-            orderType='MKT',  # Market order for immediate fill
+            orderType='LMT',  # Limit order (Webull rejects MKT+GTC on live accounts)
             enforce='GTC',
             quant=order_quantity
         )
