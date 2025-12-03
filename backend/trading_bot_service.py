@@ -1285,16 +1285,17 @@ async def run_trading_bot(wb, settings):
                                 contracts_to_sell = quantity - contracts_to_keep
                                 logger.info(f"📊 Trailing stop strategy: Selling {contracts_to_sell} contracts, keeping {contracts_to_keep} for trailing")
                                 
+                                # For SELL orders, use bid price (what buyers are willing to pay)
                                 wb.place_order_option(
                                     optionId=ticker_id,
-                                    lmtPrice=mid_price,
-                                    stpPrice=str(float(mid_price) - 0.25),
+                                    lmtPrice=bid_price,  # Use bid price for SELL orders
+                                    stpPrice=None,
                                     action='SELL',
-                                    orderType='MKT',
+                                    orderType='LMT',  # Limit order (Webull rejects MKT+GTC on live)
                                     enforce='GTC',
                                     quant=contracts_to_sell
                                 )
-                                logger.info(f"✅ Partial SELL order placed: {contracts_to_sell} contracts at market price")
+                                logger.info(f"✅ Partial SELL order placed: {contracts_to_sell} contracts at LIMIT ${bid_price:.2f}")
                                 send_notification(f"Profit Target Hit! ({dte}DTE)\nSold {contracts_to_sell}/{quantity} contracts at {pnl_pct:.2f}% profit\nKeeping {contracts_to_keep} for trailing stop\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
                                 
                                 # Update to trailing phase
