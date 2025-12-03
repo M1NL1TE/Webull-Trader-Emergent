@@ -562,27 +562,18 @@ async def get_positions():
         
         positions = wb.get_positions()
         
-        # Enrich option positions with full symbol details from entry signals
-        # This is faster and more reliable than querying Webull API
+        # Enrich option positions with full symbol ONLY from entry signals database
+        # This is fast, reliable, and doesn't cause flickering
         for pos in positions:
             if pos.get('assetType') == 'OPTION' and pos.get('tickerId'):
                 try:
                     option_id = str(pos['tickerId'])
-                    # Check if we have an entry signal for this ticker
+                    # Get symbol from entry signal (instant, no API call)
                     entry_signal = await db.entry_signals.find_one({'ticker_id': option_id})
                     if entry_signal and entry_signal.get('ticker_symbol'):
-                        symbol = entry_signal['ticker_symbol']
-                        pos['ticker']['optionSymbol'] = symbol
-                        logger.info(f"Enriched position with symbol from entry signal: {symbol}")
-                    else:
-                        # Fallback: try to get from Webull API (slower)
-                        option_quote = wb.get_option_quote(stock='SPY', optionId=option_id)
-                        if option_quote and option_quote.get('data') and option_quote['data']:
-                            option_data = option_quote['data'][0]
-                            symbol = option_data.get('symbol', '')
-                            if symbol:
-                                pos['ticker']['optionSymbol'] = symbol
-                                logger.info(f"Enriched position with symbol from API: {symbol}")
+                        pos['ticker']['optionSymbol'] = entry_signal['ticker_symbol']
+                    # If not in database, leave it as is (will show "SPY" only)
+                    # This prevents slow/failing API calls that cause flickering
                 except Exception as e:
                     logger.warning(f"Could not enrich option position {option_id}: {e}")
         
