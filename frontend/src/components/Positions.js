@@ -74,7 +74,25 @@ function Positions({ positions: initialPositions }) {
     const fetchPositions = async () => {
       try {
         const response = await axios.get(`${API}/account`);
-        setLivePositions(response.data.positions || []);
+        const positions = response.data.positions || [];
+        
+        // Cache option symbols to prevent flickering
+        // Once we get a full symbol, keep using it even if API doesn't return it next time
+        setSymbolCache(prevCache => {
+          const newCache = { ...prevCache };
+          positions.forEach(pos => {
+            const tickerId = pos.tickerId;
+            const optionSymbol = pos.ticker?.optionSymbol;
+            
+            // If we got a full option symbol, cache it
+            if (optionSymbol && optionSymbol.length > 10) {
+              newCache[tickerId] = optionSymbol;
+            }
+          });
+          return newCache;
+        });
+        
+        setLivePositions(positions);
       } catch (error) {
         console.error('Error fetching positions:', error);
       }
