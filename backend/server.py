@@ -556,7 +556,30 @@ async def get_positions():
         if session.get('is_paper', True):
             wb.get_account_id()
         
+        # Restore trade token
+        if 'trade_token' in session and session['trade_token']:
+            wb._trade_token = session['trade_token']
+        
         positions = wb.get_positions()
+        
+        # Enrich option positions with full symbol details
+        for pos in positions:
+            if pos.get('assetType') == 'OPTION' and pos.get('tickerId'):
+                try:
+                    # Get option details to extract strike, expiration, type
+                    option_id = pos['tickerId']
+                    # Try to get option symbol from Webull API
+                    option_quote = wb.get_option_quote(stock='SPY', optionId=option_id)
+                    if option_quote and option_quote.get('data'):
+                        option_data = option_quote['data'][0]
+                        # Build full option symbol: SPY251204P00683000
+                        symbol = option_data.get('symbol', '')
+                        if symbol:
+                            pos['ticker']['optionSymbol'] = symbol
+                            logger.info(f"Enriched position with option symbol: {symbol}")
+                except Exception as e:
+                    logger.warning(f"Could not enrich option position {option_id}: {e}")
+        
         return {"positions": positions}
     except Exception as e:
         logger.error(f"Get positions error: {e}")
