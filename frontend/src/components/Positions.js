@@ -15,6 +15,7 @@ function Positions({ positions: initialPositions }) {
   const [sellLoading, setSellLoading] = useState({}); // Changed to object to track per-position
   const [livePositions, setLivePositions] = useState(initialPositions);
   const [orderTimes, setOrderTimes] = useState({});
+  const [symbolCache, setSymbolCache] = useState({}); // Cache option symbols to prevent flickering
 
   // Helper function to calculate DTE-based targets
   const calculateDTETargets = (dte, phase = 'initial', overrideSettings = null) => {
