@@ -250,8 +250,8 @@ function Positions({ positions: initialPositions }) {
               };
               
               const parsed = parseOptionSymbol(rawSymbol);
-              const displaySymbol = parsed.strike ? `${parsed.ticker} ${parsed.strike}` : rawSymbol;
-              const displayDate = parsed.date ? `${parsed.date} ${parsed.type}` : '';
+              const displaySymbol = parsed.strike ? `${parsed.ticker} ${parsed.strike} ${parsed.type}` : rawSymbol;
+              const displayDate = parsed.date ? `${parsed.date}` : '';
               
               // Calculate current P/L percentage
               const plPercentage = costPrice > 0 ? ((lastPrice - costPrice) / costPrice) * 100 : 0;
