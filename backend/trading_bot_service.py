@@ -1304,16 +1304,17 @@ async def run_trading_bot(wb, settings):
                             else:
                                 # Trailing profit target or regular sell - sell all remaining
                                 logger.info(f"📊 Selling all {quantity} remaining contracts")
+                                # For SELL orders, use bid price (what buyers are willing to pay)
                                 wb.place_order_option(
                                     optionId=ticker_id,
-                                    lmtPrice=mid_price,
-                                    stpPrice=str(float(mid_price) - 0.25),
+                                    lmtPrice=bid_price,  # Use bid price for SELL orders
+                                    stpPrice=None,
                                     action='SELL',
-                                    orderType='MKT',
+                                    orderType='LMT',  # Limit order (Webull rejects MKT+GTC on live)
                                     enforce='GTC',
                                     quant=quantity
                                 )
-                                logger.info(f"✅ SELL order placed: {quantity} contracts at market price")
+                                logger.info(f"✅ SELL order placed: {quantity} contracts at LIMIT ${bid_price:.2f}")
                                 phase_msg = " (Trailing Stop)" if phase == 'trailing' else ""
                                 send_notification(f"Profit Target Hit{phase_msg}! ({dte}DTE)\nSold {quantity} contracts at {pnl_pct:.2f}% profit\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
                                 bot_state.last_action = f"SOLD {quantity} at +{pnl_pct:.2f}% profit{phase_msg}"
