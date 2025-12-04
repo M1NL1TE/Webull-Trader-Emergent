@@ -1716,7 +1716,12 @@ def backfill_entry_signal(wb):
         ticker_symbol = position['ticker']['symbol']
         
         # Get order history to find when this position was opened
-        orders = wb.get_history_orders(1)  # Paper trading account
+        orders = wb.get_history_orders(status='All', count=20)
+        
+        # Ensure orders is a list
+        if not isinstance(orders, list):
+            logger.warning(f"get_history_orders returned non-list: {type(orders)}")
+            return False
         
         # Find the BUY order for this ticker
         buy_order = None
