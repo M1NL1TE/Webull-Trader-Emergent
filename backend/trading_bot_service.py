@@ -1336,10 +1336,15 @@ async def run_trading_bot(wb, settings):
                                 logger.info(f"📊 Trailing stop strategy: Selling {contracts_to_sell} contracts, keeping {contracts_to_keep} for trailing")
                                 
                                 # For SELL orders, use bid price (what buyers are willing to pay)
+                                # If bid price is very low, the API may reject it - use a minimum of $0.01
+                                effective_bid = max(bid_price, 0.01)
+                                if bid_price < 0.01:
+                                    logger.warning(f"⚠️ Bid price ${bid_price:.3f} is too low, using $0.01 minimum")
+                                
                                 try:
                                     result = wb.place_order_option(
                                         optionId=ticker_id,
-                                        lmtPrice=bid_price,  # Use bid price for SELL orders
+                                        lmtPrice=effective_bid,  # Use bid price for SELL orders (min $0.01)
                                         stpPrice=None,
                                         action='SELL',
                                         orderType='LMT',  # Limit order (Webull rejects MKT+GTC on live)
