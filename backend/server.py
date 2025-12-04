@@ -562,21 +562,36 @@ async def get_positions():
         
         positions = wb.get_positions()
         
-        # Enrich option positions with full symbol ONLY from entry signals database
-        # This is fast, reliable, and doesn't cause flickering
+        # Enrich option positions with full symbol
+        # 1. First try from entry_signals database (fast, for bot trades)
+        # 2. If not found, fetch from Webull API (for manual trades)
         for pos in positions:
             if pos.get('assetType') == 'OPTION' and pos.get('tickerId'):
                 try:
                     option_id = str(pos['tickerId'])
-                    # Get symbol and entry time from entry signal (instant, no API call)
+                    enriched = False
+                    
+                    # Try getting from entry signal database first (instant, no API call)
                     entry_signal = await db.entry_signals.find_one({'ticker_id': option_id})
                     if entry_signal:
                         if entry_signal.get('ticker_symbol'):
                             pos['ticker']['optionSymbol'] = entry_signal['ticker_symbol']
+                            enriched = True
                         if entry_signal.get('timestamp'):
                             pos['ticker']['entryTime'] = entry_signal['timestamp']
-                    # If not in database, leave it as is (will show "SPY" only)
-                    # This prevents slow/failing API calls that cause flickering
+                    
+                    # If not in database, fetch from Webull API (manual trades)
+                    if not enriched:
+                        try:
+                            option_quote = wb.get_option_quote(stock='SPY', optionId=int(option_id))
+                            if option_quote.get('data') and option_quote['data']:
+                                option_symbol = option_quote['data'][0].get('symbol')
+                                if option_symbol:
+                                    pos['ticker']['optionSymbol'] = option_symbol
+                                    logger.info(f"Fetched optionSymbol from API for {option_id}: {option_symbol}")
+                        except Exception as api_e:
+                            logger.warning(f"Could not fetch optionSymbol from API for {option_id}: {api_e}")
+                    
                 except Exception as e:
                     logger.warning(f"Could not enrich option position {option_id}: {e}")
         
