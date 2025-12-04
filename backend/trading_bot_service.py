@@ -1316,8 +1316,17 @@ async def run_trading_bot(wb, settings):
                         logger.info(f"🎯 PROFIT TARGET REACHED! P/L: {pnl_pct:.2f}%")
                         try:
                             quote = wb.get_option_quote(stock='SPY', optionId=ticker_id)
-                            bid_price = float(quote['data'][0]['bidList'][0]['price'])
-                            ask_price = float(quote['data'][0]['askList'][0]['price'])
+                            
+                            # Check if bid/ask lists are available (similar to stop-loss check)
+                            if (not quote.get('data') or not quote['data'] or 
+                                not quote['data'][0].get('bidList') or not quote['data'][0]['bidList'] or
+                                not quote['data'][0].get('askList') or not quote['data'][0]['askList']):
+                                logger.error(f"❌ Cannot get quote for profit-taking - bid/ask lists empty. Using last price ${current_price:.2f}")
+                                bid_price = current_price
+                                ask_price = current_price
+                            else:
+                                bid_price = float(quote['data'][0]['bidList'][0]['price'])
+                                ask_price = float(quote['data'][0]['askList'][0]['price'])
                             mid_price = (bid_price + ask_price) / 2
                             
                             # Determine how many contracts to sell
@@ -1327,40 +1336,64 @@ async def run_trading_bot(wb, settings):
                                 logger.info(f"📊 Trailing stop strategy: Selling {contracts_to_sell} contracts, keeping {contracts_to_keep} for trailing")
                                 
                                 # For SELL orders, use bid price (what buyers are willing to pay)
-                                wb.place_order_option(
-                                    optionId=ticker_id,
-                                    lmtPrice=bid_price,  # Use bid price for SELL orders
-                                    stpPrice=None,
-                                    action='SELL',
-                                    orderType='LMT',  # Limit order (Webull rejects MKT+GTC on live)
-                                    enforce='GTC',
-                                    quant=contracts_to_sell
-                                )
-                                logger.info(f"✅ Partial SELL order placed: {contracts_to_sell} contracts at LIMIT ${bid_price:.2f}")
-                                send_notification(f"Profit Target Hit! ({dte}DTE)\nSold {contracts_to_sell}/{quantity} contracts at {pnl_pct:.2f}% profit\nKeeping {contracts_to_keep} for trailing stop\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
-                                
-                                # Update to trailing phase
-                                await update_position_phase(ticker_id, 'trailing', contracts_to_keep)
-                                bot_state.last_action = f"SOLD {contracts_to_sell} at +{pnl_pct:.2f}% profit (keeping {contracts_to_keep})"
+                                try:
+                                    result = wb.place_order_option(
+                                        optionId=ticker_id,
+                                        lmtPrice=bid_price,  # Use bid price for SELL orders
+                                        stpPrice=None,
+                                        action='SELL',
+                                        orderType='LMT',  # Limit order (Webull rejects MKT+GTC on live)
+                                        enforce='GTC',
+                                        quant=contracts_to_sell
+                                    )
+                                    logger.info(f"✅ Partial SELL order placed: {contracts_to_sell} contracts at LIMIT ${bid_price:.2f}")
+                                    logger.info(f"📋 Order result: {result}")
+                                    
+                                    # Verify order was placed successfully
+                                    if result and isinstance(result, dict):
+                                        if result.get('success') == False or result.get('msg'):
+                                            logger.error(f"❌ SELL order failed! API response: {result}")
+                                            raise Exception(f"Order placement failed: {result.get('msg', 'Unknown error')}")
+                                    
+                                    send_notification(f"Profit Target Hit! ({dte}DTE)\nSold {contracts_to_sell}/{quantity} contracts at {pnl_pct:.2f}% profit\nKeeping {contracts_to_keep} for trailing stop\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
+                                    
+                                    # Update to trailing phase
+                                    await update_position_phase(ticker_id, 'trailing', contracts_to_keep)
+                                    bot_state.last_action = f"SOLD {contracts_to_sell} at +{pnl_pct:.2f}% profit (keeping {contracts_to_keep})"
+                                except Exception as order_e:
+                                    logger.error(f"❌ Failed to place partial SELL order: {order_e}", exc_info=True)
+                                    raise
                             else:
                                 # Trailing profit target or regular sell - sell all remaining
                                 logger.info(f"📊 Selling all {quantity} remaining contracts")
                                 # For SELL orders, use bid price (what buyers are willing to pay)
-                                wb.place_order_option(
-                                    optionId=ticker_id,
-                                    lmtPrice=bid_price,  # Use bid price for SELL orders
-                                    stpPrice=None,
-                                    action='SELL',
-                                    orderType='LMT',  # Limit order (Webull rejects MKT+GTC on live)
-                                    enforce='GTC',
-                                    quant=quantity
-                                )
-                                logger.info(f"✅ SELL order placed: {quantity} contracts at LIMIT ${bid_price:.2f}")
-                                phase_msg = " (Trailing Stop)" if phase == 'trailing' else ""
-                                send_notification(f"Profit Target Hit{phase_msg}! ({dte}DTE)\nSold {quantity} contracts at {pnl_pct:.2f}% profit\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
-                                bot_state.last_action = f"SOLD {quantity} at +{pnl_pct:.2f}% profit{phase_msg}"
+                                try:
+                                    result = wb.place_order_option(
+                                        optionId=ticker_id,
+                                        lmtPrice=bid_price,  # Use bid price for SELL orders
+                                        stpPrice=None,
+                                        action='SELL',
+                                        orderType='LMT',  # Limit order (Webull rejects MKT+GTC on live)
+                                        enforce='GTC',
+                                        quant=quantity
+                                    )
+                                    logger.info(f"✅ SELL order placed: {quantity} contracts at LIMIT ${bid_price:.2f}")
+                                    logger.info(f"📋 Order result: {result}")
+                                    
+                                    # Verify order was placed successfully
+                                    if result and isinstance(result, dict):
+                                        if result.get('success') == False or result.get('msg'):
+                                            logger.error(f"❌ SELL order failed! API response: {result}")
+                                            raise Exception(f"Order placement failed: {result.get('msg', 'Unknown error')}")
+                                    
+                                    phase_msg = " (Trailing Stop)" if phase == 'trailing' else ""
+                                    send_notification(f"Profit Target Hit{phase_msg}! ({dte}DTE)\nSold {quantity} contracts at {pnl_pct:.2f}% profit\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
+                                    bot_state.last_action = f"SOLD {quantity} at +{pnl_pct:.2f}% profit{phase_msg}"
+                                except Exception as order_e:
+                                    logger.error(f"❌ Failed to place SELL order: {order_e}", exc_info=True)
+                                    raise
                         except Exception as e:
-                            logger.error(f"❌ Error placing SELL order: {e}")
+                            logger.error(f"❌ Error in profit-taking logic: {e}", exc_info=True)
                             
                     elif current_price <= stop_loss_price:
                         logger.info(f"🛑 STOP LOSS HIT! P/L: {pnl_pct:.2f}%")
