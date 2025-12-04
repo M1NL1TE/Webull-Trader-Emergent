@@ -1330,7 +1330,8 @@ async def get_settings():
                 "auto_trading": False,
                 "profit_percentage": 50.0,
                 "loss_percentage": 25.0,
-                "sms_notifications": False
+                "sms_notifications": False,
+                "zone_exit_enabled": False
             }
         # Remove MongoDB _id if present
         settings.pop('_id', None)
