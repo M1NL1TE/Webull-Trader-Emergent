@@ -106,45 +106,23 @@ function Positions({ positions: initialPositions }) {
       }
     };
     
-    // Fetch order times for positions
+    // Fetch order times ONCE and cache permanently
     const fetchOrderTimes = async () => {
       try {
         const ordersResponse = await axios.get(`${API}/orders/history`);
-        const times = {};
         
-        console.log('Fetching order times from history...');
-        
-        // Get the most recent BUY order for each ticker
+        // Get the most recent BUY order for each ticker and cache it permanently
         ordersResponse.data.forEach(order => {
           if (order.action === 'BUY' && order.status === 'Filled' && order.ticker?.tickerId) {
             const tickerId = order.ticker.tickerId;
-            const filledTime = order.filledTime || order.createTime;
             
-            // Keep the most recent time for this ticker
-            if (!times[tickerId] || order.filledTime0 > times[tickerId].timestamp) {
-              times[tickerId] = {
-                time: filledTime,
-                timestamp: order.filledTime0
-              };
+            // Only cache if we don't already have it (prevents updates/flickering)
+            if (!timestampCache.current[tickerId]) {
+              const filledTime = order.filledTime || order.createTime;
+              timestampCache.current[tickerId] = filledTime;
+              console.log(`Cached timestamp for ${tickerId}: ${filledTime}`);
             }
           }
-        });
-        
-        console.log('Order times collected:', times);
-        
-        // Update ref cache (prevents re-renders)
-        Object.keys(times).forEach(tickerId => {
-          if (!orderTimesRef.current[tickerId]) {
-            orderTimesRef.current[tickerId] = times[tickerId];
-          }
-        });
-        
-        // Only update state if we have new data
-        setOrderTimes(prevTimes => {
-          const hasNewData = Object.keys(times).some(
-            tickerId => !prevTimes[tickerId] || prevTimes[tickerId].timestamp !== times[tickerId].timestamp
-          );
-          return hasNewData ? times : prevTimes;
         });
       } catch (error) {
         console.error('Error fetching order times:', error);
