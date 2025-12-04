@@ -640,8 +640,37 @@ async def get_order_history():
             except:
                 history = wb.get_history_orders(status='', count=30)
         else:
-            history = wb.get_history_orders(status='All', count=30)
-        logger.info(f"Webull returned {len(history) if history else 0} orders")
+            # For live accounts, try multiple query strategies
+            logger.info("Attempting live account order history fetch...")
+            try:
+                # Try with 'Filled' status first (most common successful orders)
+                history = wb.get_history_orders(status='Filled', count=30)
+                logger.info(f"Live account query (Filled): {len(history) if history else 0} orders")
+                
+                # If empty, try 'All' status
+                if not history or len(history) == 0:
+                    logger.info("Trying 'All' status...")
+                    history = wb.get_history_orders(status='All', count=30)
+                    logger.info(f"Live account query (All): {len(history) if history else 0} orders")
+                
+                # If still empty, try without status parameter
+                if not history or len(history) == 0:
+                    logger.info("Trying without status parameter...")
+                    history = wb.get_history_orders(count=30)
+                    logger.info(f"Live account query (no status): {len(history) if history else 0} orders")
+                
+                # If still empty, try the paper trading method
+                if not history or len(history) == 0:
+                    logger.info("Trying paper trading account ID method...")
+                    wb.get_account_id()
+                    history = wb.get_history_orders(status='All', count=30)
+                    logger.info(f"Live account query (with account_id): {len(history) if history else 0} orders")
+                    
+            except Exception as e:
+                logger.error(f"All live account query attempts failed: {e}")
+                history = []
+        
+        logger.info(f"Final order history count: {len(history) if history else 0} orders")
         
         # Enrich orders with ticker symbols and entry signals
         ticker_cache = {}  # Cache ticker lookups to avoid duplicate API calls
