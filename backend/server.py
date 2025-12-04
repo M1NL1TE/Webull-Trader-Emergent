@@ -1100,6 +1100,11 @@ async def place_option_trade(request: TradeRequest):
         
         trade_pct = trade_grades[request.trade_grade]['trade_pct']
         
+        # DOUBLE percentages for accounts under $5,000 (more aggressive on small accounts)
+        if account_value < 5000:
+            trade_pct = min(trade_pct * 2, 1.0)  # Double but cap at 100%
+            logger.info(f"💰 Small account (<$5k): Doubled manual trade percentage to {trade_pct*100:.0f}%")
+        
         # Get option details
         option_key = 'call' if request.option_type == 'call' else 'put'
         option = filtered_chain[0][option_key]
