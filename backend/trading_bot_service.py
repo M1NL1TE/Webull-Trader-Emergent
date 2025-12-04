@@ -1414,22 +1414,35 @@ async def run_trading_bot(wb, settings):
                             
                             # Sell all remaining contracts
                             # For SELL orders, use bid price (what buyers are willing to pay)
-                            wb.place_order_option(
+                            # If bid price is very low, the API may reject it - use a minimum of $0.01
+                            effective_bid = max(bid_price, 0.01)
+                            if bid_price < 0.01:
+                                logger.warning(f"⚠️ Bid price ${bid_price:.3f} is too low, using $0.01 minimum")
+                            
+                            result = wb.place_order_option(
                                 optionId=ticker_id,
-                                lmtPrice=bid_price,  # Use bid price for SELL orders
+                                lmtPrice=effective_bid,  # Use bid price for SELL orders (min $0.01)
                                 stpPrice=None,
                                 action='SELL',
                                 orderType='LMT',  # Limit order (Webull rejects MKT+GTC on live)
                                 enforce='GTC',
                                 quant=quantity
                             )
+                            logger.info(f"✅ STOP LOSS SELL order placed: {quantity} contracts at LIMIT ${effective_bid:.2f}")
+                            logger.info(f"📋 Order result: {result}")
+                            
+                            # Verify order was placed successfully
+                            if result and isinstance(result, dict):
+                                if result.get('success') == False or result.get('msg'):
+                                    logger.error(f"❌ STOP LOSS order failed! API response: {result}")
+                                    raise Exception(f"Order placement failed: {result.get('msg', 'Unknown error')}")
+                            
                             phase_msg = f" ({phase} phase)" if phase == 'trailing' else ""
                             loss_or_profit = "profit" if pnl_pct > 0 else "loss"
-                            logger.info(f"✅ STOP LOSS SELL order placed: {quantity} contracts at market price")
                             send_notification(f"Stop Loss Triggered{phase_msg}! ({dte}DTE)\nSold {quantity} contracts at {pnl_pct:.2f}% {loss_or_profit}\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
                             bot_state.last_action = f"SOLD {quantity} at {pnl_pct:.2f}% {loss_or_profit} (stop loss)"
                         except Exception as e:
-                            logger.error(f"❌ Error placing STOP LOSS order: {e}")
+                            logger.error(f"❌ Error placing STOP LOSS order: {e}", exc_info=True)
                 
                 # Clear any temporary errors after successful iteration
                 if bot_state.error_message and "timeout" in bot_state.error_message.lower():
