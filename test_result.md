@@ -190,3 +190,50 @@ agent_communication:
     message: "🔧 ADDITIONAL FIXES IMPLEMENTED: 1) Fixed Playwright login for live trading - installed missing chromium browsers (v1187), added explicit get_account_id() call for paper mode, improved error logging. 2) Modified P/L by Symbol consolidation - changed calculate_pl_from_orders() in server.py to aggregate P/L by underlying ticker symbol (SPY, COIN, CONY) instead of individual option contracts. Logic now extracts just the symbol and sums all contracts per ticker. Ready for backend testing to verify /api/account/activities returns consolidated symbol totals."
   - agent: "testing"
     message: "🎉 P/L BY SYMBOL CONSOLIDATION TESTING COMPLETE: All critical tests PASSED (5/6 tests successful). The P/L by Symbol consolidation feature is working correctly. Key findings: 1) /api/account/activities endpoint is accessible and returns correct structure with pl_by_symbol array. 2) Symbol consolidation is perfect - found expected consolidated symbols: ['SPY', 'COIN', 'CONY'] with no contract details (no $, strikes, expirations). 3) Data format is correct: array of objects with 'symbol' and 'pl' fields. 4) P/L values are valid numerics: SPY: $-55279.00, COIN: $-763.00, CONY: $-70.00. 5) Data is sorted correctly (negative first). The consolidation logic successfully extracts underlying ticker symbols and aggregates all P/L for contracts with the same underlying symbol. Backend now returns consolidated totals per ticker instead of individual contract details as requested. Feature is ready for production use."
+  - agent: "main"
+    message: "🔧 CRITICAL BUG FIXES IMPLEMENTED (2025-12-04):
+    
+    **Issue #1 (P0): Profit-taking execution failure**
+    - Root cause: wb.place_order_option() calls lacked proper error handling and result verification. Orders could fail silently without throwing exceptions.
+    - Fix implemented in trading_bot_service.py (lines 1314-1396):
+      * Added comprehensive error handling around all profit-taking place_order_option calls
+      * Added result verification to check if API returned success=False or error messages
+      * Added logging of order results for debugging
+      * Added check for empty bid/ask lists (similar to stop-loss logic)
+      * Added minimum bid price of $0.01 to prevent API rejections on very low prices
+    - Expected behavior: Bot will now log clear error messages when profit-taking orders fail and will not silently ignore failures
+    
+    **Issue #2 (P0): Sell at Market button non-functional for live accounts**
+    - Root cause: server.py endpoint /api/trade/sell-position used orderType='MKT' which live Webull API rejects
+    - Fix implemented in server.py (lines 1252-1277):
+      * Changed from MKT to LMT order type
+      * Uses bid price for limit price (same as bot's sell logic)
+      * Added error handling for empty bid/ask lists
+    - Expected behavior: Manual sell button now works for live trading accounts
+    
+    **Issue #3 (P1): Flickering timestamp on position card**
+    - Root cause: Conditional rendering of timestamp caused layout shifts during 5-second refresh cycles
+    - Fix implemented in frontend/src/components/Positions.js (lines 322-335):
+      * Added fixed minHeight style to timestamp container
+      * Moved conditional inside the paragraph tag to preserve container height
+    - Expected behavior: Timestamp area no longer flickers, maintains stable height
+    
+    **Issue #4 (P2): Live order history not displaying**
+    - Root cause: Live Webull API has different query requirements than paper trading API
+    - Fix implemented in server.py (lines 634-662):
+      * Added multiple fallback query strategies for live accounts
+      * Tries: 1) 'Filled' status, 2) 'All' status, 3) No status param, 4) Paper trading method with get_account_id()
+      * Enhanced logging to debug which query method returns data
+    - Expected behavior: Live order history should now display if orders exist in the account
+    
+    **Additional fixes:**
+    - Fixed backfill_entry_signal error: Changed wb.get_history_orders(1) to wb.get_history_orders(status='All', count=20)
+    - Added isinstance check to ensure orders is a list before iterating
+    - Added minimum bid price logic ($0.01) to all sell operations to prevent 'system busy' API rejections
+    
+    **NEEDS TESTING:**
+    1. Profit-taking: Verify bot successfully executes sell orders when position reaches profit target (requires position to gain >20% for 1DTE)
+    2. Manual sell button: Test clicking 'Sell at Market' button on a live position
+    3. UI flickering: Check if timestamp on position card no longer flickers during refresh cycles
+    4. Order history: Verify live trading account order history displays (user confirmed orders exist)
+    5. Stop-loss: Verify improved error handling and minimum bid price logic prevents silent failures"
