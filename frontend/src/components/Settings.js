@@ -221,6 +221,38 @@ function Settings() {
 
           <div className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
             <div className="space-y-0.5">
+              <Label htmlFor="zone_exit_enabled" className="text-slate-200 font-medium">
+                Supply/Demand Zone Exit
+              </Label>
+              <p className="text-sm text-slate-400">
+                Exit position when 5-min candle closes outside entry S/D zones
+              </p>
+            </div>
+            <Switch
+              id="zone_exit_enabled"
+              data-testid="zone-exit-toggle"
+              checked={settings.zone_exit_enabled}
+              onCheckedChange={(checked) => setSettings({ ...settings, zone_exit_enabled: checked })}
+            />
+          </div>
+
+          {settings.zone_exit_enabled && (
+            <div className="p-4 bg-blue-500/10 border border-blue-700/30 rounded-lg">
+              <p className="text-sm text-blue-300 font-medium mb-2">
+                ✅ Zone Exit Logic Enabled
+              </p>
+              <div className="text-xs text-blue-200/80 space-y-1">
+                <p>• Monitors entry supply/demand zones for position exit</p>
+                <p>• Exits when a 5-minute candle <strong>closes</strong> outside the entry zone</p>
+                <p>• For CALL: Exits if price breaks above supply OR below demand</p>
+                <p>• For PUT: Exits if price breaks below demand OR above supply</p>
+                <p>• Works alongside profit/loss targets (whichever triggers first)</p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
+            <div className="space-y-0.5">
               <Label htmlFor="sms_notifications" className="text-slate-200 font-medium">
                 SMS Notifications
               </Label>
