@@ -1252,19 +1252,24 @@ async def sell_position_at_market(request: SellPositionRequest):
         # Get current market price
         option_quote = wb.get_option_quote(stock='SPY', optionId=ticker_id)
         
-        # Use bid price for selling (more realistic fill)
-        market_price = float(option_quote['data'][0]['bidList'][0]['price'])
+        # Check if bid/ask lists are available
+        if (not option_quote.get('data') or not option_quote['data'] or 
+            not option_quote['data'][0].get('bidList') or not option_quote['data'][0]['bidList']):
+            raise HTTPException(status_code=500, detail="Cannot get bid price for position")
+        
+        # Use bid price for selling (what buyers are willing to pay)
+        bid_price = float(option_quote['data'][0]['bidList'][0]['price'])
         quantity = int(position['position'])
         
-        logger.info(f"Selling position: {quantity} contracts at market price")
+        logger.info(f"Selling position: {quantity} contracts at LIMIT price ${bid_price:.2f}")
         
-        # Place SELL MARKET order for immediate execution
+        # Place SELL LIMIT order (live Webull API rejects MKT orders)
         result = wb.place_order_option(
             optionId=ticker_id,
-            lmtPrice=market_price,  # Still needed for API, but not used for MKT orders
-            stpPrice=str(market_price - 0.25),
+            lmtPrice=bid_price,  # Use bid price for SELL orders
+            stpPrice=None,
             action='SELL',
-            orderType='MKT',  # Market order for immediate fill at best available price
+            orderType='LMT',  # Limit order required for live trading
             enforce='GTC',
             quant=quantity
         )
