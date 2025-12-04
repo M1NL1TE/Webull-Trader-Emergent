@@ -1432,10 +1432,10 @@ async def run_trading_bot(wb, settings):
                                 logger.info(f"📊 Trailing stop strategy: Selling {contracts_to_sell} contracts, keeping {contracts_to_keep} for trailing")
                                 
                                 # For SELL orders, use bid price (what buyers are willing to pay)
-                                # If bid price is very low, the API may reject it - use a minimum of $0.01
-                                effective_bid = max(bid_price, 0.01)
-                                if bid_price < 0.01:
-                                    logger.warning(f"⚠️ Bid price ${bid_price:.3f} is too low, using $0.01 minimum")
+                                # If bid price is very low, the API may reject it - use a minimum of $0.05
+                                effective_bid = max(bid_price, 0.05)
+                                if bid_price < 0.05:
+                                    logger.warning(f"⚠️ Bid price ${bid_price:.3f} is too low, using $0.05 minimum")
                                 
                                 try:
                                     result = wb.place_order_option(
@@ -1468,10 +1468,10 @@ async def run_trading_bot(wb, settings):
                                 # Trailing profit target or regular sell - sell all remaining
                                 logger.info(f"📊 Selling all {quantity} remaining contracts")
                                 # For SELL orders, use bid price (what buyers are willing to pay)
-                                # If bid price is very low, the API may reject it - use a minimum of $0.01
-                                effective_bid = max(bid_price, 0.01)
-                                if bid_price < 0.01:
-                                    logger.warning(f"⚠️ Bid price ${bid_price:.3f} is too low, using $0.01 minimum")
+                                # If bid price is very low, the API may reject it - use a minimum of $0.05
+                                effective_bid = max(bid_price, 0.05)
+                                if bid_price < 0.05:
+                                    logger.warning(f"⚠️ Bid price ${bid_price:.3f} is too low, using $0.05 minimum")
                                 
                                 try:
                                     result = wb.place_order_option(
