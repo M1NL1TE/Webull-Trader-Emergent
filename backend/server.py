@@ -568,10 +568,13 @@ async def get_positions():
             if pos.get('assetType') == 'OPTION' and pos.get('tickerId'):
                 try:
                     option_id = str(pos['tickerId'])
-                    # Get symbol from entry signal (instant, no API call)
+                    # Get symbol and entry time from entry signal (instant, no API call)
                     entry_signal = await db.entry_signals.find_one({'ticker_id': option_id})
-                    if entry_signal and entry_signal.get('ticker_symbol'):
-                        pos['ticker']['optionSymbol'] = entry_signal['ticker_symbol']
+                    if entry_signal:
+                        if entry_signal.get('ticker_symbol'):
+                            pos['ticker']['optionSymbol'] = entry_signal['ticker_symbol']
+                        if entry_signal.get('timestamp'):
+                            pos['ticker']['entryTime'] = entry_signal['timestamp']
                     # If not in database, leave it as is (will show "SPY" only)
                     # This prevents slow/failing API calls that cause flickering
                 except Exception as e:
