@@ -16,8 +16,15 @@ function TechnicalSignalsWidget() {
 
   useEffect(() => {
     fetchSignals();
-    const interval = setInterval(fetchSignals, 10000);
-    return () => clearInterval(interval);
+    fetchLivePrice(); // Initial fetch
+    
+    const signalsInterval = setInterval(fetchSignals, 10000);
+    const priceInterval = setInterval(fetchLivePrice, 2000); // Live price every 2s
+    
+    return () => {
+      clearInterval(signalsInterval);
+      clearInterval(priceInterval);
+    };
   }, []);
 
   const fetchSignals = async () => {
@@ -28,11 +35,20 @@ function TechnicalSignalsWidget() {
       setSignals(data.technical_signals || {});
       setZones(data.zones || {});
       setOrbStatus(data.orb_status || {});
-      setCurrentPrice(data.current_price || 0);
+      // Don't use current_price from bot status anymore
     } catch (error) {
       console.error('Error fetching signals:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchLivePrice = async () => {
+    try {
+      const response = await axios.get(`${API}/quote/spy`, { timeout: 3000 });
+      setCurrentPrice(response.data.price || 0);
+    } catch (error) {
+      console.error('Error fetching live price:', error);
     }
   };
 
