@@ -319,9 +319,18 @@ function Positions({ positions: initialPositions }) {
                         <p className="text-xs text-slate-400">{displayDate}</p>
                       )}
                       <p className="text-sm text-slate-400 mt-1">Qty: {quantity}</p>
-                      {orderTimes[position.ticker.tickerId] && (
+                      {(orderTimes[position.ticker.tickerId] || position.ticker.entryTime) && (
                         <p className="text-xs text-slate-500 mt-1">
-                          Opened: {orderTimes[position.ticker.tickerId].time}
+                          Opened: {
+                            orderTimes[position.ticker.tickerId]?.time || 
+                            new Date(position.ticker.entryTime).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true
+                            })
+                          }
                         </p>
                       )}
                     </div>
