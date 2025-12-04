@@ -1152,6 +1152,7 @@ async def place_option_trade(request: TradeRequest):
         
         # Store manual trade entry signal
         from datetime import datetime, timezone
+        ticker_id_str = str(option['tickerId'])
         manual_entry_signal = {
             'signal_type': 'Manual Trade',
             'reasons': f'Manually placed {request.option_type.upper()} trade from Trade panel',
@@ -1160,10 +1161,18 @@ async def place_option_trade(request: TradeRequest):
             'entry_price': spy_current_price,
             'direction': request.option_type.upper(),
             'timestamp': datetime.now(timezone.utc).isoformat(),
-            'ticker_symbol': option['symbol']
+            'ticker_symbol': option['symbol'],
+            'ticker_id': ticker_id_str  # CRITICAL: Add ticker_id for position enrichment
         }
         
-        # Save to database
+        # Save to database (use ticker_id as key for easy lookup)
+        await entry_signals_collection.replace_one(
+            {'ticker_id': ticker_id_str},
+            {**manual_entry_signal, 'saved_at': datetime.now(timezone.utc).isoformat()},
+            upsert=True
+        )
+        
+        # Also save as 'current' for backward compatibility
         await entry_signals_collection.replace_one(
             {'_id': 'current'},
             {'_id': 'current', **manual_entry_signal, 'saved_at': datetime.now(timezone.utc).isoformat()},
