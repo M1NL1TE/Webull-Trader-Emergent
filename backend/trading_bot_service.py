@@ -1483,6 +1483,11 @@ def execute_put_trade(wb, symbol, trade_grade, account_info, signal_type='zone')
         account_value = float(account_info['accountMembers'][1]['value'])
         trade_pct = trade_grades.get(trade_grade, {'trade_pct': 0.10})['trade_pct']
         
+        # DOUBLE percentages for accounts under $5,000 (more aggressive on small accounts)
+        if account_value < 5000:
+            trade_pct = min(trade_pct * 2, 1.0)  # Double but cap at 100%
+            logger.info(f"💰 Small account (<$5k): Doubled trade percentage to {trade_pct*100:.0f}%")
+        
         option_price = wb.get_option_quote(stock=symbol, optionId=filtered_chain[0]['put']['tickerId'])['data'][0]['askList'][0]['price']
         order_quantity = float((account_value * trade_pct) / (float(option_price) * 100))
         order_quantity = math.floor(order_quantity)
