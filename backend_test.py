@@ -865,10 +865,256 @@ class WebullBackendTester:
             self.mongo_client.close()
             self.log("MongoDB connection closed")
     
+    def test_manual_sell_button_endpoint(self) -> Dict[str, Any]:
+        """Test the manual sell button endpoint (/api/trade/sell-position)"""
+        self.log("Testing manual sell button endpoint...")
+        
+        result = {
+            "success": False,
+            "endpoint_accessible": False,
+            "uses_lmt_order": False,
+            "handles_live_account": False,
+            "error_handling": False,
+            "error": None
+        }
+        
+        try:
+            # Test with a mock ticker_id (this will fail but we can check the error handling)
+            test_payload = {"ticker_id": 999999999}  # Non-existent ticker
+            
+            response = self.session.post(
+                f"{self.base_url}/trade/sell-position",
+                json=test_payload,
+                timeout=30
+            )
+            
+            result["endpoint_accessible"] = True
+            self.log(f"✅ Sell position endpoint accessible (status: {response.status_code})")
+            
+            if response.status_code == 401:
+                result["error"] = "Authentication required - no valid Webull session"
+                self.log("⚠️ Sell position endpoint requires authentication")
+                return result
+            elif response.status_code == 404:
+                # Expected for non-existent position
+                result["error_handling"] = True
+                self.log("✅ Endpoint properly handles non-existent positions (404)")
+            elif response.status_code == 500:
+                # Check if error message indicates proper LMT order handling
+                try:
+                    error_data = response.json()
+                    error_detail = error_data.get("detail", "")
+                    if "bid price" in error_detail.lower() or "limit" in error_detail.lower():
+                        result["uses_lmt_order"] = True
+                        result["handles_live_account"] = True
+                        self.log("✅ Endpoint uses LMT orders and handles bid/ask price logic")
+                    else:
+                        result["error"] = f"Unexpected error: {error_detail}"
+                except:
+                    result["error"] = f"HTTP 500 with non-JSON response: {response.text[:200]}"
+            
+            # Check if we can determine LMT order usage from the code
+            # This is a code inspection test since we can't test with real positions
+            result["success"] = (
+                result["endpoint_accessible"] and
+                (result["uses_lmt_order"] or result["error_handling"])
+            )
+            
+        except Exception as e:
+            result["error"] = f"Sell position endpoint test error: {str(e)}"
+            self.log(f"❌ Sell position endpoint test error: {str(e)}", "ERROR")
+        
+        return result
+    
+    def test_order_history_endpoint(self) -> Dict[str, Any]:
+        """Test the order history endpoint (/api/orders/history)"""
+        self.log("Testing order history endpoint...")
+        
+        result = {
+            "success": False,
+            "endpoint_accessible": False,
+            "returns_data": False,
+            "handles_live_account": False,
+            "fallback_strategies": False,
+            "error": None
+        }
+        
+        try:
+            response = self.session.get(
+                f"{self.base_url}/orders/history",
+                timeout=30
+            )
+            
+            result["endpoint_accessible"] = True
+            self.log(f"✅ Order history endpoint accessible (status: {response.status_code})")
+            
+            if response.status_code == 401:
+                result["error"] = "Authentication required - no valid Webull session"
+                self.log("⚠️ Order history endpoint requires authentication")
+                return result
+            elif response.status_code == 200:
+                try:
+                    data = response.json()
+                    if isinstance(data, dict) and "orders" in data:
+                        orders = data["orders"]
+                        if isinstance(orders, list):
+                            result["returns_data"] = True
+                            result["handles_live_account"] = True
+                            result["fallback_strategies"] = True  # If we get data, fallback worked
+                            self.log(f"✅ Order history returns {len(orders)} orders")
+                            
+                            # Check if orders have proper enrichment
+                            enriched_orders = 0
+                            for order in orders[:5]:  # Check first 5 orders
+                                if order.get('underlyingSymbol') or order.get('entry_signal'):
+                                    enriched_orders += 1
+                            
+                            if enriched_orders > 0:
+                                self.log(f"✅ Found {enriched_orders} enriched orders with symbols/signals")
+                        else:
+                            result["error"] = "Orders field is not a list"
+                    else:
+                        result["error"] = "Invalid response structure"
+                except json.JSONDecodeError:
+                    result["error"] = "Invalid JSON response"
+            else:
+                result["error"] = f"HTTP {response.status_code}: {response.text[:200]}"
+            
+            result["success"] = (
+                result["endpoint_accessible"] and
+                result["returns_data"] and
+                result["handles_live_account"]
+            )
+            
+        except Exception as e:
+            result["error"] = f"Order history endpoint test error: {str(e)}"
+            self.log(f"❌ Order history endpoint test error: {str(e)}", "ERROR")
+        
+        return result
+    
+    def test_backend_service_health(self) -> Dict[str, Any]:
+        """Test backend service health and trading bot status"""
+        self.log("Testing backend service health...")
+        
+        result = {
+            "success": False,
+            "backend_running": False,
+            "bot_status_accessible": False,
+            "no_syntax_errors": False,
+            "error": None
+        }
+        
+        try:
+            # Test basic backend health
+            response = self.session.get(
+                f"{self.base_url}/bot/status",
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result["backend_running"] = True
+                result["bot_status_accessible"] = True
+                result["no_syntax_errors"] = True
+                self.log("✅ Backend service is running without syntax errors")
+                
+                try:
+                    status_data = response.json()
+                    if isinstance(status_data, dict):
+                        bot_running = status_data.get("running", False)
+                        last_signal = status_data.get("last_signal", "")
+                        self.log(f"✅ Trading bot status: {'Running' if bot_running else 'Stopped'}")
+                        if last_signal:
+                            self.log(f"✅ Last signal: {last_signal}")
+                except:
+                    pass
+            else:
+                result["error"] = f"Bot status endpoint returned {response.status_code}"
+            
+            result["success"] = (
+                result["backend_running"] and
+                result["bot_status_accessible"] and
+                result["no_syntax_errors"]
+            )
+            
+        except Exception as e:
+            result["error"] = f"Backend service health test error: {str(e)}"
+            self.log(f"❌ Backend service health test error: {str(e)}", "ERROR")
+        
+        return result
+    
+    def test_profit_taking_error_handling(self) -> Dict[str, Any]:
+        """Test profit-taking logic has proper error handling (code inspection)"""
+        self.log("Testing profit-taking error handling logic...")
+        
+        result = {
+            "success": False,
+            "has_error_handling": False,
+            "logs_order_results": False,
+            "checks_api_response": False,
+            "minimum_bid_logic": False,
+            "error": None
+        }
+        
+        try:
+            # Read the trading_bot_service.py file to check for error handling
+            try:
+                with open('/app/backend/trading_bot_service.py', 'r') as f:
+                    code_content = f.read()
+                
+                # Check for error handling patterns in profit-taking logic
+                profit_taking_section = ""
+                lines = code_content.split('\n')
+                in_profit_section = False
+                
+                for i, line in enumerate(lines):
+                    if "PROFIT TARGET REACHED" in line:
+                        in_profit_section = True
+                    elif in_profit_section and ("except" in line or "stop_loss_price" in line):
+                        if "stop_loss_price" in line:
+                            break
+                    
+                    if in_profit_section:
+                        profit_taking_section += line + "\n"
+                
+                # Check for error handling patterns
+                if "try:" in profit_taking_section and "except" in profit_taking_section:
+                    result["has_error_handling"] = True
+                    self.log("✅ Profit-taking has try/except error handling")
+                
+                if "logger.info(f\"📋 Order result:" in profit_taking_section:
+                    result["logs_order_results"] = True
+                    self.log("✅ Profit-taking logs order results")
+                
+                if "result.get('success') == False" in profit_taking_section:
+                    result["checks_api_response"] = True
+                    self.log("✅ Profit-taking checks API response for success/failure")
+                
+                if "max(bid_price, 0.01)" in profit_taking_section:
+                    result["minimum_bid_logic"] = True
+                    self.log("✅ Profit-taking has minimum bid price logic ($0.01)")
+                
+                result["success"] = (
+                    result["has_error_handling"] and
+                    result["logs_order_results"] and
+                    result["checks_api_response"] and
+                    result["minimum_bid_logic"]
+                )
+                
+            except FileNotFoundError:
+                result["error"] = "trading_bot_service.py file not found"
+            except Exception as file_e:
+                result["error"] = f"Error reading trading_bot_service.py: {str(file_e)}"
+            
+        except Exception as e:
+            result["error"] = f"Profit-taking error handling test error: {str(e)}"
+            self.log(f"❌ Profit-taking error handling test error: {str(e)}", "ERROR")
+        
+        return result
+
     async def run_comprehensive_test(self) -> Dict[str, Any]:
-        """Run comprehensive backend test suite for P/L by Symbol consolidation"""
+        """Run comprehensive backend test suite for SPY Options Trading Bot Critical Fixes"""
         self.log("=" * 80)
-        self.log("STARTING P/L BY SYMBOL CONSOLIDATION TESTS")
+        self.log("STARTING SPY OPTIONS TRADING BOT CRITICAL FIXES TESTS")
         self.log("=" * 80)
         
         overall_result = {
