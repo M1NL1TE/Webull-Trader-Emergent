@@ -132,7 +132,21 @@ function Positions({ positions: initialPositions }) {
         });
         
         console.log('Order times collected:', times);
-        setOrderTimes(times);
+        
+        // Update ref cache (prevents re-renders)
+        Object.keys(times).forEach(tickerId => {
+          if (!orderTimesRef.current[tickerId]) {
+            orderTimesRef.current[tickerId] = times[tickerId];
+          }
+        });
+        
+        // Only update state if we have new data
+        setOrderTimes(prevTimes => {
+          const hasNewData = Object.keys(times).some(
+            tickerId => !prevTimes[tickerId] || prevTimes[tickerId].timestamp !== times[tickerId].timestamp
+          );
+          return hasNewData ? times : prevTimes;
+        });
       } catch (error) {
         console.error('Error fetching order times:', error);
       }
