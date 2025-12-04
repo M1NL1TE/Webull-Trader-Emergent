@@ -319,20 +319,22 @@ function Positions({ positions: initialPositions }) {
                         <p className="text-xs text-slate-400">{displayDate}</p>
                       )}
                       <p className="text-sm text-slate-400 mt-1">Qty: {quantity}</p>
-                      {(orderTimes[position.ticker.tickerId] || position.ticker.entryTime) && (
-                        <p className="text-xs text-slate-500 mt-1">
-                          Opened: {
-                            orderTimes[position.ticker.tickerId]?.time || 
-                            new Date(position.ticker.entryTime).toLocaleString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: 'numeric',
-                              minute: '2-digit',
-                              hour12: true
-                            })
-                          }
-                        </p>
-                      )}
+                      <p className="text-xs text-slate-500 mt-1" style={{ minHeight: '1rem' }}>
+                        {(orderTimes[position.ticker.tickerId] || position.ticker.entryTime) && (
+                          <>
+                            Opened: {
+                              orderTimes[position.ticker.tickerId]?.time || 
+                              new Date(position.ticker.entryTime).toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                              })
+                            }
+                          </>
+                        )}
+                      </p>
                     </div>
                     <div className="text-right">
                       <Badge className={isProfit ? 'bg-green-500/20 text-green-400 border-green-500' : 'bg-red-500/20 text-red-400 border-red-500'}>
