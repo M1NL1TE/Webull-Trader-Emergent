@@ -1311,6 +1311,102 @@ async def run_trading_bot(wb, settings):
                     logger.info(f"Position P/L: {pnl_pct:.2f}% ({dte}DTE, {phase} phase, Target: +{profit_target_pct*100}%, Stop: -{stop_loss_pct*100}%)")
                     bot_state.current_signal = f"Monitoring {dte}DTE position ({phase}): P/L {pnl_pct:.2f}%"
                     
+                    # CHECK FOR ZONE EXIT (if enabled)
+                    zone_exit_enabled = settings.get('zone_exit_enabled', False)
+                    if zone_exit_enabled and bot_state.last_entry_signal and bot_state.last_entry_signal.get('zones'):
+                        try:
+                            # Get entry zones for this position
+                            entry_zones = bot_state.last_entry_signal['zones']
+                            entry_direction = bot_state.last_entry_signal.get('direction', '')
+                            
+                            # Get SPY current price (not option price)
+                            spy_quote = await retry_api_call(lambda: wb.get_quote(stock='SPY'))
+                            spy_price = float(spy_quote['close'])
+                            
+                            # Get 5-minute candles to check if a full candle closed outside zone
+                            stockId = await retry_api_call(lambda: wb.get_ticker('SPY'))
+                            df_5m = await retry_api_call(lambda: wb.get_bars('SPY', stockId, 'm5', 3, 1))
+                            
+                            if df_5m is not None and len(df_5m) >= 2:
+                                # Check the last CLOSED candle (not the current forming candle)
+                                last_closed_candle = df_5m.iloc[-2]
+                                candle_close = last_closed_candle['close']
+                                candle_high = last_closed_candle['high']
+                                candle_low = last_closed_candle['low']
+                                
+                                zone_exit_triggered = False
+                                exit_reason = ""
+                                
+                                if entry_direction == 'CALL':
+                                    # For CALL positions entered in demand zone, exit if price breaks ABOVE supply zone
+                                    if candle_close > entry_zones['supply_top']:
+                                        zone_exit_triggered = True
+                                        exit_reason = f"Price broke above supply zone (candle closed at ${candle_close:.2f}, zone top: ${entry_zones['supply_top']:.2f})"
+                                        logger.info(f"📍 ZONE EXIT: {exit_reason}")
+                                    # Also exit if price breaks BELOW demand zone (stop-loss style)
+                                    elif candle_close < entry_zones['demand_bottom']:
+                                        zone_exit_triggered = True
+                                        exit_reason = f"Price broke below demand zone (candle closed at ${candle_close:.2f}, zone bottom: ${entry_zones['demand_bottom']:.2f})"
+                                        logger.info(f"📍 ZONE EXIT: {exit_reason}")
+                                
+                                elif entry_direction == 'PUT':
+                                    # For PUT positions entered in supply zone, exit if price breaks BELOW demand zone
+                                    if candle_close < entry_zones['demand_bottom']:
+                                        zone_exit_triggered = True
+                                        exit_reason = f"Price broke below demand zone (candle closed at ${candle_close:.2f}, zone bottom: ${entry_zones['demand_bottom']:.2f})"
+                                        logger.info(f"📍 ZONE EXIT: {exit_reason}")
+                                    # Also exit if price breaks ABOVE supply zone (stop-loss style)
+                                    elif candle_close > entry_zones['supply_top']:
+                                        zone_exit_triggered = True
+                                        exit_reason = f"Price broke above supply zone (candle closed at ${candle_close:.2f}, zone top: ${entry_zones['supply_top']:.2f})"
+                                        logger.info(f"📍 ZONE EXIT: {exit_reason}")
+                                
+                                if zone_exit_triggered:
+                                    # Exit the position using zone exit logic
+                                    logger.info(f"🚨 ZONE EXIT TRIGGERED! Selling position...")
+                                    try:
+                                        quote = wb.get_option_quote(stock='SPY', optionId=ticker_id)
+                                        
+                                        if (not quote.get('data') or not quote['data'] or 
+                                            not quote['data'][0].get('bidList') or not quote['data'][0]['bidList']):
+                                            logger.error(f"❌ Cannot get quote for zone exit - using last price ${current_price:.2f}")
+                                            bid_price = current_price
+                                        else:
+                                            bid_price = float(quote['data'][0]['bidList'][0]['price'])
+                                        
+                                        effective_bid = max(bid_price, 0.01)
+                                        
+                                        result = wb.place_order_option(
+                                            optionId=ticker_id,
+                                            lmtPrice=effective_bid,
+                                            stpPrice=None,
+                                            action='SELL',
+                                            orderType='LMT',
+                                            enforce='GTC',
+                                            quant=quantity
+                                        )
+                                        logger.info(f"✅ ZONE EXIT order placed: {quantity} contracts at LIMIT ${effective_bid:.2f}")
+                                        logger.info(f"📋 Order result: {result}")
+                                        
+                                        if result and isinstance(result, dict):
+                                            if result.get('success') == False or result.get('msg'):
+                                                logger.error(f"❌ ZONE EXIT order failed! API response: {result}")
+                                                raise Exception(f"Order placement failed: {result.get('msg', 'Unknown error')}")
+                                        
+                                        profit_loss = "profit" if pnl_pct > 0 else "loss"
+                                        send_notification(f"Zone Exit Triggered! ({dte}DTE)\n{exit_reason}\nSold {quantity} contracts at {pnl_pct:.2f}% {profit_loss}\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
+                                        bot_state.last_action = f"SOLD {quantity} at {pnl_pct:.2f}% {profit_loss} (zone exit)"
+                                        
+                                        # Skip regular profit/stop-loss checks since we already exited
+                                        await asyncio.sleep(5)
+                                        continue
+                                        
+                                    except Exception as zone_exit_e:
+                                        logger.error(f"❌ Error placing ZONE EXIT order: {zone_exit_e}", exc_info=True)
+                        
+                        except Exception as e:
+                            logger.error(f"Error checking zone exit: {e}")
+                    
                     # CHECK FOR EXIT CONDITIONS
                     if current_price >= target_price:
                         logger.info(f"🎯 PROFIT TARGET REACHED! P/L: {pnl_pct:.2f}%")
