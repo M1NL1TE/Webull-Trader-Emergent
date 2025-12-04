@@ -132,7 +132,7 @@ function Positions({ positions: initialPositions }) {
     fetchSettings();
     fetchBotData();
     fetchPositions(); // Initial fetch
-    fetchOrderTimes(); // Fetch order entry times
+    fetchOrderTimes(); // Fetch order entry times ONCE - cached permanently
     
     // Refresh positions every 5 seconds for real-time pricing
     const positionsInterval = setInterval(fetchPositions, 5000);
@@ -140,13 +140,11 @@ function Positions({ positions: initialPositions }) {
     // Refresh bot data every 30 seconds (less frequent)
     const botDataInterval = setInterval(fetchBotData, 30000);
     
-    // Refresh order times every minute (timestamps don't change often)
-    const orderTimesInterval = setInterval(fetchOrderTimes, 60000);
+    // Don't refresh timestamps - they're cached permanently in ref
     
     return () => {
       clearInterval(positionsInterval);
       clearInterval(botDataInterval);
-      clearInterval(orderTimesInterval);
     };
   }, []);
 
