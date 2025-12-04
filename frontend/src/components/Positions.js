@@ -309,31 +309,32 @@ function Positions({ positions: initialPositions }) {
                         <p className="text-xs text-slate-400">{displayDate}</p>
                       )}
                       <p className="text-sm text-slate-400 mt-1">Qty: {quantity}</p>
-                      {useMemo(() => {
-                        const tickerId = position.ticker.tickerId;
-                        // Use cached time to prevent flickering
-                        const cachedTime = orderTimesRef.current[tickerId] || orderTimes[tickerId];
-                        const entryTime = position.ticker.entryTime;
-                        
-                        let displayText = '\u00A0'; // Non-breaking space to maintain height
-                        if (cachedTime?.time) {
-                          displayText = `Opened: ${cachedTime.time}`;
-                        } else if (entryTime) {
-                          displayText = `Opened: ${new Date(entryTime).toLocaleString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true
-                          })}`;
-                        }
-                        
-                        return (
-                          <div className="text-xs text-slate-500 mt-1" style={{ minHeight: '1rem', height: '1rem', lineHeight: '1rem' }}>
-                            {displayText}
-                          </div>
-                        );
-                      }, [position.ticker.tickerId, position.ticker.entryTime, orderTimesRef.current[position.ticker.tickerId]?.time])}
+                      <p className="text-xs text-slate-500 mt-1">
+                        {(() => {
+                          const tickerId = position.ticker.tickerId;
+                          
+                          // Use permanently cached timestamp (never changes, never flickers)
+                          if (timestampCache.current[tickerId]) {
+                            return `Opened: ${timestampCache.current[tickerId]}`;
+                          }
+                          
+                          // Fallback to entryTime from position if available
+                          if (position.ticker.entryTime) {
+                            // Cache it now for future renders
+                            const formatted = new Date(position.ticker.entryTime).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true
+                            });
+                            timestampCache.current[tickerId] = formatted;
+                            return `Opened: ${formatted}`;
+                          }
+                          
+                          return '';
+                        })()}
+                      </p>
                     </div>
                     <div className="text-right">
                       <Badge className={isProfit ? 'bg-green-500/20 text-green-400 border-green-500' : 'bg-red-500/20 text-red-400 border-red-500'}>
