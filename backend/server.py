@@ -1282,7 +1282,7 @@ async def sell_position_at_market(request: SellPositionRequest):
             "success": True,
             "order": result,
             "quantity": quantity,
-            "price": market_price,
+            "price": bid_price,
             "ticker_id": ticker_id
         }
         
