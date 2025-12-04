@@ -1346,6 +1346,45 @@ async def sell_position_at_market(request: SellPositionRequest):
         logger.error(f"Sell position error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.get("/quote/spy")
+async def get_spy_quote():
+    """Get real-time SPY quote directly from Webull (bypasses bot state)"""
+    try:
+        session = await get_session()
+        if not session:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        wb = get_webull_instance(session.get('is_paper', True))
+        wb.api_login(
+            access_token=session['access_token'],
+            refresh_token=session['refresh_token'],
+            token_expire=session['token_expire'],
+            uuid=session['uuid']
+        )
+        
+        # Direct quote fetch - no caching, always fresh
+        quote = wb.get_quote(stock='SPY')
+        
+        return {
+            "symbol": "SPY",
+            "price": float(quote.get('close', 0)),
+            "change": float(quote.get('change', 0)),
+            "changeRatio": float(quote.get('changeRatio', 0)),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Get SPY quote error: {e}")
+        # Return last known price from bot state as fallback
+        from trading_bot_service import bot_state
+        return {
+            "symbol": "SPY",
+            "price": bot_state.current_price,
+            "change": 0,
+            "changeRatio": 0,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "fallback": True
+        }
+
 @api_router.get("/settings")
 async def get_settings():
     """Get user settings"""
