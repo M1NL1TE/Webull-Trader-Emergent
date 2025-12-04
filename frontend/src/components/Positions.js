@@ -334,28 +334,31 @@ function Positions({ positions: initialPositions }) {
                         <p className="text-xs text-slate-400">{displayDate}</p>
                       )}
                       <p className="text-sm text-slate-400 mt-1">Qty: {quantity}</p>
-                      <div className="text-xs text-slate-500 mt-1" style={{ minHeight: '1rem', display: 'block' }}>
-                        {(() => {
-                          const tickerId = position.ticker.tickerId;
-                          // Use cached time to prevent flickering
-                          const cachedTime = orderTimesRef.current[tickerId] || orderTimes[tickerId];
-                          const entryTime = position.ticker.entryTime;
-                          
-                          if (cachedTime?.time || entryTime) {
-                            return `Opened: ${
-                              cachedTime?.time || 
-                              new Date(entryTime).toLocaleString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: 'numeric',
-                                minute: '2-digit',
-                                hour12: true
-                              })
-                            }`;
-                          }
-                          return '\u00A0'; // Non-breaking space to maintain height
-                        })()}
-                      </div>
+                      {useMemo(() => {
+                        const tickerId = position.ticker.tickerId;
+                        // Use cached time to prevent flickering
+                        const cachedTime = orderTimesRef.current[tickerId] || orderTimes[tickerId];
+                        const entryTime = position.ticker.entryTime;
+                        
+                        let displayText = '\u00A0'; // Non-breaking space to maintain height
+                        if (cachedTime?.time) {
+                          displayText = `Opened: ${cachedTime.time}`;
+                        } else if (entryTime) {
+                          displayText = `Opened: ${new Date(entryTime).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                          })}`;
+                        }
+                        
+                        return (
+                          <div className="text-xs text-slate-500 mt-1" style={{ minHeight: '1rem', height: '1rem', lineHeight: '1rem' }}>
+                            {displayText}
+                          </div>
+                        );
+                      }, [position.ticker.tickerId, position.ticker.entryTime, orderTimesRef.current[position.ticker.tickerId]?.time])}
                     </div>
                     <div className="text-right">
                       <Badge className={isProfit ? 'bg-green-500/20 text-green-400 border-green-500' : 'bg-red-500/20 text-red-400 border-red-500'}>
