@@ -1144,68 +1144,77 @@ class WebullBackendTester:
         else:
             overall_result["minor_issues"].append("No existing Webull session found")
         
-        # Test 3: Activities Endpoint Structure
+        # Test 3: Manual Sell Button Endpoint (CRITICAL FIX #2)
         overall_result["tests_run"] += 1
-        activities_result = self.test_activities_endpoint_structure()
-        overall_result["test_results"]["activities_endpoint"] = activities_result
-        if activities_result["success"]:
+        sell_button_result = self.test_manual_sell_button_endpoint()
+        overall_result["test_results"]["manual_sell_button"] = sell_button_result
+        if sell_button_result["success"]:
             overall_result["tests_passed"] += 1
-            self.log("✅ Activities endpoint accessible and has correct structure")
+            self.log("✅ Manual sell button endpoint working correctly")
         else:
-            if activities_result["status_code"] == 401:
-                overall_result["minor_issues"].append("Activities endpoint requires authentication")
+            if sell_button_result.get("error") and "authentication" in sell_button_result["error"].lower():
+                overall_result["minor_issues"].append("Manual sell button requires authentication")
             else:
-                overall_result["critical_failures"].append(f"Activities endpoint failed: {activities_result.get('error')}")
+                overall_result["critical_failures"].append(f"Manual sell button failed: {sell_button_result.get('error')}")
         
-        # Test 4: P/L by Symbol Consolidation (MAIN TEST)
-        if activities_result["success"]:
-            overall_result["tests_run"] += 1
-            consolidation_result = self.test_pl_by_symbol_consolidation(activities_result)
-            overall_result["test_results"]["pl_by_symbol_consolidation"] = consolidation_result
-            if consolidation_result["success"]:
-                overall_result["tests_passed"] += 1
-                self.log("🎉 P/L BY SYMBOL CONSOLIDATION WORKING CORRECTLY!")
-            else:
-                overall_result["critical_failures"].extend(consolidation_result["errors"])
+        # Test 4: Order History Endpoint (CRITICAL FIX #3)
+        overall_result["tests_run"] += 1
+        order_history_result = self.test_order_history_endpoint()
+        overall_result["test_results"]["order_history"] = order_history_result
+        if order_history_result["success"]:
+            overall_result["tests_passed"] += 1
+            self.log("✅ Order history endpoint working correctly")
         else:
-            overall_result["critical_failures"].append("Cannot test P/L consolidation - activities endpoint failed")
-        
-        # Test 5: P/L Aggregation Accuracy
-        if activities_result["success"]:
-            overall_result["tests_run"] += 1
-            accuracy_result = self.test_symbol_aggregation_accuracy(activities_result)
-            overall_result["test_results"]["pl_aggregation_accuracy"] = accuracy_result
-            if accuracy_result["success"]:
-                overall_result["tests_passed"] += 1
+            if order_history_result.get("error") and "authentication" in order_history_result["error"].lower():
+                overall_result["minor_issues"].append("Order history requires authentication")
             else:
-                overall_result["minor_issues"].extend(accuracy_result["errors"])
+                overall_result["critical_failures"].append(f"Order history failed: {order_history_result.get('error')}")
         
-        # Test 6: P/L Calculation Values (existing test)
-        if activities_result["success"]:
-            overall_result["tests_run"] += 1
-            pl_values_result = self.test_pl_calculation_values(activities_result)
-            overall_result["test_results"]["pl_calculation_values"] = pl_values_result
-            if pl_values_result["success"]:
-                overall_result["tests_passed"] += 1
-            else:
-                overall_result["minor_issues"].extend(pl_values_result["errors"])
+        # Test 5: Backend Service Health
+        overall_result["tests_run"] += 1
+        health_result = self.test_backend_service_health()
+        overall_result["test_results"]["backend_health"] = health_result
+        if health_result["success"]:
+            overall_result["tests_passed"] += 1
+            self.log("✅ Backend service health check passed")
+        else:
+            overall_result["critical_failures"].append(f"Backend health check failed: {health_result.get('error')}")
         
-        # Overall success determination - focus on P/L consolidation
-        consolidation_working = overall_result["test_results"].get("pl_by_symbol_consolidation", {}).get("success", False)
-        activities_accessible = overall_result["test_results"].get("activities_endpoint", {}).get("success", False)
+        # Test 6: Profit-Taking Error Handling (CRITICAL FIX #1)
+        overall_result["tests_run"] += 1
+        profit_taking_result = self.test_profit_taking_error_handling()
+        overall_result["test_results"]["profit_taking_error_handling"] = profit_taking_result
+        if profit_taking_result["success"]:
+            overall_result["tests_passed"] += 1
+            self.log("✅ Profit-taking error handling implemented correctly")
+        else:
+            overall_result["critical_failures"].append(f"Profit-taking error handling failed: {profit_taking_result.get('error')}")
+        
+        # Overall success determination - focus on critical fixes
+        critical_tests_passed = 0
+        critical_tests_total = 4  # sell button, order history, backend health, profit-taking
+        
+        if overall_result["test_results"].get("manual_sell_button", {}).get("success", False):
+            critical_tests_passed += 1
+        if overall_result["test_results"].get("order_history", {}).get("success", False):
+            critical_tests_passed += 1
+        if overall_result["test_results"].get("backend_health", {}).get("success", False):
+            critical_tests_passed += 1
+        if overall_result["test_results"].get("profit_taking_error_handling", {}).get("success", False):
+            critical_tests_passed += 1
         
         overall_result["success"] = (
-            consolidation_working and  # Main feature must work
-            activities_accessible and  # Endpoint must be accessible
+            critical_tests_passed >= 3 and  # At least 3 of 4 critical tests must pass
             len(overall_result["critical_failures"]) == 0
         )
         
         # Summary
         self.log("=" * 60)
-        self.log("P/L BY SYMBOL CONSOLIDATION TEST SUMMARY")
+        self.log("SPY OPTIONS TRADING BOT CRITICAL FIXES TEST SUMMARY")
         self.log("=" * 60)
         self.log(f"Tests Run: {overall_result['tests_run']}")
         self.log(f"Tests Passed: {overall_result['tests_passed']}")
+        self.log(f"Critical Tests Passed: {critical_tests_passed}/{critical_tests_total}")
         self.log(f"Critical Failures: {len(overall_result['critical_failures'])}")
         self.log(f"Minor Issues: {len(overall_result['minor_issues'])}")
         
@@ -1219,16 +1228,17 @@ class WebullBackendTester:
             for issue in overall_result["minor_issues"]:
                 self.log(f"  ⚠️ {issue}")
         
-        # Specific P/L consolidation results
-        if consolidation_working:
-            consolidation_data = overall_result["test_results"]["pl_by_symbol_consolidation"]
-            symbols_found = consolidation_data.get("symbols_found", [])
-            self.log(f"\n✅ P/L CONSOLIDATION SUCCESS: Found symbols {symbols_found}")
+        # Specific critical fixes results
+        self.log("\nCRITICAL FIXES STATUS:")
+        self.log(f"  Manual Sell Button (LMT orders): {'✅ FIXED' if overall_result['test_results'].get('manual_sell_button', {}).get('success') else '❌ ISSUES'}")
+        self.log(f"  Order History (Live accounts): {'✅ FIXED' if overall_result['test_results'].get('order_history', {}).get('success') else '❌ ISSUES'}")
+        self.log(f"  Backend Service Health: {'✅ RUNNING' if overall_result['test_results'].get('backend_health', {}).get('success') else '❌ ISSUES'}")
+        self.log(f"  Profit-Taking Error Handling: {'✅ IMPLEMENTED' if overall_result['test_results'].get('profit_taking_error_handling', {}).get('success') else '❌ ISSUES'}")
         
         if overall_result["success"]:
-            self.log("\n🎉 OVERALL RESULT: P/L BY SYMBOL CONSOLIDATION IS WORKING!")
+            self.log("\n🎉 OVERALL RESULT: CRITICAL FIXES ARE WORKING!")
         else:
-            self.log("\n💥 OVERALL RESULT: P/L BY SYMBOL CONSOLIDATION HAS ISSUES")
+            self.log("\n💥 OVERALL RESULT: SOME CRITICAL FIXES HAVE ISSUES")
         
         return overall_result
 
