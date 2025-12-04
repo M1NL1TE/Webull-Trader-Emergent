@@ -1,101 +1,227 @@
-<analysis>
-The user's primary language is English. Future responses must be in English.
+<analysis>**original_problem_statement:**
+The user wants to build and maintain a sophisticated automated trading bot for SPY options on the Webull platform, controlled via a React-based web dashboard.
 
-My analysis of the trajectory reveals a complex evolution of a Webull automated trading application. The initial task was to build a bot for SPY options trading. The work progressed through multiple stages: UI/UX enhancements, core trading logic implementation, and platform stability fixes.
+Key features and requirements include:
+- Automated trading based on Opening Range Breakout (ORB) and Supply/Demand (S/D) strategies.
+- A web UI for login, account overview, bot status, live positions, order history, and settings.
+- Dynamic DTE (Days to Expiry) Strategy: 0DTE for ORB, and a time-based 0DTE/1DTE split for S/D trades.
+- A two-phase trailing stop-loss system for profit-taking.
+- All bot orders must be placed as Limit (LMT) orders for the live account.
+- Smart email notifications for bot status, executed trades, and when price enters S/D zones.
+- The Order History must show the signal/reason for each trade.
+- A critical security vulnerability allowing login bypass was identified and needed fixing.
+- A recurring environmental issue where Playwright browsers are deleted on container restart needs a permanent solution.
+- The P/L by Symbol widget needed to be consolidated to show total P/L per ticker.
+- The stop-loss logic needs to be updated to trigger only if a candle on a lower timeframe closes outside the zone.
+- Capital allocation for trades should be doubled for accounts with a balance under ,000.
 
-Key user requests included:
-1.  **UI/UX Improvements:** Fixing a compressed  grid, making it wider and more readable.
-2.  **Trading Logic Refinements:** Implementing specific DTE (Days to Expiry) contract selection (0DTE for ORB, conditional for S/D), creating a multi-phase trailing stop-loss strategy, and changing bot orders from LMT to MKT.
-3.  **Bug Fixes:** Addressing an  error, fixing a bug where a single Sell button triggered multiple sells, resolving a stale price display in the UI, and correcting a critical error where the trailing stop logic was being applied incorrectly, causing premature losses.
-4.  **Platform & Notification Issues:** Tackling frequent Bot Started email spam by suppressing notifications outside market hours, and attempting to resolve platform-induced inactivity (sleep behavior) with keep-alive pings. The user also faced significant issues with deployment, including changing URLs on redeployment and login failures in the production environment, which required involving support.
+**User's preferred language**: English
 
-The most recent and critical task was fixing a bug in the trailing stop logic where positions were incorrectly entering the trailing phase immediately, leading to a 5% stop-loss instead of the intended 25% initial stop-loss. The previous engineer correctly identified the bug in the position tracking logic within  just before the session ended.
-</analysis>
-<product_requirements>
-The objective is to build and maintain a sophisticated automated trading bot for SPY options on the Webull platform, controlled via a React-based web dashboard.
+**what currently exists?**
+The application is a full-stack web app with a React frontend and a FastAPI backend. It connects to the Webull API to perform automated options trading based on ORB and S/D signals. The dashboard displays account info, bot status, positions, and order history. Numerous bugs have been fixed, including a critical login vulnerability, incorrect P/L display, and changing trade orders from MKT to LMT to work with the live Webull API. An auto-install script for Playwright browsers has been implemented to handle environment resets, though it remains a recurring issue. The bot also sends email notifications for trade executions and zone entries.
 
-**Core Functionality:**
--   **Automated Trading:** The bot should execute call/put trades based on predefined strategies: Opening Range Breakout (ORB) and Supply/Demand (S/D) zones. Purely technical trades (RSI, MACD) have been explicitly disabled.
--   **Dashboard UI:** A web interface providing:
-    -   Login and session management.
-    -   Widgets for Account Overview, Bot Status, Live Positions, Order History, Trading Signals (ORB, S/D, Technicals), and Manual Trade Panel.
-    -   A settings page to toggle auto-trading and override profit/loss targets.
--   **Dynamic Trading Logic:**
-    -   **DTE Strategy:** ORB trades use 0DTE contracts. S/D trades use 0DTE before 1 PM EST and 1DTE after.
-    -   **Trailing Stop Strategy:** A two-phase system for profit-taking and risk management, with different rules for 0DTE and 1DTE contracts.
-        -   *0DTE:* Phase 1 sells all but one contract at +25% profit / -25% loss. Phase 2 targets +75% profit with a +5% stop-loss on the final contract.
-        -   *1DTE:* Phase 1 sells all but two contracts at +20% profit / -25% loss. Phase 2 targets +95% profit with a +5% stop-loss on the final contracts.
-    -   All bot-placed orders must be Market (MKT) orders to ensure execution in fast-moving markets.
--   **Notifications:** A smart email notification system that sends one Bot Online email at market open, one Bot Finished email at market close, and immediate notifications for all executed trades. Spamming Bot Started emails outside market hours must be prevented.
--   **Data & History:** The order history must display the reason (signal) for each trade.
-</product_requirements>
-<key_technical_concepts>
-- **Backend:** FastAPI (Python) for creating API endpoints.
-- **Frontend:** React with Shadcn UI components for the user interface.
-- **Database:** MongoDB for storing user sessions, settings, trade signals, and position tracking data.
-- **Authentication:** Playwright for browser automation to handle Webull's login process and manage session credentials.
-- **Asynchronous Operations:**  in Python to run the core trading bot loop concurrently with the web server.
-- **API Interaction:** An unofficial Webull Python library for market data and trade execution.
-</key_technical_concepts>
-<code_architecture>
-The application is a standard full-stack monorepo with a React frontend and a FastAPI backend.
+**Last working item**:
+- **Last item agent was working:** The agent was investigating a critical failure in the profit-taking logic. The user reported a position exceeded its +20% profit target, but the bot failed to execute the sell order. The agent's investigation of the logs confirmed that the bot detected 🎯 PROFIT TARGET REACHED! but for some reason, the sell order was not placed. A discrepancy was also noted where the bot considered the position as 1DTE when it should have been 0DTE.
+- **Status:** IN PROGRESS
+- **Agent Testing Done:** N
+- **Which testing method agent to use?** backend testing agent
+- **User Testing Done:** N
 
-**Directory Structure:**
+**All Pending/In progress Issue list**:
+- **Issue 1:** (P0) Bot fails to execute profit-taking sell orders.
+- **Issue 2:** (P1) The Sell at Market button on the frontend is non-functional for live positions.
+- **Issue 3:** (P2) The Opened: Dec 3, 12:15 PM timestamp on the position card flickers every 5 seconds.
+- **Issue 4:** (P3) Live trading account order history is not displayed on the frontend.
+- **Issue 5:** (P4) Playwright browsers are periodically deleted/reverted on container restarts, causing login failures.
+
+**Issues Detail:**
+- **Issue 1:** Bot fails to execute profit-taking sell orders.
+    - **Attempted fixes:** The agent identified the log message confirming the profit target was reached but had not yet pinpointed the failure point in the sell execution logic.
+    - **Next debug checklist:**
+        1. Examine  in the position monitoring loop, specifically the logic that follows the PROFIT TARGET REACHED! log message ().
+        2. Check for any silent errors or exceptions during the  call for selling the profitable position. The previous stop-loss failure was due to an empty  (). A similar issue might be present here.
+        3. Verify why the bot is incorrectly identifying the position as 1DTE when it should be 0DTE, as this affects the profit-taking targets and logic.
+    - **Why fix this issue and what will be achieved with the fix?** This is a critical bug preventing the bot from realizing profits, which defeats its core purpose.
+    - **Status:** IN PROGRESS
+    - **Is recurring issue?** N
+    - **Should Test frontend/backend/both after fix?** Backend
+    - **Blocked on other issue:** None
+
+- **Issue 2:** The Sell at Market button on the frontend is non-functional for live positions.
+    - **Attempted fixes:** None yet.
+    - **Next debug checklist:**
+        1. This is because the button likely sends a Market (MKT) order, which the live Webull API rejects.
+        2. Modify the frontend handler for this button or the corresponding backend endpoint () to place a Limit (LMT) order at the current  price, similar to how other sell orders were fixed.
+    - **Why fix this issue and what will be achieved with the fix?** Provides the user with manual control to exit positions directly from the dashboard.
+    - **Status:** NOT STARTED
+    - **Is recurring issue?** Y
+    - **Should Test frontend/backend/both after fix?** Both
+    - **Blocked on other issue:** None
+
+- **Issue 3:** The Opened: Dec 3, 12:15 PM timestamp on the position card flickers.
+    - **Attempted fixes:** Multiple attempts were made, including backend enrichment, frontend caching, and using React refs. The final approach was to simplify the logic by fetching the entry signal from the database in the backend, which seemed to work but the flickering persists for the timestamp specifically.
+    - **Next debug checklist:**
+        1. Review the rendering logic in . The issue is likely CSS-related, where a conditional render causes the layout to shift as data is refreshed every 5 seconds.
+        2. Check the  and associated elements ( pointed to this).
+        3. Ensure the parent container has a fixed height or use a placeholder to prevent the layout from collapsing and expanding during the refresh cycle.
+    - **Why fix this issue and what will be achieved with the fix?** Improves UI stability and user experience.
+    - **Status:** IN PROGRESS
+    - **Is recurring issue?** Y
+    - **Should Test frontend/backend/both after fix?** Frontend
+    - **Blocked on other issue:** None
+
+- **Issue 4:** Live trading account order history is not displayed on the frontend.
+    - **Attempted fixes:** The agent added logging and verified the  endpoint was being called. The last check showed the Webull API itself was returning an empty list of orders.
+    - **Next debug checklist:**
+        1. Manually test the  call in  with different parameters (e.g., status, date ranges) to see if the live API has different requirements than the paper trading API.
+        2. Verify if the user's live account has any *filled* orders within the default date range the API is querying.
+    - **Why fix this issue and what will be achieved with the fix?** Allows the user to review their live trading performance from the dashboard.
+    - **Status:** BLOCKED
+    - **Is recurring issue?** N
+    - **Should Test frontend/backend/both after fix?** Both
+    - **Blocked on other issue:** User confirmation of filled orders in the live account.
+
+- **Issue 5:** Playwright browsers are periodically deleted/reverted.
+    - **Attempted fixes:** A startup function  was added to  to check for and install the correct browser version () on every application start. The script was made more robust by using  to avoid path issues.
+    - **Next debug checklist:** This is an environmental issue with the platform's base image. The current script is a workaround. If it continues to fail, a more permanent solution would involve modifying the container's startup/build process, which may be outside the agent's capabilities. For now, the focus should be on ensuring the current script is as resilient as possible.
+    - **Why fix this issue and what will be achieved with the fix?** Prevents frequent login failures and interruptions to development.
+    - **Status:** IN PROGRESS
+    - **Is recurring issue?** Y
+    - **Should Test frontend/backend/both after fix?** N/A
+    - **Blocked on other issue:** None
+
+**In progress Task List**:
+- **Task 1:** Fix the profit-taking execution logic.
+    - **Where to resume:** , inside the position monitoring loop where the PROFIT TARGET REACHED! message is logged.
+    - **What will be achieved with this?** The bot will be able to take profits automatically as intended.
+    - **Status:** IN PROGRESS
+    - **Should Test frontend/backend/both after fix?** Backend
+    - **Blocked on something:** None
+
+**Upcoming and Future Tasks**
+- **Upcoming Tasks:**
+  - **Task 1 (P0):** Implement the new stop-loss logic based on candle closes. The user requested that the stop-loss only triggers if a candle on a lower timeframe (e.g., 5-min) closes outside the S/D zone (calculated on a 15-min timeframe). This should be a toggleable option in the settings.
+     - Files to modify:  (stop-loss logic),  and  (for the toggle).
+
+**Completed work in this session**
+- **Critical Bug Fixes:**
+  - Fixed a bug where new positions incorrectly started in the trailing phase.
+  - Resolved a critical security flaw that allowed login bypass via page refresh.
+  - Fixed a critical bug where the bot would trade on the paper account while the user was logged into the live account.
+  - Fixed a bug where the bot would get stuck on a phantom position after a trade order failed silently.
+- **Trading Logic & API:**
+  - Changed all MKT (Market) orders to LMT (Limit) orders to resolve Webull API's system busy 500 errors for live trading.
+  - Fixed insufficient funds errors on small accounts by implementing a minimum 1 contract override.
+  - Implemented logic to double the capital allocation percentage for accounts under ,000.
+  - Added robust error handling and logging to trade execution functions to catch silent failures from the Webull API.
+- **UI/UX Enhancements:**
+  - Fixed the P/L by Symbol widget to show a consolidated total for each ticker.
+  - Fixed the Positions display to show the full option symbol (ticker, strike, type, date).
+  - Added the position entry time to the position card.
+  - Increased the data refresh rate on the dashboard to every 5 seconds.
+- **Notifications:**
+  - Added email notifications for when the price enters a supply/demand zone.
+  - Added email notifications for when the supply/demand zones are recalculated.
+- **Stability & Environment:**
+  - Implemented a robust auto-installation script that runs on backend startup to ensure the correct Playwright browser version is installed, mitigating a recurring environment issue.
+
+**Earlier issues found/mentioned but not fixed**
+- **Issue 1:** Live Order History is empty.
+  - **Debug checklist:** Check if the user has filled orders on the live account. Directly query the  method with different parameters to see what the Webull API returns for live vs. paper accounts.
+  - **Why to solve this issue and what will be achieved with this?** The user cannot review their live trade history from the dashboard.
+  - **Should Test frontend/backend/both after fix:** Both
+  - **Is recurring issue?** N
+
+**Known issue recurrence from previous fork**
+- **Issue recurrence in previous fork:** The initial analysis mentioned issues with platform-induced inactivity and deployment URL changes, but the most significant recurring issue discovered and battled *during this session* is the Playwright browser version mismatch.
+- **Recurrence count:** High (occurred after nearly every container restart).
+- **Status:** IN PROGRESS (A workaround is in place, but the root environmental cause persists).
+
+**Code Architecture**
 
 
-**Key Files & Changes:**
+**Key Technical Concepts**
+- **Backend:** FastAPI (Python)
+- **Frontend:** React
+- **Database:** MongoDB
+- **Authentication:** Playwright for browser automation to handle Webull login.
+- **Asynchronous Operations:**  for the core trading bot loop.
+- **API Interaction:** An unofficial Webull Python library ().
 
--   ****
-    -   **Importance:** This is the core of the application, containing all the logic for the automated trading bot. It runs in an  loop, checks market conditions, analyzes signals (ORB, S/D), executes trades, and manages open positions.
-    -   **Changes Summary:**
-        -   Trading logic was restricted to only ORB and S/D signals.
-        -   Order placement was changed from  to .
-        -   A complex, multi-phase trailing stop-loss system was implemented, involving partial sells and dynamic target adjustments based on DTE. A new MongoDB collection () was created to manage the state of each position (e.g., 'initial', 'trailing').
-        -   Logic for selecting 0DTE vs 1DTE contracts based on signal type and time of day was added.
-        -   A keep-alive self-ping mechanism was added to combat platform inactivity.
-        -   A smart notification system was implemented to send daily start/end emails, using a  collection to prevent spam.
-        -   **A critical bug was introduced where new positions were incorrectly set to the 'trailing' phase instead of 'initial'.**
+**key DB schema**
+- **sessions**: 
+- **position_tracking**: 
+- **entry_signals**: 
+- **daily_notifications**: 
 
--   ****
-    -   **Importance:** The main FastAPI application file. It defines all API endpoints for the frontend, handles user authentication, manages bot start/stop/status, and serves data from the database.
-    -   **Changes Summary:**
-        -   The  endpoint was modified to join order data with saved trade signals () to provide context for why a trade was made.
-        -   A  was added to the database client for the new trailing stop logic.
-        -   An  handler was modified to suppress Bot Started email notifications outside of market hours to fix a spam issue.
+**changes in tech stack**
+- None.
 
--   ****
-    -   **Importance:** This React component displays all currently open trading positions in a grid view. It's a critical part of the user's dashboard for real-time monitoring.
-    -   **Changes Summary:**
-        -   The layout was changed from a simple list to a grid of cards to improve readability, with CSS adjustments to make the cards wider.
-        -   The logic for displaying profit/loss targets was significantly updated. Instead of using static values from the settings, it now calculates and displays the correct dynamic targets (e.g., 25% for 0DTE) based on the  value fetched from the position's entry signal, fixing a major UI discrepancy.
+**All files of reference**
+- : Core trading logic, including S/D and ORB analysis, position monitoring, stop-loss, and profit-taking.
+- : FastAPI application, API endpoints, user session management, and bot lifecycle control.
+- : Handles Webull login via browser automation to get authentication tokens.
+- : Wrapper class for the unofficial Webull API, defining methods for placing orders, getting quotes, etc.
+- : Frontend login page component.
+- : Main dashboard component, orchestrates data fetching.
+- : React component for displaying open positions.
+- : Main React application entry point, handles routing and session restoration.
+- : Documentation created to explain the Playwright browser installation issue.
 
--   ****
-    -   **Importance:** Allows the user to configure bot behavior.
-    -   **Changes Summary:** An explicit Override Profit/Loss toggle switch was added. This provides a clear way for the user to choose between the dynamic DTE-based trailing stop logic and their own manually set profit/loss percentages, resolving user confusion.
+**Areas that need refactoring**:
+- The Playwright browser check/install logic is a workaround for a platform issue. A cleaner solution would be a custom container image.
+- The frontend state management for the flickering position card could be improved to be more resilient to intermittent backend data fetching.
 
--   ****
-    -   **Importance:** Displays past trades.
-    -   **Changes Summary:** The component was updated to display a Signal badge showing the reason for each trade (e.g., ORB Breakout, Demand Zone Bounce), using the new data provided by the updated  endpoint.
-</code_architecture>
-<pending_tasks>
-- **Production Environment Issues:** The user is experiencing critical deployment problems.
-  - The production URL changes on redeployment (e.g.,  to ).
-  - Login fails in the production environment, possibly due to incorrect Webull credential setup or environment configuration. This needs to be resolved with Emergent support.
-- **Twilio SMS Failure:** SMS notifications consistently fail with Twilio error 30034 (carrier blocking). Telnyx was identified as an alternative but has not been fully configured with user credentials.
-</pending_tasks>
-<current_work>
-The AI engineer was in the middle of fixing a critical, high-priority bug in the trading bot's logic.
+**key api endpoints**
+- : Authenticates the user and starts a session.
+- : Clears the user session.
+- : Restores a session from a token.
+- : Gets the current status of the trading bot.
+- : Gets the user's current open positions.
+- : Gets the user's trade history.
+- : Endpoint for placing manual trades from the dashboard.
+- : Endpoint for selling an entire position from the dashboard.
 
-**The Problem:** The user reported that the bot was selling contracts for a 5% loss immediately after purchase, instead of adhering to the initial 25% stop-loss for 0DTE contracts.
+**Critical Info for New Agent**
+- **Webull Live API requires LMT orders:** All trade execution calls (bot and manual) for the live trading account **must** be Limit (LMT) orders. Market (MKT) orders will be rejected with a 500 system busy error.
+- **Recurring Playwright Browser Issue:** The container environment frequently reverts the Playwright browsers to an incorrect version () upon restart. A startup script in  () attempts to fix this by force-installing the correct version (). If login fails, this is the first thing to check.
+- **Webull Trade Token:** Live trading requires a  obtained by submitting the trading PIN. This token is now stored in the MongoDB session and must be correctly restored and passed to the Webull instance for any trading actions to succeed.
 
-**Diagnosis:** The previous engineer correctly identified the root cause. The bot's new trailing stop logic has two phases: initial and trailing.
--   **Phase 1 (Initial):** Should use a 25% stop-loss.
--   **Phase 2 (Trailing):** Activates after a partial sell, using a +5% profit-stop.
+**documents created in this job**
+- : Documents the recurring Playwright browser issue and the implemented fixes.
 
-The bug is that when a new position is first detected, the  database entry is being incorrectly created with the state set to  instead of . This causes the bot to immediately apply the wrong stop-loss (the Phase 2 logic), resulting in premature and incorrect selling.
+**Last 10 User Messages and any pending user messages**
+1.  **User (935):** The position widget is not showing full details again (just SPY) and asks for the position entry time to be added. (PARTIALLY RESOLVED - Flickering remains).
+2.  **Agent (941):** Confirms the backend is now returning the full symbol and entry time and advises a hard refresh.
+3.  **User (942):** Confirms the ticker info is fixed but now the entry time is flickering. Also reports two new critical issues: profit-taking failed (>20% profit but no sell), and the Sell at Market button is not working.
+4.  **Agent (945):** Finds a MAJOR ISSUE in the logs: the bot detects the profit target but doesn't sell.
+5.  **User (756):** Provides a screenshot showing the position info is not updated.
+6.  **Agent (780):** Provides a summary of the position display fix.
+7.  **User (781):** Reports that the position info is now showing but is flickering.
+8.  **Agent (799):** Proposes a fix for the flickering using frontend caching.
+9.  **User (800):** Reports the flickering is still happening.
+10. **User (811):** Provides more detail on the flickering, suggesting it might be a CSS/layout issue.
 
-**Last Action:** The engineer had just reviewed the logs which confirmed the position was incorrectly marked as being in the trailing phase from the start () and was about to modify the position tracking logic in  to fix this state management error.
-</current_work>
-<optional_next_step>
-Fix the critical bug in  by ensuring new positions are saved to the  collection with the state correctly set to .
-</optional_next_step>
+**Pending User Messages:** The user is waiting for a fix for the profit-taking failure, the non-functional Sell button, and the flickering UI. They have also requested a new stop-loss logic to be implemented.
+
+**Project Health Check:**
+- **Broken:**
+  - The core profit-taking logic is currently broken.
+  - The Sell at Market button for live trades is broken.
+- **Mocked:**
+  - None.
+- **Fragile:**
+  - The Playwright browser integration is fragile due to the underlying platform environment resetting browser installations. The auto-install script is a workaround, not a permanent fix.
+
+**3rd Party Integrations**
+- Unofficial Webull Python API library (for all market data and trading).
+
+**Testing status**
+- **Testing agent used after significant changes:** YES
+- **Troubleshoot agent used after agent stuck in loop:** NO
+- **Test files created:** None
+- **Known regressions:**
+  - The position card display has become unstable (flickering) after recent changes to enrich the data.
+
+**Credentials to test flow:**
+User provides their own Webull credentials (username, password, device ID, trade PIN) via the login form. The agent does not have access to these.</analysis>

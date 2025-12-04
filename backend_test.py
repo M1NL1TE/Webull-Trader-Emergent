@@ -14,7 +14,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
 
 # Get backend URL from frontend .env
-BACKEND_URL = "https://tradewizard-21.preview.emergentagent.com/api"
+BACKEND_URL = "https://smarttradehub-1.preview.emergentagent.com/api"
 APP_PASSWORD = "WebullTrader2024!Secure"
 
 # MongoDB connection for direct testing
