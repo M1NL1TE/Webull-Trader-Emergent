@@ -285,11 +285,14 @@ function Positions({ positions: initialPositions }) {
               
               // If we have a cached full symbol, always use it
               let symbolToUse = rawSymbol;
-              if (symbolCacheRef.current[tickerIdKey]) {
+              if (symbolCacheRef.current[tickerIdKey] && symbolCacheRef.current[tickerIdKey].length > 10) {
                 symbolToUse = symbolCacheRef.current[tickerIdKey];
               } else if (rawSymbol && rawSymbol.length > 10) {
-                // Cache this full symbol for future renders
+                // Only cache valid full option symbols (not partial ones like "SPY")
                 symbolCacheRef.current[tickerIdKey] = rawSymbol;
+                symbolToUse = rawSymbol;
+              } else if (symbolCacheRef.current[tickerIdKey]) {
+                // Don't use cached partial symbol, prefer current rawSymbol even if also partial
                 symbolToUse = rawSymbol;
               }
               
