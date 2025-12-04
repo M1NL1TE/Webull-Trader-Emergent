@@ -14,8 +14,15 @@ function SupplyDemandWidget() {
 
   useEffect(() => {
     fetchZones();
-    const interval = setInterval(fetchZones, 5000);
-    return () => clearInterval(interval);
+    fetchLivePrice(); // Initial fetch
+    
+    const zonesInterval = setInterval(fetchZones, 5000);
+    const priceInterval = setInterval(fetchLivePrice, 2000); // Live price every 2s
+    
+    return () => {
+      clearInterval(zonesInterval);
+      clearInterval(priceInterval);
+    };
   }, []);
 
   const fetchZones = async () => {
@@ -24,12 +31,21 @@ function SupplyDemandWidget() {
       const data = response.data;
       
       setZones(data.zones || {});
-      setCurrentPrice(data.current_price || 0);
       setMarketStatus(data.market_status || 'Unknown');
+      // Don't use current_price from bot status anymore
     } catch (error) {
       console.error('Error fetching zones:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchLivePrice = async () => {
+    try {
+      const response = await axios.get(`${API}/quote/spy`, { timeout: 3000 });
+      setCurrentPrice(response.data.price || 0);
+    } catch (error) {
+      console.error('Error fetching live price:', error);
     }
   };
 
