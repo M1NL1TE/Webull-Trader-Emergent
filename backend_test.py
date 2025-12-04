@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """
-Backend Test Suite for Webull Trading App - P/L by Symbol Consolidation Testing
-Tests the P/L by Symbol consolidation feature that aggregates P/L by underlying ticker symbol
+Backend Test Suite for SPY Options Trading Bot - Critical Bug Fixes Testing
+Tests the 4 critical issues that were recently fixed:
+1. Profit-taking execution failure (P0)
+2. Sell button non-functional (P0) 
+3. Live order history not displaying (P2)
+4. Backfill entry signal bug
 """
 
 import requests
