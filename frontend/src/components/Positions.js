@@ -235,6 +235,18 @@ function Positions({ positions: initialPositions }) {
               const tickerId = position.tickerId;
               const rawSymbol = symbolCache[tickerId] || position.ticker?.optionSymbol || position.ticker?.symbol || 'N/A';
               
+              // Debug logging for symbol issues
+              if (rawSymbol === 'SPY' || rawSymbol.length <= 5) {
+                console.log('Symbol issue detected:', {
+                  tickerId,
+                  rawSymbol,
+                  optionSymbol: position.ticker?.optionSymbol,
+                  symbol: position.ticker?.symbol,
+                  cached: symbolCache[tickerId],
+                  fullPosition: position
+                });
+              }
+              
               // Parse option symbol: SPY251104C00683000 -> SPY $683 / 04 Nov Call
               const parseOptionSymbol = (symbol) => {
                 // Format: SYMBOL+YYMMDD+C/P+STRIKEXXXXXX
