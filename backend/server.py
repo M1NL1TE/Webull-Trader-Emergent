@@ -1281,25 +1281,37 @@ async def sell_position_at_market(request: SellPositionRequest):
         # Get current market price
         option_quote = wb.get_option_quote(stock='SPY', optionId=ticker_id)
         
-        # Check if bid/ask lists are available
-        if (not option_quote.get('data') or not option_quote['data'] or 
-            not option_quote['data'][0].get('bidList') or not option_quote['data'][0]['bidList']):
-            raise HTTPException(status_code=500, detail="Cannot get bid price for position")
+        # Try to get bid price, fall back to last price if bid/ask not available
+        bid_price = None
+        if (option_quote.get('data') and option_quote['data'] and 
+            option_quote['data'][0].get('bidList') and option_quote['data'][0]['bidList']):
+            bid_price = float(option_quote['data'][0]['bidList'][0]['price'])
+        elif option_quote.get('data') and option_quote['data']:
+            # Fallback to last price
+            bid_price = float(position['lastPrice'])
+            logger.warning(f"⚠️ Bid price not available, using last price: ${bid_price:.2f}")
         
-        # Use bid price for selling (what buyers are willing to pay)
-        bid_price = float(option_quote['data'][0]['bidList'][0]['price'])
+        if not bid_price or bid_price <= 0:
+            raise HTTPException(status_code=500, detail="Cannot determine sell price for position")
+        
         quantity = int(position['position'])
         
-        logger.info(f"Selling position: {quantity} contracts at LIMIT price ${bid_price:.2f}")
+        # For very low-value options, try with a slightly higher price to avoid rejection
+        # Webull sometimes rejects orders that are too close to $0
+        effective_price = max(bid_price, 0.05)  # Minimum $0.05 to avoid API rejection
+        if bid_price < 0.05:
+            logger.warning(f"⚠️ Bid price ${bid_price:.2f} very low, using ${effective_price:.2f} minimum")
+        
+        logger.info(f"Selling position: {quantity} contracts at LIMIT price ${effective_price:.2f}")
         
         # Place SELL LIMIT order (live Webull API rejects MKT orders)
         result = wb.place_order_option(
             optionId=ticker_id,
-            lmtPrice=bid_price,  # Use bid price for SELL orders
+            lmtPrice=effective_price,  # Use bid price for SELL orders (min $0.05)
             stpPrice=None,
             action='SELL',
             orderType='LMT',  # Limit order required for live trading
-            enforce='GTC',
+            enforce='DAY',  # Try DAY instead of GTC for live account
             quant=quantity
         )
         
