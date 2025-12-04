@@ -186,6 +186,9 @@ function Dashboard({ setIsAuthenticated }) {
           <TabsContent value="overview" className="space-y-6">
             <AccountOverview account={account} />
             
+            {/* Live SPY Price - Real-time updates every 2 seconds */}
+            <LiveSpyPrice />
+            
             {/* Bot Control & Analysis Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <BotStatusWidget />
