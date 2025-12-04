@@ -14,20 +14,35 @@ function OrbStatusWidget() {
 
   useEffect(() => {
     fetchOrbStatus();
-    // Refresh every 10 seconds
-    const interval = setInterval(fetchOrbStatus, 5000);
-    return () => clearInterval(interval);
+    fetchLivePrice(); // Initial fetch
+    
+    const orbInterval = setInterval(fetchOrbStatus, 5000);
+    const priceInterval = setInterval(fetchLivePrice, 2000); // Live price every 2s
+    
+    return () => {
+      clearInterval(orbInterval);
+      clearInterval(priceInterval);
+    };
   }, []);
 
   const fetchOrbStatus = async () => {
     try {
       const response = await axios.get(`${API}/bot/status`);
       setOrbStatus(response.data.orb_status || {});
-      setCurrentPrice(response.data.current_price);
+      // Don't use current_price from bot status anymore
     } catch (error) {
       console.error('Error fetching ORB status:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchLivePrice = async () => {
+    try {
+      const response = await axios.get(`${API}/quote/spy`, { timeout: 3000 });
+      setCurrentPrice(response.data.price);
+    } catch (error) {
+      console.error('Error fetching live price:', error);
     }
   };
 
