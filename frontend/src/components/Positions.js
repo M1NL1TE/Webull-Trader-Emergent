@@ -14,10 +14,9 @@ function Positions({ positions: initialPositions }) {
   const [zones, setZones] = useState(null);
   const [sellLoading, setSellLoading] = useState({}); // Changed to object to track per-position
   const [livePositions, setLivePositions] = useState(initialPositions);
-  const [orderTimes, setOrderTimes] = useState({});
   const [symbolCache, setSymbolCache] = useState({}); // Cache option symbols to prevent flickering
   const symbolCacheRef = useRef({}); // Use ref for immediate updates without re-render
-  const orderTimesRef = useRef({}); // Cache order times to prevent flickering
+  const timestampCache = useRef({}); // Cache timestamps permanently - never re-render
 
   // Helper function to calculate DTE-based targets
   const calculateDTETargets = (dte, phase = 'initial', overrideSettings = null) => {
