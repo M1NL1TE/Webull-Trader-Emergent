@@ -993,6 +993,47 @@ async def run_trading_bot(wb, settings):
                     
                     # 2. ANALYZE SUPPLY/DEMAND ZONES
                     zones = analyze_supply_demand(df)
+                    
+                    # Check if zones have changed (new supply/demand levels calculated)
+                    old_zones = bot_state.zones
+                    zones_changed = False
+                    
+                    if old_zones['supply_bottom'] > 0:  # Skip first initialization
+                        # Check if either supply or demand zone changed significantly (>$0.10 difference)
+                        supply_changed = abs(zones['supply_bottom'] - old_zones['supply_bottom']) > 0.10
+                        demand_changed = abs(zones['demand_bottom'] - old_zones['demand_bottom']) > 0.10
+                        
+                        if supply_changed or demand_changed:
+                            zones_changed = True
+                            logger.info(f"🔄 Supply/Demand zones RECALCULATED!")
+                            
+                            # Send email notification about zone changes
+                            try:
+                                change_details = []
+                                if supply_changed:
+                                    change_details.append(
+                                        f"Supply Zone:\n"
+                                        f"  Old: ${old_zones['supply_bottom']:.2f} - ${old_zones['supply_top']:.2f}\n"
+                                        f"  New: ${zones['supply_bottom']:.2f} - ${zones['supply_top']:.2f}"
+                                    )
+                                if demand_changed:
+                                    change_details.append(
+                                        f"Demand Zone:\n"
+                                        f"  Old: ${old_zones['demand_bottom']:.2f} - ${old_zones['demand_top']:.2f}\n"
+                                        f"  New: ${zones['demand_bottom']:.2f} - ${zones['demand_top']:.2f}"
+                                    )
+                                
+                                send_notification(
+                                    f"🔄 Supply/Demand Zones Updated\n\n"
+                                    f"New zones have been calculated based on recent price action.\n\n"
+                                    f"{chr(10).join(change_details)}\n\n"
+                                    f"Current Price: ${current_price:.2f}\n"
+                                    f"Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}"
+                                )
+                                logger.info("✅ Zone update notification sent")
+                            except Exception as e:
+                                logger.error(f"Failed to send zone update notification: {e}")
+                    
                     bot_state.zones = zones
                     
                     in_demand_zone = zones['demand_bottom'] <= current_price <= zones['demand_top']
