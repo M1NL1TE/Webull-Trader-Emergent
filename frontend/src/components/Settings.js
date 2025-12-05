@@ -18,7 +18,8 @@ function Settings() {
     loss_percentage: 25.0,
     sms_notifications: false,
     override_profit_loss: false,
-    zone_exit_enabled: false
+    zone_exit_enabled: false,
+    use_5min_entries: false
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
