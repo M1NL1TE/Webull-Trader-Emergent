@@ -1535,50 +1535,17 @@ async def run_trading_bot(wb, settings):
                                 logger.info(f"✅ STOP LOSS order placed: {quantity} contracts at LIMIT ${bid_price:.2f}")
                                 logger.info(f"📋 Order result: {result}")
                             except Exception as e1:
-                                logger.error(f"❌ Strategy 1 failed: {e1}")
-                                
-                                # Strategy 2: Try with bid price if available
-                                if bid_price > 0:
-                                    logger.info(f"📍 Strategy 2: Trying with bid price ${bid_price:.2f}")
-                                    try:
-                                        result = wb.place_order_option(
-                                            optionId=ticker_id,
-                                            lmtPrice=bid_price,
-                                            stpPrice=None,
-                                            action='SELL',
-                                            orderType='LMT',
-                                            enforce='DAY',
-                                            quant=quantity
-                                        )
-                                        logger.info(f"✅ Strategy 2 SUCCESS: STOP LOSS order placed at ${bid_price:.2f}")
-                                        logger.info(f"📋 Order result: {result}")
-                                    except Exception as e2:
-                                        logger.error(f"❌ Strategy 2 failed: {e2}")
-                                        
-                                        # Strategy 3: Try closing position via Webull's close_position API
-                                        logger.info(f"📍 Strategy 3: Trying close_position API")
-                                        try:
-                                            # Some Webull libraries have a close_position method
-                                            if hasattr(wb, 'close_position'):
-                                                result = wb.close_position(ticker_id, quantity)
-                                                logger.info(f"✅ Strategy 3 SUCCESS: Position closed via API")
-                                            else:
-                                                logger.error(f"❌ Strategy 3 not available: close_position method doesn't exist")
-                                                raise Exception("All stop loss strategies failed")
-                                        except Exception as e3:
-                                            logger.error(f"❌ Strategy 3 failed: {e3}")
-                                            logger.error(f"🚨 CRITICAL: ALL STOP LOSS STRATEGIES FAILED!")
-                                            logger.error(f"🚨 Manual intervention required - position at {pnl_pct:.2f}% loss")
-                                            # Send urgent notification
-                                            send_notification(
-                                                f"🚨 URGENT: Stop Loss Failed!\n\n"
-                                                f"Position: {quantity} contracts\n"
-                                                f"Current Loss: {pnl_pct:.2f}%\n"
-                                                f"Stop Loss Target: -{stop_loss_pct*100}%\n\n"
-                                                f"Webull API rejecting all orders.\n"
-                                                f"MANUAL CLOSE REQUIRED via Webull app!"
-                                            )
-                                            raise
+                                logger.error(f"❌ STOP LOSS order failed: {e1}")
+                                # Send urgent notification
+                                send_notification(
+                                    f"🚨 URGENT: Stop Loss Order Failed!\n\n"
+                                    f"Position: {quantity} contracts\n"
+                                    f"Current Loss: {pnl_pct:.2f}%\n"
+                                    f"Stop Loss Target: -{stop_loss_pct*100}%\n\n"
+                                    f"Error: {str(e1)}\n"
+                                    f"Please close manually via Webull app if needed."
+                                )
+                                raise
                             
                             # Verify order was placed successfully
                             if result and isinstance(result, dict):
