@@ -1391,7 +1391,8 @@ async def get_settings():
                 "profit_percentage": 50.0,
                 "loss_percentage": 25.0,
                 "sms_notifications": False,
-                "zone_exit_enabled": False
+                "zone_exit_enabled": False,
+                "use_5min_entries": False
             }
         # Remove MongoDB _id if present
         settings.pop('_id', None)
