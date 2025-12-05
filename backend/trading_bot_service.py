@@ -1518,24 +1518,71 @@ async def run_trading_bot(wb, settings):
                                 ask_price = float(quote['data'][0]['askList'][0]['price'])
                             mid_price = (bid_price + ask_price) / 2
                             
-                            # Sell all remaining contracts
-                            # For SELL orders, use bid price (what buyers are willing to pay)
-                            # If bid price is very low, the API may reject it - use a minimum of $0.01
-                            effective_bid = max(bid_price, 0.01)
-                            if bid_price < 0.01:
-                                logger.warning(f"⚠️ Bid price ${bid_price:.3f} is too low, using $0.01 minimum")
+                            # EMERGENCY STOP LOSS - Try multiple strategies
+                            # For very low value options, Webull often rejects orders
+                            logger.warning(f"⚠️ CRITICAL: Attempting emergency stop loss at ${current_price:.2f}")
                             
-                            result = wb.place_order_option(
-                                optionId=ticker_id,
-                                lmtPrice=effective_bid,  # Use bid price for SELL orders (min $0.01)
-                                stpPrice=None,
-                                action='SELL',
-                                orderType='LMT',  # Limit order (Webull rejects MKT+GTC on live)
-                                enforce='GTC',
-                                quant=quantity
-                            )
-                            logger.info(f"✅ STOP LOSS SELL order placed: {quantity} contracts at LIMIT ${effective_bid:.2f}")
-                            logger.info(f"📋 Order result: {result}")
+                            # Strategy 1: Try with $0.01 limit (accept any price to close)
+                            effective_bid = 0.01
+                            logger.info(f"📍 Strategy 1: Trying $0.01 limit to close at any price")
+                            
+                            try:
+                                result = wb.place_order_option(
+                                    optionId=ticker_id,
+                                    lmtPrice=effective_bid,
+                                    stpPrice=None,
+                                    action='SELL',
+                                    orderType='LMT',
+                                    enforce='DAY',
+                                    quant=quantity
+                                )
+                                logger.info(f"✅ Strategy 1 SUCCESS: STOP LOSS order placed at $0.01")
+                                logger.info(f"📋 Order result: {result}")
+                            except Exception as e1:
+                                logger.error(f"❌ Strategy 1 failed: {e1}")
+                                
+                                # Strategy 2: Try with bid price if available
+                                if bid_price > 0:
+                                    logger.info(f"📍 Strategy 2: Trying with bid price ${bid_price:.2f}")
+                                    try:
+                                        result = wb.place_order_option(
+                                            optionId=ticker_id,
+                                            lmtPrice=bid_price,
+                                            stpPrice=None,
+                                            action='SELL',
+                                            orderType='LMT',
+                                            enforce='DAY',
+                                            quant=quantity
+                                        )
+                                        logger.info(f"✅ Strategy 2 SUCCESS: STOP LOSS order placed at ${bid_price:.2f}")
+                                        logger.info(f"📋 Order result: {result}")
+                                    except Exception as e2:
+                                        logger.error(f"❌ Strategy 2 failed: {e2}")
+                                        
+                                        # Strategy 3: Try closing position via Webull's close_position API
+                                        logger.info(f"📍 Strategy 3: Trying close_position API")
+                                        try:
+                                            # Some Webull libraries have a close_position method
+                                            if hasattr(wb, 'close_position'):
+                                                result = wb.close_position(ticker_id, quantity)
+                                                logger.info(f"✅ Strategy 3 SUCCESS: Position closed via API")
+                                            else:
+                                                logger.error(f"❌ Strategy 3 not available: close_position method doesn't exist")
+                                                raise Exception("All stop loss strategies failed")
+                                        except Exception as e3:
+                                            logger.error(f"❌ Strategy 3 failed: {e3}")
+                                            logger.error(f"🚨 CRITICAL: ALL STOP LOSS STRATEGIES FAILED!")
+                                            logger.error(f"🚨 Manual intervention required - position at {pnl_pct:.2f}% loss")
+                                            # Send urgent notification
+                                            send_notification(
+                                                f"🚨 URGENT: Stop Loss Failed!\n\n"
+                                                f"Position: {quantity} contracts\n"
+                                                f"Current Loss: {pnl_pct:.2f}%\n"
+                                                f"Stop Loss Target: -{stop_loss_pct*100}%\n\n"
+                                                f"Webull API rejecting all orders.\n"
+                                                f"MANUAL CLOSE REQUIRED via Webull app!"
+                                            )
+                                            raise
                             
                             # Verify order was placed successfully
                             if result and isinstance(result, dict):
