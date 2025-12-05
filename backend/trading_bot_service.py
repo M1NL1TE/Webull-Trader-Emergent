@@ -1444,7 +1444,7 @@ async def run_trading_bot(wb, settings):
                                         stpPrice=None,
                                         action='SELL',
                                         orderType='LMT',  # Limit order (Webull rejects MKT on live)
-                                        enforce='DAY',  # Use DAY for live trading (GTC might be rejected)
+                                        enforce='GTC',  # Same as BUY orders
                                         quant=contracts_to_sell
                                     )
                                     logger.info(f"✅ Partial SELL order placed: {contracts_to_sell} contracts at LIMIT ${bid_price:.2f}")
