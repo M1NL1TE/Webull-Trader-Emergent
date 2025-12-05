@@ -1518,22 +1518,21 @@ async def run_trading_bot(wb, settings):
                                 ask_price = float(quote['data'][0]['askList'][0]['price'])
                             mid_price = (bid_price + ask_price) / 2
                             
-                            # STOP LOSS SELL - Try both MKT and LMT strategies
-                            logger.info(f"🔄 Attempting STOP LOSS: {quantity} contracts at ${current_price:.2f}")
+                            # STOP LOSS SELL - Use exact format from working Webull web app
+                            logger.info(f"🔄 Attempting STOP LOSS: {quantity} contracts at ${bid_price:.2f}")
+                            logger.info(f"📍 Using Webull web app format: LMT with DAY + CHECK_THEN_PLACE")
                             
-                            # Strategy 1: Try MARKET order first (what Webull app might use for closing)
-                            logger.info(f"📍 Strategy 1: Market order with DAY enforcement")
                             try:
                                 result = wb.place_order_option(
                                     optionId=ticker_id,
-                                    lmtPrice=None,  # No limit for MKT orders
+                                    lmtPrice=bid_price,  # Use bid price
                                     stpPrice=None,
                                     action='SELL',
-                                    orderType='MKT',  # Try MARKET for closing
-                                    enforce='DAY',  # MKT orders typically use DAY
+                                    orderType='LMT',
+                                    enforce='DAY',  # DAY like web app (not GTC)
                                     quant=quantity
                                 )
-                                logger.info(f"✅ Strategy 1 SUCCESS: MARKET order placed")
+                                logger.info(f"✅ STOP LOSS order placed: {quantity} contracts at LIMIT ${bid_price:.2f}")
                                 logger.info(f"📋 Order result: {result}")
                             except Exception as e1:
                                 logger.error(f"❌ Strategy 1 (MKT/DAY) failed: {e1}")
