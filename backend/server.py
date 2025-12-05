@@ -1311,22 +1311,16 @@ async def sell_position_at_market(request: SellPositionRequest):
         
         quantity = int(position['position'])
         
-        # For very low-value options, try with a slightly higher price to avoid rejection
-        # Webull sometimes rejects orders that are too close to $0
-        effective_price = max(bid_price, 0.05)  # Minimum $0.05 to avoid API rejection
-        if bid_price < 0.05:
-            logger.warning(f"⚠️ Bid price ${bid_price:.2f} very low, using ${effective_price:.2f} minimum")
+        logger.info(f"Selling position: {quantity} contracts at LIMIT price ${bid_price:.2f}")
         
-        logger.info(f"Selling position: {quantity} contracts at LIMIT price ${effective_price:.2f}")
-        
-        # Place SELL LIMIT order (live Webull API rejects MKT orders)
+        # Place SELL LIMIT order - Use SAME parameters as BUY orders
         result = wb.place_order_option(
             optionId=ticker_id,
-            lmtPrice=effective_price,  # Use bid price for SELL orders (min $0.05)
+            lmtPrice=bid_price,  # Use bid price for SELL orders
             stpPrice=None,
             action='SELL',
-            orderType='LMT',  # Limit order required for live trading
-            enforce='DAY',  # Try DAY instead of GTC for live account
+            orderType='LMT',  # Same as BUY
+            enforce='GTC',  # SAME AS BUY
             quant=quantity
         )
         
