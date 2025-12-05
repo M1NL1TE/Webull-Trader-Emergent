@@ -1518,25 +1518,21 @@ async def run_trading_bot(wb, settings):
                                 ask_price = float(quote['data'][0]['askList'][0]['price'])
                             mid_price = (bid_price + ask_price) / 2
                             
-                            # EMERGENCY STOP LOSS - Try multiple strategies
-                            # For very low value options, Webull often rejects orders
-                            logger.warning(f"⚠️ CRITICAL: Attempting emergency stop loss at ${current_price:.2f}")
-                            
-                            # Strategy 1: Try with $0.01 limit (accept any price to close)
-                            effective_bid = 0.01
-                            logger.info(f"📍 Strategy 1: Trying $0.01 limit to close at any price")
+                            # STOP LOSS SELL - Use SAME parameters as BUY orders
+                            # For SELL orders, use bid price (what buyers are willing to pay)
+                            logger.info(f"Placing LIMIT sell order at BID: {quantity} contracts (limit price: ${bid_price:.2f})")
                             
                             try:
                                 result = wb.place_order_option(
                                     optionId=ticker_id,
-                                    lmtPrice=effective_bid,
+                                    lmtPrice=bid_price,  # Use bid price for SELL (opposite of ask for BUY)
                                     stpPrice=None,
                                     action='SELL',
-                                    orderType='LMT',
-                                    enforce='DAY',
+                                    orderType='LMT',  # Same as BUY
+                                    enforce='GTC',  # SAME AS BUY - this was the issue!
                                     quant=quantity
                                 )
-                                logger.info(f"✅ Strategy 1 SUCCESS: STOP LOSS order placed at $0.01")
+                                logger.info(f"✅ STOP LOSS order placed: {quantity} contracts at LIMIT ${bid_price:.2f}")
                                 logger.info(f"📋 Order result: {result}")
                             except Exception as e1:
                                 logger.error(f"❌ Strategy 1 failed: {e1}")
