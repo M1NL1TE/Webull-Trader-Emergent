@@ -843,16 +843,20 @@ class my_webull :
             'orderType': orderType,
             'serialId': str(uuid.uuid4()),
             'timeInForce': enforce,
+            'checkOrPlace': 'CHECK_THEN_PLACE',  # CRITICAL: Match Webull web app format
+            'quantity': int(quant),               # Top-level quantity
+            'action': action,                     # Top-level action
+            'tickerId': int(optionId),            # Top-level tickerId
             'orders': [{'quantity': int(quant), 'action': action, 'tickerId': int(optionId), 'tickerType': 'OPTION'}],
         }
 
         if orderType == 'LMT' and lmtPrice :
-            data['lmtPrice'] = float(lmtPrice)
+            data['lmtPrice'] = str(lmtPrice)  # Use STRING format like web app
         elif orderType == 'STP' and stpPrice :
-            data['auxPrice'] = float(stpPrice)
+            data['auxPrice'] = str(stpPrice)  # Use STRING format
         elif orderType == 'STP LMT' and lmtPrice and stpPrice :
-            data['lmtPrice'] = float(lmtPrice)
-            data['auxPrice'] = float(stpPrice)
+            data['lmtPrice'] = str(lmtPrice)  # Use STRING format
+            data['auxPrice'] = str(stpPrice)  # Use STRING format
 
         response = requests.post(self._urls.place_option_orders(self._account_id), json=data, headers=headers, timeout=self.timeout)
         if response.status_code != 200:
