@@ -328,14 +328,28 @@ function Positions({ positions: initialPositions }) {
                         {(() => {
                           const tickerId = position.ticker.tickerId;
                           
-                          // ONLY use cached timestamp if we have it from order history
-                          // Don't cache from position.ticker.entryTime as it may be stale
+                          // First try cached timestamp from order history (most accurate)
                           if (timestampCache.current[tickerId]) {
                             return `Opened: ${timestampCache.current[tickerId]}`;
                           }
                           
-                          // If no cached timestamp, don't show anything
-                          // (Manual trades from Webull app won't have order history)
+                          // Fallback to position entryTime if available (for bot trades)
+                          if (position.ticker.entryTime) {
+                            const formatted = new Date(position.ticker.entryTime).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true
+                            });
+                            // Cache this formatted time so it doesn't change
+                            if (!timestampCache.current[tickerId]) {
+                              timestampCache.current[tickerId] = formatted;
+                            }
+                            return `Opened: ${formatted}`;
+                          }
+                          
+                          // No timestamp available
                           return '';
                         })()}
                       </p>
