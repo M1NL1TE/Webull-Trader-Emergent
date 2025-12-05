@@ -1535,54 +1535,17 @@ async def run_trading_bot(wb, settings):
                                 logger.info(f"✅ STOP LOSS order placed: {quantity} contracts at LIMIT ${bid_price:.2f}")
                                 logger.info(f"📋 Order result: {result}")
                             except Exception as e1:
-                                logger.error(f"❌ Strategy 1 (MKT/DAY) failed: {e1}")
-                                
-                                # Strategy 2: Try LIMIT order with GTC (like BUY orders)
-                                logger.info(f"📍 Strategy 2: Limit order at bid ${bid_price:.2f} with GTC")
-                                try:
-                                    result = wb.place_order_option(
-                                        optionId=ticker_id,
-                                        lmtPrice=bid_price,
-                                        stpPrice=None,
-                                        action='SELL',
-                                        orderType='LMT',
-                                        enforce='GTC',
-                                        quant=quantity
-                                    )
-                                    logger.info(f"✅ Strategy 2 SUCCESS: LIMIT order placed at ${bid_price:.2f}")
-                                    logger.info(f"📋 Order result: {result}")
-                                except Exception as e2:
-                                    logger.error(f"❌ Strategy 2 (LMT/GTC) failed: {e2}")
-                                    
-                                    # Strategy 3: Try LIMIT order with very low price (accept any fill)
-                                    logger.info(f"📍 Strategy 3: Limit order at $0.01 to accept any price")
-                                    try:
-                                        result = wb.place_order_option(
-                                            optionId=ticker_id,
-                                            lmtPrice=0.01,  # Willing to accept any price
-                                            stpPrice=None,
-                                            action='SELL',
-                                            orderType='LMT',
-                                            enforce='GTC',
-                                            quant=quantity
-                                        )
-                                        logger.info(f"✅ Strategy 3 SUCCESS: LIMIT order placed at $0.01")
-                                        logger.info(f"📋 Order result: {result}")
-                                    except Exception as e3:
-                                        logger.error(f"❌ Strategy 3 (LMT $0.01) failed: {e3}")
-                                        logger.error(f"🚨 ALL STOP LOSS STRATEGIES FAILED")
-                                        # Send urgent notification
-                                        send_notification(
-                                            f"🚨 URGENT: Stop Loss Failed (All Strategies)!\n\n"
-                                            f"Position: {quantity} contracts\n"
-                                            f"Current Loss: {pnl_pct:.2f}%\n"
-                                            f"Stop Loss Target: -{stop_loss_pct*100}%\n\n"
-                                            f"Strategy 1 (MKT/DAY): {str(e1)[:50]}\n"
-                                            f"Strategy 2 (LMT/GTC): {str(e2)[:50]}\n"
-                                            f"Strategy 3 (LMT $0.01): {str(e3)[:50]}\n\n"
-                                            f"MANUAL CLOSE REQUIRED via Webull app!"
-                                        )
-                                        raise
+                                logger.error(f"❌ STOP LOSS order failed: {e1}")
+                                # Send urgent notification
+                                send_notification(
+                                    f"🚨 URGENT: Stop Loss Order Failed!\n\n"
+                                    f"Position: {quantity} contracts\n"
+                                    f"Current Loss: {pnl_pct:.2f}%\n"
+                                    f"Stop Loss Target: -{stop_loss_pct*100}%\n\n"
+                                    f"Error: {str(e1)[:100]}\n\n"
+                                    f"Please close manually via Webull app!"
+                                )
+                                raise
                             
                             # Verify order was placed successfully
                             if result and isinstance(result, dict):
