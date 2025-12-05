@@ -1038,8 +1038,56 @@ async def run_trading_bot(wb, settings):
                     
                     bot_state.zones = zones
                     
-                    in_demand_zone = zones['demand_bottom'] <= current_price <= zones['demand_top']
-                    in_supply_zone = zones['supply_bottom'] <= current_price <= zones['supply_top']
+                    # Check if 5-minute entries are enabled
+                    use_5min_entries = settings.get('use_5min_entries', False)
+                    
+                    if use_5min_entries:
+                        # Use 5-minute candles for entry timing (but 15-min for zones and technicals)
+                        logger.info("📍 Using 5-minute entry timing (2 consecutive candles required)")
+                        try:
+                            df_5m = await retry_api_call(lambda: wb.get_bars(symbol, stockId, 'm5', 50, 1))
+                            if df_5m is not None and len(df_5m) >= 2:
+                                current_price_5m = df_5m['close'].iloc[-1]
+                                prev_price_5m = df_5m['close'].iloc[-2]
+                                
+                                # Check if CURRENT 5-min candle is in zone
+                                current_in_demand = zones['demand_bottom'] <= current_price_5m <= zones['demand_top']
+                                current_in_supply = zones['supply_bottom'] <= current_price_5m <= zones['supply_top']
+                                
+                                # Check if PREVIOUS 5-min candle was in zone
+                                prev_in_demand = zones['demand_bottom'] <= prev_price_5m <= zones['demand_top']
+                                prev_in_supply = zones['supply_bottom'] <= prev_price_5m <= zones['supply_top']
+                                
+                                # Update consecutive candle counters
+                                if current_in_demand and prev_in_demand:
+                                    bot_state.consecutive_candles_in_demand += 1
+                                    bot_state.consecutive_candles_in_supply = 0
+                                elif current_in_supply and prev_in_supply:
+                                    bot_state.consecutive_candles_in_supply += 1
+                                    bot_state.consecutive_candles_in_demand = 0
+                                else:
+                                    bot_state.consecutive_candles_in_demand = 0
+                                    bot_state.consecutive_candles_in_supply = 0
+                                
+                                # Use 5-min price for entry checks (but keep 15-min for bot_state display)
+                                current_price = current_price_5m
+                                logger.info(f"5-min price: ${current_price_5m:.2f} | Consecutive in demand: {bot_state.consecutive_candles_in_demand} | in supply: {bot_state.consecutive_candles_in_supply}")
+                            else:
+                                logger.warning("Could not fetch 5-min data, falling back to 15-min")
+                                use_5min_entries = False  # Fallback to 15-min
+                        except Exception as e:
+                            logger.error(f"Error fetching 5-min data: {e}, falling back to 15-min")
+                            use_5min_entries = False  # Fallback to 15-min
+                    
+                    # Determine if we're in a zone (considering consecutive candle requirement for 5-min)
+                    if use_5min_entries:
+                        # Require at least 2 consecutive 5-min candles in zone
+                        in_demand_zone = bot_state.consecutive_candles_in_demand >= 2
+                        in_supply_zone = bot_state.consecutive_candles_in_supply >= 2
+                    else:
+                        # Original 15-min logic
+                        in_demand_zone = zones['demand_bottom'] <= current_price <= zones['demand_top']
+                        in_supply_zone = zones['supply_bottom'] <= current_price <= zones['supply_top']
                     
                     zone_signal = None
                     if in_demand_zone:
