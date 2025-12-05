@@ -222,6 +222,43 @@ function Settings() {
 
           <div className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
             <div className="space-y-0.5">
+              <Label htmlFor="use_5min_entries" className="text-slate-200 font-medium">
+                🚀 5-Minute Entry Timing (Recommended for 0DTE/1DTE)
+              </Label>
+              <p className="text-sm text-slate-400">
+                Use 5-min candles for entries (faster execution, better fills)
+              </p>
+            </div>
+            <Switch
+              id="use_5min_entries"
+              data-testid="5min-entries-toggle"
+              checked={settings.use_5min_entries}
+              onCheckedChange={(checked) => setSettings({ ...settings, use_5min_entries: checked })}
+            />
+          </div>
+
+          {settings.use_5min_entries && (
+            <div className="p-4 bg-green-500/10 border border-green-700/30 rounded-lg">
+              <p className="text-sm text-green-300 font-medium mb-2">
+                ✅ 5-Minute Entry Timing Enabled
+              </p>
+              <div className="text-xs text-green-200/80 space-y-1">
+                <p><strong>How it works:</strong></p>
+                <p>• Zones calculated on <strong>15-minute</strong> candles (robust structure)</p>
+                <p>• Technicals (RSI, MACD) from <strong>15-minute</strong> (quality filters)</p>
+                <p>• Entry timing on <strong>5-minute</strong> candles (fast execution)</p>
+                <p>• Requires <strong>2 consecutive 5-min candles</strong> in zone (avoids wicks)</p>
+                <p className="pt-2 text-green-300"><strong>Benefits:</strong></p>
+                <p>• Capture more of the move (3x faster than 15-min)</p>
+                <p>• Better fills closer to zone boundaries</p>
+                <p>• Critical for 0DTE/1DTE options (time decay matters!)</p>
+                <p className="pt-2 text-yellow-300"><strong>Note:</strong> Toggle OFF to use original 15-min entries for comparison</p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
+            <div className="space-y-0.5">
               <Label htmlFor="zone_exit_enabled" className="text-slate-200 font-medium">
                 Supply/Demand Zone Exit
               </Label>
