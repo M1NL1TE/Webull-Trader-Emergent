@@ -246,6 +246,8 @@ class BotState:
         self.in_supply_zone = False  # Track if currently in supply zone
         self.in_demand_zone = False  # Track if currently in demand zone
         self.last_zone_notification = None  # Track last zone notification to prevent spam
+        self.consecutive_candles_in_demand = 0  # Track consecutive 5-min candles in demand zone
+        self.consecutive_candles_in_supply = 0  # Track consecutive 5-min candles in supply zone
         
 bot_state = BotState()
 
