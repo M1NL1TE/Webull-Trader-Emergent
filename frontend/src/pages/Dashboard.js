@@ -30,6 +30,7 @@ import NoTradeReasonWidget from '@/components/NoTradeReasonWidget';
 import SupplyDemandWidget from '@/components/SupplyDemandWidget';
 import OrbStatusWidget from '@/components/OrbStatusWidget';
 import LiveSpyPrice from '@/components/LiveSpyPrice';
+import LiveChart from '@/components/LiveChart';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
