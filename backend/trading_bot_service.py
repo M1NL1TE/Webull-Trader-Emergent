@@ -1030,7 +1030,7 @@ async def run_trading_bot(wb, settings):
                                     f"New zones have been calculated based on recent price action.\n\n"
                                     f"{chr(10).join(change_details)}\n\n"
                                     f"Current Price: ${current_price:.2f}\n"
-                                    f"Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}"
+                                    f"Time: {datetime.now(pytz_timezone('US/Eastern')).strftime('%I:%M %p EST')}"
                                 )
                                 logger.info("✅ Zone update notification sent")
                             except Exception as e:
@@ -1734,7 +1734,7 @@ def execute_call_trade(wb, symbol, trade_grade, account_info, signal_type='zone'
                     f"Entry Price: ${ask_price:.2f}\n"
                     f"DTE: {dte}\n"
                     f"Order ID: {order_result.get('orderId', 'N/A')}\n"
-                    f"Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}"
+                    f"Time: {datetime.now(pytz_timezone('US/Eastern')).strftime('%I:%M %p EST')}"
                 )
                 logger.info("✅ Trade entry notification sent")
             except Exception as e:
@@ -1847,7 +1847,7 @@ def execute_put_trade(wb, symbol, trade_grade, account_info, signal_type='zone')
                     f"Entry Price: ${ask_price:.2f}\n"
                     f"DTE: {dte}\n"
                     f"Order ID: {order_result.get('orderId', 'N/A')}\n"
-                    f"Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}"
+                    f"Time: {datetime.now(pytz_timezone('US/Eastern')).strftime('%I:%M %p EST')}"
                 )
                 logger.info("✅ Trade entry notification sent")
             except Exception as e:
