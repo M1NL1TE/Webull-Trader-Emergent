@@ -20,12 +20,12 @@ function LiveChart() {
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    // Create chart with v5 syntax
+    // Create chart with v4 syntax
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: 600,
       layout: {
-        background: { type: ColorType.Solid, color: '#0f172a' },
+        backgroundColor: '#0f172a',
         textColor: '#94a3b8',
       },
       grid: {
