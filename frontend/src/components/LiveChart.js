@@ -47,8 +47,8 @@ function LiveChart() {
 
     chartRef.current = chart;
 
-    // Add candlestick series
-    const candleSeries = chart.addCandlestickSeries({
+    // Add candlestick series (v5 API uses addSeries with type)
+    const candleSeries = chart.addSeries('Candlestick', {
       upColor: '#10b981',
       downColor: '#ef4444',
       borderUpColor: '#10b981',
