@@ -1839,9 +1839,9 @@ def execute_put_trade(wb, symbol, trade_grade, account_info, signal_type='zone')
             
             # Send email notification for successful trade entry
             try:
-                option_symbol = filtered_chain[0]['call']['symbol']
+                option_symbol = filtered_chain[0]['put']['symbol']
                 send_notification(
-                    f"🎯 CALL Order Filled!\n\n"
+                    f"🎯 PUT Order Filled!\n\n"
                     f"Symbol: {option_symbol}\n"
                     f"Quantity: {order_quantity} contracts\n"
                     f"Entry Price: ${ask_price:.2f}\n"
