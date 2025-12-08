@@ -1726,6 +1726,7 @@ def execute_call_trade(wb, symbol, trade_grade, account_info, signal_type='zone'
             
             # Send email notification for successful trade entry
             try:
+                from pytz import timezone as pytz_timezone
                 option_symbol = filtered_chain[0]['call']['symbol']
                 send_notification(
                     f"🎯 CALL Order Filled!\n\n"
