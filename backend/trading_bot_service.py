@@ -1710,12 +1710,41 @@ def execute_call_trade(wb, symbol, trade_grade, account_info, signal_type='zone'
         )
         
         # Validate order was actually placed
-        if not order_result or not order_result.get('success', False):
+        # Webull returns {'orderId': '...', 'comboId': '...'} on success
+        if not order_result:
+            logger.error(f"❌ Order placement failed: No response from API")
+            return False, None
+        
+        # Check if response indicates failure
+        if isinstance(order_result, dict) and order_result.get('success') == False:
             logger.error(f"❌ Order placement failed: {order_result}")
             return False, None
         
-        logger.info(f"✅ Order confirmed by Webull API: {order_result}")
-        return True, dte  # Return DTE for position tracking
+        # If we have orderId or comboId, order was successful
+        if isinstance(order_result, dict) and ('orderId' in order_result or 'comboId' in order_result):
+            logger.info(f"✅ Order confirmed by Webull API: {order_result}")
+            
+            # Send email notification for successful trade entry
+            try:
+                option_symbol = filtered_chain[0]['call']['symbol']
+                send_notification(
+                    f"🎯 CALL Order Filled!\n\n"
+                    f"Symbol: {option_symbol}\n"
+                    f"Quantity: {order_quantity} contracts\n"
+                    f"Entry Price: ${ask_price:.2f}\n"
+                    f"DTE: {dte}\n"
+                    f"Order ID: {order_result.get('orderId', 'N/A')}\n"
+                    f"Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}"
+                )
+                logger.info("✅ Trade entry notification sent")
+            except Exception as e:
+                logger.error(f"Failed to send trade entry notification: {e}")
+            
+            return True, dte  # Return DTE for position tracking
+        
+        # Unknown response format
+        logger.warning(f"⚠️ Order result unclear: {order_result}. Assuming success.")
+        return True, dte
         
     except Exception as e:
         logger.error(f"Error in execute_call_trade: {e}", exc_info=True)
@@ -1794,12 +1823,41 @@ def execute_put_trade(wb, symbol, trade_grade, account_info, signal_type='zone')
         )
         
         # Validate order was actually placed
-        if not order_result or not order_result.get('success', False):
+        # Webull returns {'orderId': '...', 'comboId': '...'} on success
+        if not order_result:
+            logger.error(f"❌ Order placement failed: No response from API")
+            return False, None
+        
+        # Check if response indicates failure
+        if isinstance(order_result, dict) and order_result.get('success') == False:
             logger.error(f"❌ Order placement failed: {order_result}")
             return False, None
         
-        logger.info(f"✅ Order confirmed by Webull API: {order_result}")
-        return True, dte  # Return DTE for position tracking
+        # If we have orderId or comboId, order was successful
+        if isinstance(order_result, dict) and ('orderId' in order_result or 'comboId' in order_result):
+            logger.info(f"✅ Order confirmed by Webull API: {order_result}")
+            
+            # Send email notification for successful trade entry
+            try:
+                option_symbol = filtered_chain[0]['call']['symbol']
+                send_notification(
+                    f"🎯 CALL Order Filled!\n\n"
+                    f"Symbol: {option_symbol}\n"
+                    f"Quantity: {order_quantity} contracts\n"
+                    f"Entry Price: ${ask_price:.2f}\n"
+                    f"DTE: {dte}\n"
+                    f"Order ID: {order_result.get('orderId', 'N/A')}\n"
+                    f"Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}"
+                )
+                logger.info("✅ Trade entry notification sent")
+            except Exception as e:
+                logger.error(f"Failed to send trade entry notification: {e}")
+            
+            return True, dte  # Return DTE for position tracking
+        
+        # Unknown response format
+        logger.warning(f"⚠️ Order result unclear: {order_result}. Assuming success.")
+        return True, dte
         
     except Exception as e:
         logger.error(f"Error in execute_put_trade: {e}", exc_info=True)
