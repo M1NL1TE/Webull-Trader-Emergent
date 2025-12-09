@@ -4,138 +4,149 @@ The user wants to build and maintain a sophisticated automated trading bot for S
 Key features and requirements include:
 - Automated trading based on Opening Range Breakout (ORB) and Supply/Demand (S/D) strategies.
 - A web UI for login, account overview, bot status, live positions, order history, and settings.
-- Dynamic DTE (Days to Expiry) Strategy: 0DTE for ORB, and a time-based 0DTE/1DTE split for S/D trades.
+- Dynamic DTE (Days to Expiry) Strategy.
 - A two-phase trailing stop-loss system for profit-taking.
 - All bot orders must be placed as Limit (LMT) orders for the live account.
 - Smart email notifications for bot status, executed trades, and when price enters S/D zones.
 - The Order History must show the signal/reason for each trade.
-- A critical security vulnerability allowing login bypass was identified and needed fixing.
 - A recurring environmental issue where Playwright browsers are deleted on container restart needs a permanent solution.
 - The P/L by Symbol widget needed to be consolidated to show total P/L per ticker.
 - The stop-loss logic needs to be updated to trigger only if a candle on a lower timeframe closes outside the zone.
 - Capital allocation for trades should be doubled for accounts with a balance under ,000.
+- Addition of 1-hour S/D zones (last 60 days, top 2 supply, bottom 2 demand) with email notifications and UI tabs.
+- The entry timing for S/D trades should be configurable (15-min vs 5-min candles).
 
 **User's preferred language**: English
 
 **what currently exists?**
-The application is a full-stack web app with a React frontend and a FastAPI backend. It connects to the Webull API to perform automated options trading based on ORB and S/D signals. The dashboard displays account info, bot status, positions, and order history. Numerous bugs have been fixed, including a critical login vulnerability, incorrect P/L display, and changing trade orders from MKT to LMT to work with the live Webull API. An auto-install script for Playwright browsers has been implemented to handle environment resets, though it remains a recurring issue. The bot also sends email notifications for trade executions and zone entries.
+The application is a full-stack web app with a React frontend and a FastAPI backend. It connects to the Webull API to perform automated options trading. The dashboard displays account info, bot status, positions, and various widgets for S/D zones, ORB status, and technicals. The bot sends email notifications for trade executions and zone entries.
+
+Recent additions include a 1-hour S/D zone calculation (alongside the existing 15-min zones), UI tabs to display them, and a configurable setting to use 5-minute candles for faster trade entries. A live SPY price widget was also added. However, the backend is currently crashed due to a syntax error, making the application non-functional.
 
 **Last working item**:
-- **Last item agent was working:** The agent was investigating a critical failure in the profit-taking logic. The user reported a position exceeded its +20% profit target, but the bot failed to execute the sell order. The agent's investigation of the logs confirmed that the bot detected 🎯 PROFIT TARGET REACHED! but for some reason, the sell order was not placed. A discrepancy was also noted where the bot considered the position as 1DTE when it should have been 0DTE.
-- **Status:** IN PROGRESS
-- **Agent Testing Done:** N
-- **Which testing method agent to use?** backend testing agent
-- **User Testing Done:** N
+    - **Last item agent was working:** The user reported being unable to log in. The agent investigated and found a  on line 1201 of , which has crashed the backend service. The agent identified the error but has not yet applied the fix.
+    - **Status:** IN PROGRESS
+    - **Agent Testing Done:** N
+    - **Which testing method agent to use?** main agent to test via curl on the login endpoint after fixing the syntax error and restarting the backend.
+    - **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
-- **Issue 1:** (P0) Bot fails to execute profit-taking sell orders.
-- **Issue 2:** (P1) The Sell at Market button on the frontend is non-functional for live positions.
-- **Issue 3:** (P2) The Opened: Dec 3, 12:15 PM timestamp on the position card flickers every 5 seconds.
-- **Issue 4:** (P3) Live trading account order history is not displayed on the frontend.
-- **Issue 5:** (P4) Playwright browsers are periodically deleted/reverted on container restarts, causing login failures.
+  - **Issue 1:** (P0) Backend crashed due to a syntax error, blocking user login.
+  - **Issue 2:** (P1) The live SPY price widget on the dashboard is stale, displaying a time from 946s ago.
+  - **Issue 3:** (P2) Sell orders (stop-loss/profit-taking) for the live account are consistently failing. This is a critical blocker for automated trading.
+  - **Issue 4:** (P3) The P/L by symbol widget and the History tab are not showing any data for the live account.
+  - **Issue 5:** (P4) The Sell at Market button on the frontend is non-functional for live positions.
+  - **Issue 6:** (P5) Playwright browsers are periodically deleted on container restarts, causing intermittent login failures.
 
 **Issues Detail:**
-- **Issue 1:** Bot fails to execute profit-taking sell orders.
-    - **Attempted fixes:** The agent identified the log message confirming the profit target was reached but had not yet pinpointed the failure point in the sell execution logic.
-    - **Next debug checklist:**
-        1. Examine  in the position monitoring loop, specifically the logic that follows the PROFIT TARGET REACHED! log message ().
-        2. Check for any silent errors or exceptions during the  call for selling the profitable position. The previous stop-loss failure was due to an empty  (). A similar issue might be present here.
-        3. Verify why the bot is incorrectly identifying the position as 1DTE when it should be 0DTE, as this affects the profit-taking targets and logic.
-    - **Why fix this issue and what will be achieved with the fix?** This is a critical bug preventing the bot from realizing profits, which defeats its core purpose.
-    - **Status:** IN PROGRESS
-    - **Is recurring issue?** N
-    - **Should Test frontend/backend/both after fix?** Backend
-    - **Blocked on other issue:** None
+  - **Issue 1:** Backend crashed due to a syntax error.
+     - **Attempted fixes:** None yet. The agent identified the syntax error on line 1201 of .
+     - **Next debug checklist:**
+        1. Correct the string formatting syntax error in  at line 1201.
+        2. Restart the backend service using backend: stopped
+backend: started.
+        3. Verify the backend logs for a successful start.
+        4. Ask the user to attempt login again.
+     - **Why fix this issue and what will be achieved with the fix?** This is a critical, application-breaking bug. Fixing it will restore all functionality, including user login.
+     - **Status:** IN PROGRESS
+     - **Is recurring issue?** N
+     - **Should Test frontend/backend/both after fix?** Backend
+     - **Blocked on other issue:** None
 
-- **Issue 2:** The Sell at Market button on the frontend is non-functional for live positions.
-    - **Attempted fixes:** None yet.
-    - **Next debug checklist:**
-        1. This is because the button likely sends a Market (MKT) order, which the live Webull API rejects.
-        2. Modify the frontend handler for this button or the corresponding backend endpoint () to place a Limit (LMT) order at the current  price, similar to how other sell orders were fixed.
-    - **Why fix this issue and what will be achieved with the fix?** Provides the user with manual control to exit positions directly from the dashboard.
-    - **Status:** NOT STARTED
-    - **Is recurring issue?** Y
-    - **Should Test frontend/backend/both after fix?** Both
-    - **Blocked on other issue:** None
+  - **Issue 2:** Live SPY price widget is stale.
+     - **Attempted fixes:** The agent added more robust error handling and a force-refresh mechanism to the  component.
+     - **Next debug checklist:**
+        1. After fixing the backend crash (Issue 1), verify if the stale price issue is resolved.
+        2. If it persists, manually test the  endpoint with  to ensure it's responsive.
+        3. Check the browser's network tab to see if the frontend is making requests and what response it receives.
+     - **Why fix this issue and what will be achieved with the fix?** Provides the user with an accurate, real-time market price on the dashboard.
+     - **Status:** IN PROGRESS
+     - **Is recurring issue?** N
+     - **Should Test frontend/backend/both after fix?** Frontend
+     - **Blocked on other issue:** Issue 1
 
-- **Issue 3:** The Opened: Dec 3, 12:15 PM timestamp on the position card flickers.
-    - **Attempted fixes:** Multiple attempts were made, including backend enrichment, frontend caching, and using React refs. The final approach was to simplify the logic by fetching the entry signal from the database in the backend, which seemed to work but the flickering persists for the timestamp specifically.
-    - **Next debug checklist:**
-        1. Review the rendering logic in . The issue is likely CSS-related, where a conditional render causes the layout to shift as data is refreshed every 5 seconds.
-        2. Check the  and associated elements ( pointed to this).
-        3. Ensure the parent container has a fixed height or use a placeholder to prevent the layout from collapsing and expanding during the refresh cycle.
-    - **Why fix this issue and what will be achieved with the fix?** Improves UI stability and user experience.
-    - **Status:** IN PROGRESS
-    - **Is recurring issue?** Y
-    - **Should Test frontend/backend/both after fix?** Frontend
-    - **Blocked on other issue:** None
+  - **Issue 3:** Live account sell orders are failing.
+     - **Attempted fixes:** The agent has tried multiple strategies: switching from MKT to LMT orders, using  vs , and recently updating the entire order payload in  to match a successful manual sell order captured by the user. However, the user revealed that manual sells require a 2FA mobile app verification, which the bot's API calls cannot perform.
+     - **Next debug checklist:** This is likely an unfixable limitation of the unofficial Webull API for live accounts. The new payload has been implemented, but it will likely still fail due to the 2FA requirement. The agent should confirm this with the user and focus on workarounds.
+     - **Why fix this issue and what will be achieved with the fix?** This is the core blocker preventing the bot from being a fully automated, profitable system.
+     - **Status:** BLOCKED
+     - **Is recurring issue?** Y
+     - **Should Test frontend/backend/both after fix?** Backend
+     - **Blocked on other issue:** Webull API limitations (2FA on sell orders).
 
-- **Issue 4:** Live trading account order history is not displayed on the frontend.
-    - **Attempted fixes:** The agent added logging and verified the  endpoint was being called. The last check showed the Webull API itself was returning an empty list of orders.
-    - **Next debug checklist:**
-        1. Manually test the  call in  with different parameters (e.g., status, date ranges) to see if the live API has different requirements than the paper trading API.
-        2. Verify if the user's live account has any *filled* orders within the default date range the API is querying.
-    - **Why fix this issue and what will be achieved with the fix?** Allows the user to review their live trading performance from the dashboard.
-    - **Status:** BLOCKED
-    - **Is recurring issue?** N
-    - **Should Test frontend/backend/both after fix?** Both
-    - **Blocked on other issue:** User confirmation of filled orders in the live account.
+  - **Issue 4:** P/L and History tabs are empty.
+     - **Attempted fixes:** None in this session. This is a carry-over issue.
+     - **Next debug checklist:**
+        1. Examine the  endpoint in .
+        2. Test the  call with different parameters (e.g., status, date ranges) to see if the live API has different requirements.
+        3. Check the P/L calculation logic that feeds the widget.
+     - **Why fix this issue and what will be achieved with the fix?** Allows the user to track trading performance and history directly from the dashboard.
+     - **Status:** NOT STARTED
+     - **Is recurring issue?** Y
+     - **Should Test frontend/backend/both after fix?** Both
+     - **Blocked on other issue:** None
 
-- **Issue 5:** Playwright browsers are periodically deleted/reverted.
-    - **Attempted fixes:** A startup function  was added to  to check for and install the correct browser version () on every application start. The script was made more robust by using  to avoid path issues.
-    - **Next debug checklist:** This is an environmental issue with the platform's base image. The current script is a workaround. If it continues to fail, a more permanent solution would involve modifying the container's startup/build process, which may be outside the agent's capabilities. For now, the focus should be on ensuring the current script is as resilient as possible.
-    - **Why fix this issue and what will be achieved with the fix?** Prevents frequent login failures and interruptions to development.
-    - **Status:** IN PROGRESS
-    - **Is recurring issue?** Y
-    - **Should Test frontend/backend/both after fix?** N/A
-    - **Blocked on other issue:** None
+  - **Issue 5:** The Sell at Market button is non-functional.
+     - **Attempted fixes:** The agent updated the backing endpoint  to use the new order payload.
+     - **Next debug checklist:** This is blocked by the same 2FA issue as the automated sell orders. It will not work until that is resolved.
+     - **Why fix this issue and what will be achieved with the fix?** Provides manual override control from the dashboard.
+     - **Status:** BLOCKED
+     - **Is recurring issue?** Y
+     - **Should Test frontend/backend/both after fix?** Backend
+     - **Blocked on other issue:** Issue 3
+
+  - **Issue 6:** Playwright browsers are periodically deleted.
+     - **Attempted fixes:** A startup script  in  reinstalls the correct browser version on every backend start.
+     - **Next debug checklist:** This is an environmental issue. The current workaround is the only viable solution within the agent's control.
+     - **Why fix this issue and what will be achieved with the fix?** Improves application stability and prevents login failures after environment restarts.
+     - **Status:** IN PROGRESS
+     - **Is recurring issue?** Y
+     - **Should Test frontend/backend/both after fix?** N/A
+     - **Blocked on other issue:** None
 
 **In progress Task List**:
-- **Task 1:** Fix the profit-taking execution logic.
-    - **Where to resume:** , inside the position monitoring loop where the PROFIT TARGET REACHED! message is logged.
-    - **What will be achieved with this?** The bot will be able to take profits automatically as intended.
-    - **Status:** IN PROGRESS
-    - **Should Test frontend/backend/both after fix?** Backend
-    - **Blocked on something:** None
+  - **Task 1:** Finalize implementation of 1-Hour Supply/Demand zones.
+     - **Where to resume:** The user requested adding timestamps for each zone displayed in the UI. The agent has added this to the backend and frontend code in . The final step is to verify this is working correctly after the login issue is resolved.
+     - **What will be achieved with this?** The user will have an additional, longer-term market structure view with clear timestamps for verification.
+     - **Status:** IN PROGRESS
+     - **Should Test frontend/backend/both after fix?** Frontend
+     - **Blocked on something:** Issue 1
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks:**
-  - **Task 1 (P0):** Implement the new stop-loss logic based on candle closes. The user requested that the stop-loss only triggers if a candle on a lower timeframe (e.g., 5-min) closes outside the S/D zone (calculated on a 15-min timeframe). This should be a toggleable option in the settings.
-     - Files to modify:  (stop-loss logic),  and  (for the toggle).
+    - **(P1)** Implement stop-loss logic based on candle closes (a toggleable setting).
+- **Future Tasks:**
+    - **(P2)** Investigate and implement logic for when supply zones become new demand zones and vice versa (as an idea from the user).
+    - **(P3)** Research and potentially migrate to a broker with an official, robust trading API (e.g., TD Ameritrade, Interactive Brokers) to bypass the Webull 2FA limitation.
 
 **Completed work in this session**
-- **Critical Bug Fixes:**
-  - Fixed a bug where new positions incorrectly started in the trailing phase.
-  - Resolved a critical security flaw that allowed login bypass via page refresh.
-  - Fixed a critical bug where the bot would trade on the paper account while the user was logged into the live account.
-  - Fixed a bug where the bot would get stuck on a phantom position after a trade order failed silently.
-- **Trading Logic & API:**
-  - Changed all MKT (Market) orders to LMT (Limit) orders to resolve Webull API's system busy 500 errors for live trading.
-  - Fixed insufficient funds errors on small accounts by implementing a minimum 1 contract override.
-  - Implemented logic to double the capital allocation percentage for accounts under ,000.
-  - Added robust error handling and logging to trade execution functions to catch silent failures from the Webull API.
-- **UI/UX Enhancements:**
-  - Fixed the P/L by Symbol widget to show a consolidated total for each ticker.
-  - Fixed the Positions display to show the full option symbol (ticker, strike, type, date).
-  - Added the position entry time to the position card.
-  - Increased the data refresh rate on the dashboard to every 5 seconds.
-- **Notifications:**
-  - Added email notifications for when the price enters a supply/demand zone.
-  - Added email notifications for when the supply/demand zones are recalculated.
-- **Stability & Environment:**
-  - Implemented a robust auto-installation script that runs on backend startup to ensure the correct Playwright browser version is installed, mitigating a recurring environment issue.
+- **S/D Zone Enhancements:**
+  - Implemented 1-hour Supply/Demand zone calculation (top 2 supply, bottom 2 demand) using a 60-day lookback.
+  - Rewrote the  to use tabs for switching between 15-min and 1-hr zone views.
+  - Added email notifications for when the price enters any S/D zone (15m or 1hr).
+- **Trading Logic:**
+  - Implemented a toggleable setting for using 5-minute candle closes for S/D zone trade entries, allowing for faster execution.
+  - Fixed a critical bug where successful BUY orders were incorrectly logged as failures, and no email notification was sent.
+- **UI/UX Fixes:**
+  - Added a real-time SPY price widget to the dashboard ().
+  - Synced other dashboard widgets to use the live price feed for display consistency.
+  - Fixed a bug where manual trades from the Webull app showed incorrect symbol/timestamp data.
+  - Fixed a persistent UI flickering issue on the  component.
+  - Removed the experimental Chart tab and its components at the user's request.
+- **API and Debugging:**
+  - Updated the sell order payload in  to precisely match a working request captured by the user.
 
 **Earlier issues found/mentioned but not fixed**
-- **Issue 1:** Live Order History is empty.
-  - **Debug checklist:** Check if the user has filled orders on the live account. Directly query the  method with different parameters to see what the Webull API returns for live vs. paper accounts.
-  - **Why to solve this issue and what will be achieved with this?** The user cannot review their live trade history from the dashboard.
-  - **Should Test frontend/backend/both after fix:** Both
-  - **Is recurring issue?** N
+   - **Issue 1:** The P/L by Symbol widget and the History tab are empty.
+     - **Debug checklist:** Investigate the  endpoint in  and its interaction with the live Webull API. Check the logic that calculates P/L data for the widget.
+     - **Why to solve this issue and what will be achieved with this?** This is a core feature for performance tracking, and its absence reduces the dashboard's utility.
+     - **Should Test frontend/backend/both after fix:** Both
+     - **Is recurring issue?** Y
 
 **Known issue recurrence from previous fork**
-- **Issue recurrence in previous fork:** The initial analysis mentioned issues with platform-induced inactivity and deployment URL changes, but the most significant recurring issue discovered and battled *during this session* is the Playwright browser version mismatch.
-- **Recurrence count:** High (occurred after nearly every container restart).
-- **Status:** IN PROGRESS (A workaround is in place, but the root environmental cause persists).
+  - **Issue recurrence in previous fork:** The Playwright browser version mismatch recurs on container restarts.
+  - **Recurrence count:** High.
+  - **Status:** IN PROGRESS (A workaround script is in place, but the underlying environmental cause persists).
 
 **Code Architecture**
 
@@ -146,82 +157,84 @@ The application is a full-stack web app with a React frontend and a FastAPI back
 - **Database:** MongoDB
 - **Authentication:** Playwright for browser automation to handle Webull login.
 - **Asynchronous Operations:**  for the core trading bot loop.
-- **API Interaction:** An unofficial Webull Python library ().
+- **API Interaction:** An unofficial, reverse-engineered Webull Python library ().
 
 **key DB schema**
-- **sessions**: 
-- **position_tracking**: 
-- **entry_signals**: 
-- **daily_notifications**: 
+  - **sessions**: 
+  - **position_tracking**: 
+  - **entry_signals**: 
+  - **settings**:  (New field added)
 
 **changes in tech stack**
-- None.
+-  was added to  but the feature using it was removed. The dependency remains.
 
 **All files of reference**
-- : Core trading logic, including S/D and ORB analysis, position monitoring, stop-loss, and profit-taking.
-- : FastAPI application, API endpoints, user session management, and bot lifecycle control.
-- : Handles Webull login via browser automation to get authentication tokens.
-- : Wrapper class for the unofficial Webull API, defining methods for placing orders, getting quotes, etc.
-- : Frontend login page component.
-- : Main dashboard component, orchestrates data fetching.
-- : React component for displaying open positions.
-- : Main React application entry point, handles routing and session restoration.
-- : Documentation created to explain the Playwright browser installation issue.
+- : Core trading logic. **Currently has a syntax error that crashed the backend.** Contains new 1-hour zone logic and 5-min entry logic.
+- : FastAPI endpoints. Contains new  endpoint and updates to pass 1-hour zones.
+- : Wrapper for the Webull API.  was modified with a new payload.
+- : Main dashboard layout. Chart tab was added and removed;  widget was added.
+- : Completely rewritten to support tabs for 15-min and 1-hr zones and display timestamps.
+- : Modified to add a toggle for the 5-minute entry strategy.
+- : New component for displaying the real-time SPY price.
 
 **Areas that need refactoring**:
-- The Playwright browser check/install logic is a workaround for a platform issue. A cleaner solution would be a custom container image.
-- The frontend state management for the flickering position card could be improved to be more resilient to intermittent backend data fetching.
+- The  file exists but is no longer used and should be deleted.
+- The  dependency in  can be removed.
+- The complex, multi-strategy sell logic in  is a sign of fighting the API. This should be simplified or removed in favor of a clear user workflow (e.g., manual closure via app) given the 2FA blocker.
 
 **key api endpoints**
-- : Authenticates the user and starts a session.
-- : Clears the user session.
-- : Restores a session from a token.
-- : Gets the current status of the trading bot.
-- : Gets the user's current open positions.
-- : Gets the user's trade history.
-- : Endpoint for placing manual trades from the dashboard.
-- : Endpoint for selling an entire position from the dashboard.
+- : User authentication. **Currently failing due to backend crash.**
+- : Gets bot status, including 15-min and 1-hr zones.
+- : Gets current open positions.
+- : Gets trade history. **Not working for live account.**
+- : **(New)** Gets a real-time quote for SPY, bypassing the bot's internal state.
 
 **Critical Info for New Agent**
-- **Webull Live API requires LMT orders:** All trade execution calls (bot and manual) for the live trading account **must** be Limit (LMT) orders. Market (MKT) orders will be rejected with a 500 system busy error.
-- **Recurring Playwright Browser Issue:** The container environment frequently reverts the Playwright browsers to an incorrect version () upon restart. A startup script in  () attempts to fix this by force-installing the correct version (). If login fails, this is the first thing to check.
-- **Webull Trade Token:** Live trading requires a  obtained by submitting the trading PIN. This token is now stored in the MongoDB session and must be correctly restored and passed to the Webull instance for any trading actions to succeed.
+- **Backend is CRASHED:** The immediate priority is to fix the syntax error in  to restore login and all other functionality.
+- **Webull 2FA on SELL Orders:** This is the most critical blocker for the project's goal of full automation. The user has confirmed that selling on their live account requires mobile app verification. The bot cannot bypass this. All automated selling logic (stop-loss, take-profit) will fail on the live account. The user must be managed with this expectation, and workarounds (like manual closure after receiving an email alert) should be the focus.
+- **Bot is OFF by Default:** The user has previously forgotten to turn the bot on, leading to confusion about why data wasn't loading. Always verify the bot is running () if widgets appear stuck.
 
 **documents created in this job**
-- : Documents the recurring Playwright browser issue and the implemented fixes.
+- 
+- 
 
 **Last 10 User Messages and any pending user messages**
-1.  **User (935):** The position widget is not showing full details again (just SPY) and asks for the position entry time to be added. (PARTIALLY RESOLVED - Flickering remains).
-2.  **Agent (941):** Confirms the backend is now returning the full symbol and entry time and advises a hard refresh.
-3.  **User (942):** Confirms the ticker info is fixed but now the entry time is flickering. Also reports two new critical issues: profit-taking failed (>20% profit but no sell), and the Sell at Market button is not working.
-4.  **Agent (945):** Finds a MAJOR ISSUE in the logs: the bot detects the profit target but doesn't sell.
-5.  **User (756):** Provides a screenshot showing the position info is not updated.
-6.  **Agent (780):** Provides a summary of the position display fix.
-7.  **User (781):** Reports that the position info is now showing but is flickering.
-8.  **Agent (799):** Proposes a fix for the flickering using frontend caching.
-9.  **User (800):** Reports the flickering is still happening.
-10. **User (811):** Provides more detail on the flickering, suggesting it might be a CSS/layout issue.
-
-**Pending User Messages:** The user is waiting for a fix for the profit-taking failure, the non-functional Sell button, and the flickering UI. They have also requested a new stop-loss logic to be implemented.
+- **1. (Msg 517)** User reports Order placement failed but a buy order was placed, asks about email notifications, and inquires about a TradingView API to draw zones on their charts. (Resolved)
+- **2. (Msg 534)** User asks for steps to implement the TradingView API. (Resolved)
+- **3. (Msg 539)** User asks for a free alternative to the paid TradingView library and requests a new Chart tab. (Resolved)
+- **4. (Msg 564)** User reports errors on the Chart tab and asks to confirm if buy/profit-target email notifications are implemented. (Resolved)
+- **5. (Msg 589)** User reports the Chart tab is still throwing runtime errors. (Resolved)
+- **6. (Msg 602)** User reports the Chart is loading but has no bars/data, and S/D widgets are stuck calculating. (Resolved - user had bot off)
+- **7. (Msg 611)** User confirms they forgot to turn the bot on, asks to remove the chart tab, and requests a new 1-hour S/D zone feature with UI tabs, email notifications, and timestamps. (In Progress)
+- **8. (Msg 636)** User asks why frontend changes for the 1-hour zones weren't implemented with the backend changes. (Resolved)
+- **9. (Msg 661)** User reports the new S/D zones are working but the Live SPY price widget is now stale. Also requests timestamps for each zone. (In Progress)
+- **10. (Msg 684)** **(PENDING)** User reports they are now unable to log in, getting a Login failed message. This is the current highest-priority issue.
 
 **Project Health Check:**
 - **Broken:**
-  - The core profit-taking logic is currently broken.
-  - The Sell at Market button for live trades is broken.
+  - **Login:** Entire application is inaccessible due to a backend crash.
+  - **Automated Selling (Live):** The core profit-taking and stop-loss functionality is non-operational for live accounts due to Webull's 2FA security policy.
+  - **Live SPY Price Widget:** Currently stale and not updating.
+  - **P/L and History Tabs:** Not displaying data for the live account.
 - **Mocked:**
   - None.
 - **Fragile:**
-  - The Playwright browser integration is fragile due to the underlying platform environment resetting browser installations. The auto-install script is a workaround, not a permanent fix.
+  - The entire trading functionality relies on a reverse-engineered, unofficial API that is proving unreliable and restrictive (especially for selling).
+  - The Playwright browser dependency is prone to environmental resets, requiring a startup script workaround.
 
 **3rd Party Integrations**
-- Unofficial Webull Python API library (for all market data and trading).
+- Unofficial Webull Python API (for all market data and trading).
+- Twilio (configured in  but  is set to Telnyx).
+- Telnyx (configured as the SMS provider but credentials are missing in ).
 
 **Testing status**
 - **Testing agent used after significant changes:** YES
 - **Troubleshoot agent used after agent stuck in loop:** NO
 - **Test files created:** None
-- **Known regressions:**
-  - The position card display has become unstable (flickering) after recent changes to enrich the data.
+- **Known regressions:** The Live SPY price widget was working and is now broken (stale).
 
 **Credentials to test flow:**
-User provides their own Webull credentials (username, password, device ID, trade PIN) via the login form. The agent does not have access to these.</analysis>
+User provides their own Webull credentials (username, password, device ID, trade PIN) via the login form. The agent does not have access to these.
+
+**What agent forgot to execute**
+- The agent has not addressed the user's report that the P/L by symbol widget and the History tab are empty for the live account. This issue was first mentioned in message 355 and is a carry-over from the previous fork.</analysis>
