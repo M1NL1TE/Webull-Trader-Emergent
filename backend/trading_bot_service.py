@@ -1110,8 +1110,26 @@ async def run_trading_bot(wb, settings):
                         
                         continue  # Move to next iteration
                     
-                    # 2. ANALYZE SUPPLY/DEMAND ZONES
+                    # 2. ANALYZE SUPPLY/DEMAND ZONES (15-min)
                     zones = analyze_supply_demand(df)
+                    
+                    # 3. ANALYZE 1-HOUR ZONES (60-day lookback, 2 zones each)
+                    try:
+                        # Fetch 1-hour candles (60 days ≈ 390 trading hours)
+                        df_1hr = await retry_api_call(lambda: wb.get_bars(symbol, stockId, 'm60', 400, 1))
+                        if df_1hr is not None and len(df_1hr) > 0:
+                            zones_1hr_data = analyze_supply_demand_multi(df_1hr, lookback_candles=400, zone_width_pct=0.0025, num_zones=2)
+                            
+                            # Format for bot_state (use first zone for backward compatibility)
+                            bot_state.zones_1hr = {
+                                'supply_zones': zones_1hr_data['supply_zones'],  # List of 2 zones
+                                'demand_zones': zones_1hr_data['demand_zones']   # List of 2 zones
+                            }
+                            logger.info(f"✅ 1-Hour zones calculated: {len(zones_1hr_data['supply_zones'])} supply, {len(zones_1hr_data['demand_zones'])} demand")
+                        else:
+                            logger.warning("Could not fetch 1-hour data for zones")
+                    except Exception as e:
+                        logger.error(f"Error calculating 1-hour zones: {e}")
                     
                     # Check if zones have changed (new supply/demand levels calculated)
                     old_zones = bot_state.zones
