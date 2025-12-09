@@ -232,10 +232,6 @@ function Dashboard({ setIsAuthenticated }) {
             <OrderHistory />
           </TabsContent>
 
-          <TabsContent value="chart" className="space-y-6">
-            <LiveChart />
-          </TabsContent>
-
           <TabsContent value="settings">
             <Settings />
           </TabsContent>
