@@ -1203,19 +1203,11 @@ async def run_trading_bot(wb, settings):
                         if in_any_zone and (not bot_state.last_zone_notification or 
                             (datetime.now(timezone.utc) - bot_state.last_zone_notification).total_seconds() > 300):
                             send_notification(
-                                f"🎯 Price in Zone!
-
-"
-                                f"SPY: ${current_price:.2f}
-
-"
-                                f"Active Zones:
-" +
-                                "
-".join([f"• {detail}" for detail in zone_details]) +
-                                f"
-
-Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}"
+                                f"🎯 Price in Zone!\n\n"
+                                f"SPY: ${current_price:.2f}\n\n"
+                                f"Active Zones:\n" +
+                                "\n".join([f"• {detail}" for detail in zone_details]) +
+                                f"\n\nTime: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}"
                             )
                             bot_state.last_zone_notification = datetime.now(timezone.utc)
                             logger.info(f"✉️ Zone entry notification sent: {len(zone_details)} zones")
