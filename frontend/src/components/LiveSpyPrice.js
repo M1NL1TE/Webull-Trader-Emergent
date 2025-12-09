@@ -13,13 +13,18 @@ function LiveSpyPrice() {
 
   const fetchQuote = async () => {
     try {
-      const response = await axios.get(`${API}/quote/spy`, { timeout: 3000 });
-      setQuote(response.data);
-      setLastUpdate(new Date());
-      setLoading(false);
+      const response = await axios.get(`${API}/quote/spy`, { 
+        timeout: 5000,
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      if (response.data && response.data.price) {
+        setQuote(response.data);
+        setLastUpdate(new Date());
+        setLoading(false);
+      }
     } catch (error) {
       console.error('Error fetching SPY quote:', error);
-      // Don't set loading to false on error - keep trying
+      setLoading(false); // Allow display even with stale data
     }
   };
 
