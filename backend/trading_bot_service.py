@@ -224,6 +224,12 @@ class BotState:
             'supply_top': 0,
             'supply_bottom': 0
         }
+        self.zones_1hr = {  # 1-hour supply/demand zones
+            'demand_top': 0,
+            'demand_bottom': 0,
+            'supply_top': 0,
+            'supply_bottom': 0
+        }
         self.orb_status = {
             'upside_broken': False,
             'downside_broken': False,
