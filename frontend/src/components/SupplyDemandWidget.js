@@ -145,13 +145,21 @@ function SupplyDemandWidget() {
                   </p>
                 </div>
                 <ZoneDisplay 
-                  zone={{ top: zones15m.supply_top, bottom: zones15m.supply_bottom }} 
+                  zone={{ 
+                    top: zones15m.supply_top, 
+                    bottom: zones15m.supply_bottom,
+                    timestamp: zones15m.supply_timestamp
+                  }} 
                   type="supply" 
                   index={0}
                   currentPrice={currentPrice}
                 />
                 <ZoneDisplay 
-                  zone={{ top: zones15m.demand_top, bottom: zones15m.demand_bottom }} 
+                  zone={{ 
+                    top: zones15m.demand_top, 
+                    bottom: zones15m.demand_bottom,
+                    timestamp: zones15m.demand_timestamp
+                  }} 
                   type="demand" 
                   index={0}
                   currentPrice={currentPrice}
