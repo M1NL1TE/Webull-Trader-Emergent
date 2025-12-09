@@ -66,6 +66,16 @@ function SupplyDemandWidget() {
     const inZone = currentPrice >= zone.bottom && currentPrice <= zone.top;
     const color = isSupply ? 'red' : 'green';
     
+    // Format zone timestamp if available
+    const zoneDate = zone.timestamp ? new Date(zone.timestamp).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    }) : null;
+    
     return (
       <div className={`p-4 rounded-lg ${inZone ? `bg-${color}-500/20 border-2 border-${color}-500` : `bg-${color}-500/10 border border-${color}-500/30`}`}>
         <div className="flex items-center justify-between mb-3">
@@ -98,6 +108,14 @@ function SupplyDemandWidget() {
               ${(zone.top - zone.bottom).toFixed(2)}
             </span>
           </div>
+          {zoneDate && (
+            <div className="flex justify-between items-center pt-2 border-t border-${color}-500/30">
+              <span className="text-xs text-slate-400">📅 From:</span>
+              <span className={`text-xs font-mono text-${color}-300`}>
+                {zoneDate}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     );
