@@ -33,9 +33,9 @@ function SupplyDemandWidget() {
       const response = await axios.get(`${API}/bot/status`);
       const data = response.data;
       
-      setZones(data.zones || {});
+      setZones15m(data.zones || {});
+      setZones1hr(data.zones_1hr || { supply_zones: [], demand_zones: [] });
       setMarketStatus(data.market_status || 'Unknown');
-      // Don't use current_price from bot status anymore
     } catch (error) {
       console.error('Error fetching zones:', error);
     } finally {
