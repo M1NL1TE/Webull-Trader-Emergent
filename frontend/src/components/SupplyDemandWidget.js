@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 function SupplyDemandWidget() {
-  const [zones, setZones] = useState(null);
+  const [zones15m, setZones15m] = useState(null);
+  const [zones1hr, setZones1hr] = useState(null);
   const [currentPrice, setCurrentPrice] = useState(0);
   const [marketStatus, setMarketStatus] = useState('Unknown');
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('15m');
 
   useEffect(() => {
     fetchZones();
