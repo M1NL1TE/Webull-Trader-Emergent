@@ -465,6 +465,117 @@ def get_candle_grade(df):
     return 'D'
 
 
+def analyze_supply_demand_multi(df, lookback_candles=195, zone_width_pct=0.0025, num_zones=1):
+    """Analyze supply and demand zones - supports multiple zones
+    
+    Args:
+        df: DataFrame with OHLC data
+        lookback_candles: Number of candles to analyze
+        zone_width_pct: Zone width as percentage (0.0025 = 0.25%)
+        num_zones: Number of supply/demand zones to return (1 or 2)
+    
+    Returns:
+        Dict with supply and demand zones (can return multiple zones)
+    """
+    try:
+        highs = df['high'].values
+        lows = df['low'].values
+        timestamps = df.index
+        
+        lookback = min(lookback_candles, len(df))
+        recent_highs = highs[-lookback:]
+        recent_lows = lows[-lookback:]
+        recent_timestamps = timestamps[-lookback:]
+        
+        # Find swing highs and lows with 3 candles on each side
+        swing_highs = []
+        swing_lows = []
+        
+        for i in range(3, lookback - 3):
+            # Swing high detection
+            if (recent_highs[i] > recent_highs[i-1] and 
+                recent_highs[i] > recent_highs[i-2] and
+                recent_highs[i] > recent_highs[i-3] and
+                recent_highs[i] > recent_highs[i+1] and 
+                recent_highs[i] > recent_highs[i+2] and
+                recent_highs[i] > recent_highs[i+3]):
+                swing_highs.append((recent_highs[i], i))
+            
+            # Swing low detection
+            if (recent_lows[i] < recent_lows[i-1] and 
+                recent_lows[i] < recent_lows[i-2] and
+                recent_lows[i] < recent_lows[i-3] and
+                recent_lows[i] < recent_lows[i+1] and 
+                recent_lows[i] < recent_lows[i+2] and
+                recent_lows[i] < recent_lows[i+3]):
+                swing_lows.append((recent_lows[i], i))
+        
+        # Get top N supply zones (highest swing highs)
+        supply_zones = []
+        if len(swing_highs) >= num_zones:
+            # Sort by price descending, take top N
+            top_swings = sorted(swing_highs, key=lambda x: x[0], reverse=True)[:num_zones]
+            for price, ts_idx in top_swings:
+                supply_zones.append({
+                    'top': price,
+                    'bottom': price * (1 - zone_width_pct),
+                    'timestamp': recent_timestamps[ts_idx].isoformat()
+                })
+        elif len(swing_highs) > 0:
+            # Less zones available, return what we have
+            for price, ts_idx in swing_highs:
+                supply_zones.append({
+                    'top': price,
+                    'bottom': price * (1 - zone_width_pct),
+                    'timestamp': recent_timestamps[ts_idx].isoformat()
+                })
+        else:
+            # Fallback: use absolute max
+            max_idx = np.argmax(recent_highs)
+            supply_zones.append({
+                'top': recent_highs[max_idx],
+                'bottom': recent_highs[max_idx] * (1 - zone_width_pct),
+                'timestamp': recent_timestamps[max_idx].isoformat()
+            })
+        
+        # Get bottom N demand zones (lowest swing lows)
+        demand_zones = []
+        if len(swing_lows) >= num_zones:
+            # Sort by price ascending, take bottom N
+            bottom_swings = sorted(swing_lows, key=lambda x: x[0])[:num_zones]
+            for price, ts_idx in bottom_swings:
+                demand_zones.append({
+                    'bottom': price,
+                    'top': price * (1 + zone_width_pct),
+                    'timestamp': recent_timestamps[ts_idx].isoformat()
+                })
+        elif len(swing_lows) > 0:
+            # Less zones available, return what we have
+            for price, ts_idx in swing_lows:
+                demand_zones.append({
+                    'bottom': price,
+                    'top': price * (1 + zone_width_pct),
+                    'timestamp': recent_timestamps[ts_idx].isoformat()
+                })
+        else:
+            # Fallback: use absolute min
+            min_idx = np.argmin(recent_lows)
+            demand_zones.append({
+                'bottom': recent_lows[min_idx],
+                'top': recent_lows[min_idx] * (1 + zone_width_pct),
+                'timestamp': recent_timestamps[min_idx].isoformat()
+            })
+        
+        return {
+            'supply_zones': supply_zones,
+            'demand_zones': demand_zones
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in analyze_supply_demand_multi: {e}")
+        return {'supply_zones': [], 'demand_zones': []}
+
+
 def analyze_supply_demand(df):
     """Analyze supply and demand zones from price data using proper swing detection
     
