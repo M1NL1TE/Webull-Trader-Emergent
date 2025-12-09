@@ -332,19 +332,12 @@ def send_email(subject: str, body: str):
         log_file = '/app/notifications.log'
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         with open(log_file, 'a') as f:
-            f.write(f"
-{'='*60}
-")
-            f.write(f"[{timestamp}] EMAIL SENT TO: {notification_email}
-")
-            f.write(f"SUBJECT: {subject}
-")
-            f.write(f"{'='*60}
-")
-            f.write(f"{body}
-")
-            f.write(f"{'='*60}
-")
+            f.write(f"\n{'='*60}\n")
+            f.write(f"[{timestamp}] EMAIL SENT TO: {notification_email}\n")
+            f.write(f"SUBJECT: {subject}\n")
+            f.write(f"{'='*60}\n")
+            f.write(f"{body}\n")
+            f.write(f"{'='*60}\n")
             
     except smtplib.SMTPAuthenticationError:
         logger.error("Gmail SMTP authentication failed - check app password")
@@ -356,8 +349,7 @@ def send_email(subject: str, body: str):
 def send_notification(message: str):
     """Send notification via all enabled methods (SMS and/or Email)"""
     # Extract subject from message (first line)
-    lines = message.split('
-', 1)
+    lines = message.split('\n', 1)
     subject = lines[0] if lines else message
     body = lines[1] if len(lines) > 1 else message
     
@@ -981,23 +973,13 @@ async def run_trading_bot(wb, settings):
                             open_orders_count = len(account_info.get('openOrders', []))
                             
                             send_notification(
-                                f"🏁 Trading Bot Finished for Today
-"
-                                f"Market closed at 4:00 PM EST
-
-"
-                                f"Status:
-"
-                                f"• Open Positions: {positions_count}
-"
-                                f"• Open Orders: {open_orders_count}
-"
-                                f"• Bot Status: Idle (waiting for tomorrow)
-
-"
-                                f"The bot will resume monitoring when market opens tomorrow at 9:30 AM EST.
-
-"
+                                f"🏁 Trading Bot Finished for Today\n"
+                                f"Market closed at 4:00 PM EST\n\n"
+                                f"Status:\n"
+                                f"• Open Positions: {positions_count}\n"
+                                f"• Open Orders: {open_orders_count}\n"
+                                f"• Bot Status: Idle (waiting for tomorrow)\n\n"
+                                f"The bot will resume monitoring when market opens tomorrow at 9:30 AM EST.\n\n"
                                 f"Check your dashboard for detailed P/L and trade history."
                             )
                             await mark_daily_notification_sent('bot_finished')
@@ -1016,24 +998,14 @@ async def run_trading_bot(wb, settings):
                 # Send "Bot Online" notification once per day (first time market opens)
                 if not await check_daily_notification_sent('bot_online'):
                     send_notification(
-                        f"🤖 Trading Bot Online
-"
-                        f"Bot is now active and monitoring SPY for trading signals.
-
-"
-                        f"Market Hours: 9:30 AM - 4:00 PM EST
-"
-                        f"Started: {now_eastern.strftime('%I:%M %p %Z')}
-
-"
-                        f"You'll receive notifications for:
-"
-                        f"• Trade entries (calls/puts)
-"
-                        f"• Profit target hits
-"
-                        f"• Stop loss triggers
-"
+                        f"🤖 Trading Bot Online\n"
+                        f"Bot is now active and monitoring SPY for trading signals.\n\n"
+                        f"Market Hours: 9:30 AM - 4:00 PM EST\n"
+                        f"Started: {now_eastern.strftime('%I:%M %p %Z')}\n\n"
+                        f"You'll receive notifications for:\n"
+                        f"• Trade entries (calls/puts)\n"
+                        f"• Profit target hits\n"
+                        f"• Stop loss triggers\n"
                         f"• End of day summary"
                     )
                     await mark_daily_notification_sent('bot_online')
@@ -1112,9 +1084,7 @@ async def run_trading_bot(wb, settings):
                                         'timestamp': datetime.now(timezone.utc).isoformat()
                                     }
                                     await save_entry_signal_to_db(bot_state.last_entry_signal)
-                                    send_notification(f"ORB Call Trade ({dte}DTE)
-{orb_message}
-ORB breakout strategy")
+                                    send_notification(f"ORB Call Trade ({dte}DTE)\n{orb_message}\nORB breakout strategy")
                                     bot_state.last_action = f"ORB CALL at {current_time} ({dte}DTE)"
                                     logger.info(f"✅ ORB call order placed ({dte}DTE)")
                             elif orb_signal == 'put':
@@ -1131,9 +1101,7 @@ ORB breakout strategy")
                                         'timestamp': datetime.now(timezone.utc).isoformat()
                                     }
                                     await save_entry_signal_to_db(bot_state.last_entry_signal)
-                                    send_notification(f"ORB Put Trade ({dte}DTE)
-{orb_message}
-ORB breakout strategy")
+                                    send_notification(f"ORB Put Trade ({dte}DTE)\n{orb_message}\nORB breakout strategy")
                                     bot_state.last_action = f"ORB PUT at {current_time} ({dte}DTE)"
                                     logger.info(f"✅ ORB put order placed ({dte}DTE)")
                         except Exception as e:
@@ -1181,33 +1149,22 @@ ORB breakout strategy")
                                 change_details = []
                                 if supply_changed:
                                     change_details.append(
-                                        f"Supply Zone:
-"
-                                        f"  Old: ${old_zones['supply_bottom']:.2f} - ${old_zones['supply_top']:.2f}
-"
+                                        f"Supply Zone:\n"
+                                        f"  Old: ${old_zones['supply_bottom']:.2f} - ${old_zones['supply_top']:.2f}\n"
                                         f"  New: ${zones['supply_bottom']:.2f} - ${zones['supply_top']:.2f}"
                                     )
                                 if demand_changed:
                                     change_details.append(
-                                        f"Demand Zone:
-"
-                                        f"  Old: ${old_zones['demand_bottom']:.2f} - ${old_zones['demand_top']:.2f}
-"
+                                        f"Demand Zone:\n"
+                                        f"  Old: ${old_zones['demand_bottom']:.2f} - ${old_zones['demand_top']:.2f}\n"
                                         f"  New: ${zones['demand_bottom']:.2f} - ${zones['demand_top']:.2f}"
                                     )
                                 
                                 send_notification(
-                                    f"🔄 Supply/Demand Zones Updated
-
-"
-                                    f"New zones have been calculated based on recent price action.
-
-"
-                                    f"{chr(10).join(change_details)}
-
-"
-                                    f"Current Price: ${current_price:.2f}
-"
+                                    f"🔄 Supply/Demand Zones Updated\n\n"
+                                    f"New zones have been calculated based on recent price action.\n\n"
+                                    f"{chr(10).join(change_details)}\n\n"
+                                    f"Current Price: ${current_price:.2f}\n"
                                     f"Time: {datetime.now(pytz_timezone('US/Eastern')).strftime('%I:%M %p EST')}"
                                 )
                                 logger.info("✅ Zone update notification sent")
@@ -1241,31 +1198,7 @@ ORB breakout strategy")
                                 if zone['bottom'] <= current_price <= zone['top']:
                                     in_any_zone = True
                                     zone_details.append(f"1-Hour Demand Zone #{idx+1}: ${zone['bottom']:.2f} - ${zone['top']:.2f}")
-                        
-                        # Send notification if in zone and haven't notified recently
-                        if in_any_zone and (not bot_state.last_zone_notification or 
-                            (datetime.now(timezone.utc) - bot_state.last_zone_notification).total_seconds() > 300):
-                            send_notification(
-                                f\"\ud83c\udfaf Price in Zone!
-
-\"
-                                f\"SPY: ${current_price:.2f}
-
-\"
-                                f\"Active Zones:
-\" +
-                                \"\
-\".join([f\"\u2022 {detail}\" for detail in zone_details]) +
-                                f\"\
-\
-Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}\"
-                            )
-                            bot_state.last_zone_notification = datetime.now(timezone.utc)
-                            logger.info(f\"\u2709\ufe0f Zone entry notification sent: {len(zone_details)} zones\")
-                    except Exception as e:
-                        logger.error(f\"Error checking zone entry notification: {e}\")
-                    
-                    # Check if 5-minute entries are enabled
+                        \n                        # Send notification if in zone and haven't notified recently\n                        if in_any_zone and (not bot_state.last_zone_notification or \n                            (datetime.now(timezone.utc) - bot_state.last_zone_notification).total_seconds() > 300):\n                            send_notification(\n                                f\"\ud83c\udfaf Price in Zone!\n\n\"\n                                f\"SPY: ${current_price:.2f}\n\n\"\n                                f\"Active Zones:\n\" +\n                                \"\\n\".join([f\"\u2022 {detail}\" for detail in zone_details]) +\n                                f\"\\n\\nTime: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}\"\n                            )\n                            bot_state.last_zone_notification = datetime.now(timezone.utc)\n                            logger.info(f\"\u2709\ufe0f Zone entry notification sent: {len(zone_details)} zones\")\n                    except Exception as e:\n                        logger.error(f\"Error checking zone entry notification: {e}\")\n                    \n                    # Check if 5-minute entries are enabled
                     use_5min_entries = settings.get('use_5min_entries', False)
                     
                     if use_5min_entries:
@@ -1327,16 +1260,10 @@ Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}\"
                             bot_state.in_supply_zone = False
                             try:
                                 send_notification(
-                                    f"📍 Price Entered DEMAND Zone
-
-"
-                                    f"Current Price: ${current_price:.2f}
-"
-                                    f"Demand Zone: ${zones['demand_bottom']:.2f} - ${zones['demand_top']:.2f}
-"
-                                    f"Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}
-
-"
+                                    f"📍 Price Entered DEMAND Zone\n\n"
+                                    f"Current Price: ${current_price:.2f}\n"
+                                    f"Demand Zone: ${zones['demand_bottom']:.2f} - ${zones['demand_top']:.2f}\n"
+                                    f"Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}\n\n"
                                     f"Bot is analyzing for potential CALL entry..."
                                 )
                                 logger.info("✅ Demand zone notification sent")
@@ -1352,16 +1279,10 @@ Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}\"
                             bot_state.in_demand_zone = False
                             try:
                                 send_notification(
-                                    f"📍 Price Entered SUPPLY Zone
-
-"
-                                    f"Current Price: ${current_price:.2f}
-"
-                                    f"Supply Zone: ${zones['supply_bottom']:.2f} - ${zones['supply_top']:.2f}
-"
-                                    f"Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}
-
-"
+                                    f"📍 Price Entered SUPPLY Zone\n\n"
+                                    f"Current Price: ${current_price:.2f}\n"
+                                    f"Supply Zone: ${zones['supply_bottom']:.2f} - ${zones['supply_top']:.2f}\n"
+                                    f"Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}\n\n"
                                     f"Bot is analyzing for potential PUT entry..."
                                 )
                                 logger.info("✅ Supply zone notification sent")
@@ -1462,10 +1383,7 @@ Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}\"
                                     }
                                     await save_entry_signal_to_db(bot_state.last_entry_signal)
                                     
-                                    send_notification(f"Call Trade Executed ({dte}DTE)
-{', '.join(trade_reason)}
-Price: ${current_price:.2f}
-Grade: {combined_grade}")
+                                    send_notification(f"Call Trade Executed ({dte}DTE)\n{', '.join(trade_reason)}\nPrice: ${current_price:.2f}\nGrade: {combined_grade}")
                                     bot_state.last_action = f"Placed CALL order at ${current_price:.2f} ({dte}DTE)"
                                     logger.info(f"✅ Call order placed successfully ({dte}DTE)")
                                 else:
@@ -1494,10 +1412,7 @@ Grade: {combined_grade}")
                                     }
                                     await save_entry_signal_to_db(bot_state.last_entry_signal)
                                     
-                                    send_notification(f"Put Trade Executed ({dte}DTE)
-{', '.join(trade_reason)}
-Price: ${current_price:.2f}
-Grade: {combined_grade}")
+                                    send_notification(f"Put Trade Executed ({dte}DTE)\n{', '.join(trade_reason)}\nPrice: ${current_price:.2f}\nGrade: {combined_grade}")
                                     bot_state.last_action = f"Placed PUT order at ${current_price:.2f} ({dte}DTE)"
                                     logger.info(f"✅ Put order placed successfully ({dte}DTE)")
                                 else:
@@ -1689,10 +1604,7 @@ Grade: {combined_grade}")
                                                 raise Exception(f"Order placement failed: {result.get('msg', 'Unknown error')}")
                                         
                                         profit_loss = "profit" if pnl_pct > 0 else "loss"
-                                        send_notification(f"Zone Exit Triggered! ({dte}DTE)
-{exit_reason}
-Sold {quantity} contracts at {pnl_pct:.2f}% {profit_loss}
-Entry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
+                                        send_notification(f"Zone Exit Triggered! ({dte}DTE)\n{exit_reason}\nSold {quantity} contracts at {pnl_pct:.2f}% {profit_loss}\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
                                         bot_state.last_action = f"SOLD {quantity} at {pnl_pct:.2f}% {profit_loss} (zone exit)"
                                         
                                         # Skip regular profit/stop-loss checks since we already exited
@@ -1754,10 +1666,7 @@ Entry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
                                             logger.error(f"❌ SELL order failed! API response: {result}")
                                             raise Exception(f"Order placement failed: {result.get('msg', 'Unknown error')}")
                                     
-                                    send_notification(f"Profit Target Hit! ({dte}DTE)
-Sold {contracts_to_sell}/{quantity} contracts at {pnl_pct:.2f}% profit
-Keeping {contracts_to_keep} for trailing stop
-Entry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
+                                    send_notification(f"Profit Target Hit! ({dte}DTE)\nSold {contracts_to_sell}/{quantity} contracts at {pnl_pct:.2f}% profit\nKeeping {contracts_to_keep} for trailing stop\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
                                     
                                     # Update to trailing phase
                                     await update_position_phase(ticker_id, 'trailing', contracts_to_keep)
@@ -1794,9 +1703,7 @@ Entry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
                                             raise Exception(f"Order placement failed: {result.get('msg', 'Unknown error')}")
                                     
                                     phase_msg = " (Trailing Stop)" if phase == 'trailing' else ""
-                                    send_notification(f"Profit Target Hit{phase_msg}! ({dte}DTE)
-Sold {quantity} contracts at {pnl_pct:.2f}% profit
-Entry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
+                                    send_notification(f"Profit Target Hit{phase_msg}! ({dte}DTE)\nSold {quantity} contracts at {pnl_pct:.2f}% profit\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
                                     bot_state.last_action = f"SOLD {quantity} at +{pnl_pct:.2f}% profit{phase_msg}"
                                 except Exception as order_e:
                                     logger.error(f"❌ Failed to place SELL order: {order_e}", exc_info=True)
@@ -1841,19 +1748,11 @@ Entry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
                                 logger.error(f"❌ STOP LOSS order failed: {e1}")
                                 # Send urgent notification
                                 send_notification(
-                                    f"🚨 URGENT: Stop Loss Order Failed!
-
-"
-                                    f"Position: {quantity} contracts
-"
-                                    f"Current Loss: {pnl_pct:.2f}%
-"
-                                    f"Stop Loss Target: -{stop_loss_pct*100}%
-
-"
-                                    f"Error: {str(e1)[:100]}
-
-"
+                                    f"🚨 URGENT: Stop Loss Order Failed!\n\n"
+                                    f"Position: {quantity} contracts\n"
+                                    f"Current Loss: {pnl_pct:.2f}%\n"
+                                    f"Stop Loss Target: -{stop_loss_pct*100}%\n\n"
+                                    f"Error: {str(e1)[:100]}\n\n"
                                     f"Please close manually via Webull app!"
                                 )
                                 raise
@@ -1866,9 +1765,7 @@ Entry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
                             
                             phase_msg = f" ({phase} phase)" if phase == 'trailing' else ""
                             loss_or_profit = "profit" if pnl_pct > 0 else "loss"
-                            send_notification(f"Stop Loss Triggered{phase_msg}! ({dte}DTE)
-Sold {quantity} contracts at {pnl_pct:.2f}% {loss_or_profit}
-Entry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
+                            send_notification(f"Stop Loss Triggered{phase_msg}! ({dte}DTE)\nSold {quantity} contracts at {pnl_pct:.2f}% {loss_or_profit}\nEntry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
                             bot_state.last_action = f"SOLD {quantity} at {pnl_pct:.2f}% {loss_or_profit} (stop loss)"
                         except Exception as e:
                             logger.error(f"❌ Error placing STOP LOSS order: {e}", exc_info=True)
@@ -1896,8 +1793,7 @@ Entry: ${cost_price:.2f}, Exit: ${current_price:.2f}")
     except Exception as e:
         logger.error(f"Trading bot crashed: {e}", exc_info=True)
         bot_state.error_message = str(e)
-        send_notification(f"Bot Error
-Trading bot stopped due to error: {str(e)}")
+        send_notification(f"Bot Error\nTrading bot stopped due to error: {str(e)}")
     finally:
         bot_state.running = False
         logger.info("🛑 Trading bot stopped")
@@ -1993,19 +1889,12 @@ def execute_call_trade(wb, symbol, trade_grade, account_info, signal_type='zone'
                 from pytz import timezone as pytz_timezone
                 option_symbol = filtered_chain[0]['call']['symbol']
                 send_notification(
-                    f"🎯 CALL Order Filled!
-
-"
-                    f"Symbol: {option_symbol}
-"
-                    f"Quantity: {order_quantity} contracts
-"
-                    f"Entry Price: ${ask_price:.2f}
-"
-                    f"DTE: {dte}
-"
-                    f"Order ID: {order_result.get('orderId', 'N/A')}
-"
+                    f"🎯 CALL Order Filled!\n\n"
+                    f"Symbol: {option_symbol}\n"
+                    f"Quantity: {order_quantity} contracts\n"
+                    f"Entry Price: ${ask_price:.2f}\n"
+                    f"DTE: {dte}\n"
+                    f"Order ID: {order_result.get('orderId', 'N/A')}\n"
                     f"Time: {datetime.now(pytz_timezone('US/Eastern')).strftime('%I:%M %p EST')}"
                 )
                 logger.info("✅ Trade entry notification sent")
@@ -2114,19 +2003,12 @@ def execute_put_trade(wb, symbol, trade_grade, account_info, signal_type='zone')
                 from pytz import timezone as pytz_timezone
                 option_symbol = filtered_chain[0]['put']['symbol']
                 send_notification(
-                    f"🎯 PUT Order Filled!
-
-"
-                    f"Symbol: {option_symbol}
-"
-                    f"Quantity: {order_quantity} contracts
-"
-                    f"Entry Price: ${ask_price:.2f}
-"
-                    f"DTE: {dte}
-"
-                    f"Order ID: {order_result.get('orderId', 'N/A')}
-"
+                    f"🎯 PUT Order Filled!\n\n"
+                    f"Symbol: {option_symbol}\n"
+                    f"Quantity: {order_quantity} contracts\n"
+                    f"Entry Price: ${ask_price:.2f}\n"
+                    f"DTE: {dte}\n"
+                    f"Order ID: {order_result.get('orderId', 'N/A')}\n"
                     f"Time: {datetime.now(pytz_timezone('US/Eastern')).strftime('%I:%M %p EST')}"
                 )
                 logger.info("✅ Trade entry notification sent")
