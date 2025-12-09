@@ -178,7 +178,6 @@ function Dashboard({ setIsAuthenticated }) {
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="bg-slate-800 border-slate-700">
             <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-            <TabsTrigger value="chart" data-testid="tab-chart">Chart</TabsTrigger>
             <TabsTrigger value="trade" data-testid="tab-trade">Trade</TabsTrigger>
             <TabsTrigger value="signals" data-testid="tab-signals">Signals</TabsTrigger>
             <TabsTrigger value="history" data-testid="tab-history">History</TabsTrigger>
