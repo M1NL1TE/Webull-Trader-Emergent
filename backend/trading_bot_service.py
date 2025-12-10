@@ -1874,6 +1874,24 @@ def execute_call_trade(wb, symbol, trade_grade, account_info, signal_type='zone'
         # Place LIMIT order at ask price for immediate fill (like market order)
         # Use ask price for BUY orders to ensure fill (pay what sellers are asking)
         logger.info(f"Placing LIMIT call order at ASK: {order_quantity} contracts @ {dte}DTE (limit price: ${ask_price:.2f}, bid: ${bid_price:.2f}, ask: ${ask_price:.2f})")
+        
+        # SEND EMAIL NOTIFICATION FOR ORDER ATTEMPT
+        try:
+            from pytz import timezone as pytz_timezone
+            option_symbol = filtered_chain[0]['call']['symbol']
+            send_notification(
+                f"🔄 ATTEMPTING CALL Order\n\n"
+                f"Symbol: {option_symbol}\n"
+                f"Quantity: {order_quantity} contracts\n"
+                f"Limit Price: ${ask_price:.2f}\n"
+                f"DTE: {dte}\n"
+                f"Time: {datetime.now(pytz_timezone('US/Eastern')).strftime('%I:%M %p EST')}\n\n"
+                f"Waiting for Webull API response..."
+            )
+            logger.info("📧 Order attempt notification sent")
+        except Exception as e:
+            logger.error(f"Failed to send order attempt notification: {e}")
+        
         order_result = wb.place_order_option(
             optionId=option_id,
             lmtPrice=ask_price,  # Use ask price for aggressive fill
