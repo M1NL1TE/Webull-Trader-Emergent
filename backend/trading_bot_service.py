@@ -2055,6 +2055,7 @@ def execute_put_trade(wb, symbol, trade_grade, account_info, signal_type='zone')
         # Check if response indicates failure
         if isinstance(order_result, dict) and order_result.get('success') == False:
             logger.error(f"❌ Order placement failed: {order_result}")
+            from pytz import timezone as pytz_timezone
             send_notification(
                 f"❌ PUT Order FAILED\n\n"
                 f"Error: {order_result.get('msg', 'Unknown error')}\n"
