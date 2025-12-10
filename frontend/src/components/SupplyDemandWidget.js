@@ -154,6 +154,25 @@ function SupplyDemandWidget() {
                   index={0}
                   currentPrice={currentPrice}
                 />
+                
+                {/* Live SPY Price Display */}
+                <div className="relative py-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-600"></div>
+                  </div>
+                  <div className="relative flex justify-center">
+                    <div className="bg-slate-800 px-4 py-2 rounded-lg border border-slate-600">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400">Live SPY:</span>
+                        <span className="text-2xl font-bold text-white font-mono">
+                          ${currentPrice > 0 ? currentPrice.toFixed(2) : '---'}
+                        </span>
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
                 <ZoneDisplay 
                   zone={{ 
                     top: zones15m.demand_top, 
