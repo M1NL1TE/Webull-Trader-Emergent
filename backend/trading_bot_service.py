@@ -1902,15 +1902,32 @@ def execute_call_trade(wb, symbol, trade_grade, account_info, signal_type='zone'
             quant=order_quantity
         )
         
+        # Log the raw API response for debugging
+        logger.info(f"📋 Raw API Response: {order_result}")
+        logger.info(f"📋 Response Type: {type(order_result)}")
+        
         # Validate order was actually placed
         # Webull returns {'orderId': '...', 'comboId': '...'} on success
         if not order_result:
             logger.error(f"❌ Order placement failed: No response from API")
+            send_notification(
+                f"❌ CALL Order FAILED\n\n"
+                f"Error: No response from Webull API\n"
+                f"Symbol: {filtered_chain[0]['call']['symbol']}\n"
+                f"Time: {datetime.now(pytz_timezone('US/Eastern')).strftime('%I:%M %p EST')}"
+            )
             return False, None
         
         # Check if response indicates failure
         if isinstance(order_result, dict) and order_result.get('success') == False:
             logger.error(f"❌ Order placement failed: {order_result}")
+            send_notification(
+                f"❌ CALL Order FAILED\n\n"
+                f"Error: {order_result.get('msg', 'Unknown error')}\n"
+                f"Symbol: {filtered_chain[0]['call']['symbol']}\n"
+                f"Response: {str(order_result)[:200]}\n"
+                f"Time: {datetime.now(pytz_timezone('US/Eastern')).strftime('%I:%M %p EST')}"
+            )
             return False, None
         
         # If we have orderId or comboId, order was successful
