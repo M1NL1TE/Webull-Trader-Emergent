@@ -2043,6 +2043,7 @@ def execute_put_trade(wb, symbol, trade_grade, account_info, signal_type='zone')
         # Webull returns {'orderId': '...', 'comboId': '...'} on success
         if not order_result:
             logger.error(f"❌ Order placement failed: No response from API")
+            from pytz import timezone as pytz_timezone
             send_notification(
                 f"❌ PUT Order FAILED\n\n"
                 f"Error: No response from Webull API\n"
