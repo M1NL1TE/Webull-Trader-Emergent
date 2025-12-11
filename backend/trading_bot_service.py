@@ -1025,6 +1025,13 @@ async def run_trading_bot(wb, settings):
                     await asyncio.sleep(30)
                     continue
                 
+                # Detect account type (paper vs live) for notifications
+                account_members = account_info.get('accountMembers', [])
+                if account_members:
+                    first_account = account_members[0]
+                    bot_state.is_paper_account = (first_account.get('key') == 'paperAccountHoldings')
+                    logger.debug(f"Account type: {'Paper' if bot_state.is_paper_account else 'Live'}")
+                
                 # Check for positions and orders
                 has_position = bool(account_info.get('positions'))
                 has_open_orders = bool(account_info.get('openOrders'))
