@@ -349,17 +349,21 @@ def send_email(subject: str, body: str):
 
 def send_notification(message: str):
     """Send notification via all enabled methods (SMS and/or Email)"""
+    # Prepend account type to message
+    account_type = "📄 PAPER" if bot_state.is_paper_account else "💰 LIVE"
+    message_with_account = f"{account_type} | {message}"
+    
     # Extract subject from message (first line)
-    lines = message.split('\n', 1)
-    subject = lines[0] if lines else message
-    body = lines[1] if len(lines) > 1 else message
+    lines = message_with_account.split('\n', 1)
+    subject = lines[0] if lines else message_with_account
+    body = lines[1] if len(lines) > 1 else message_with_account
     
     # Try email first (more reliable)
     if smtp_enabled:
         send_email(f"Trading Bot: {subject}", body)
     
     # Try SMS if available
-    send_sms(message)
+    send_sms(message_with_account)
 
 def send_sms(message: str):
     """Send SMS notification via configured provider (Telnyx or Twilio)"""
