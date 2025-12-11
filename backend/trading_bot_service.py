@@ -1247,47 +1247,6 @@ async def run_trading_bot(wb, settings):
                     
                     bot_state.zones = zones
                     
-                    # Check if price is in ANY zone (15-min or 1-hr) and send notification
-                    try:
-                        in_any_zone = False
-                        zone_details = []
-                        
-                        # Check 15-min zones
-                        if zones['demand_bottom'] <= current_price <= zones['demand_top']:
-                            in_any_zone = True
-                            zone_details.append(f"15-Min Demand Zone: ${zones['demand_bottom']:.2f} - ${zones['demand_top']:.2f}")
-                        if zones['supply_bottom'] <= current_price <= zones['supply_top']:
-                            in_any_zone = True
-                            zone_details.append(f"15-Min Supply Zone: ${zones['supply_bottom']:.2f} - ${zones['supply_top']:.2f}")
-                        
-                        # Check 1-hour zones
-                        if bot_state.zones_1hr and bot_state.zones_1hr.get('supply_zones'):
-                            for idx, zone in enumerate(bot_state.zones_1hr['supply_zones']):
-                                if zone['bottom'] <= current_price <= zone['top']:
-                                    in_any_zone = True
-                                    zone_details.append(f"1-Hour Supply Zone #{idx+1}: ${zone['bottom']:.2f} - ${zone['top']:.2f}")
-                        
-                        if bot_state.zones_1hr and bot_state.zones_1hr.get('demand_zones'):
-                            for idx, zone in enumerate(bot_state.zones_1hr['demand_zones']):
-                                if zone['bottom'] <= current_price <= zone['top']:
-                                    in_any_zone = True
-                                    zone_details.append(f"1-Hour Demand Zone #{idx+1}: ${zone['bottom']:.2f} - ${zone['top']:.2f}")
-                        
-                        # Send notification if in zone and haven't notified recently
-                        if in_any_zone and (not bot_state.last_zone_notification or 
-                            (datetime.now(timezone.utc) - bot_state.last_zone_notification).total_seconds() > 300):
-                            send_notification(
-                                f"🎯 Price in Zone!\n\n"
-                                f"SPY: ${current_price:.2f}\n\n"
-                                f"Active Zones:\n" +
-                                "\n".join([f"• {detail}" for detail in zone_details]) +
-                                f"\n\nTime: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}"
-                            )
-                            bot_state.last_zone_notification = datetime.now(timezone.utc)
-                            logger.info(f"✉️ Zone entry notification sent: {len(zone_details)} zones")
-                    except Exception as e:
-                        logger.error(f"Error checking zone entry notification: {e}")
-                    
                     use_5min_entries = settings.get('use_5min_entries', False)
                     
                     if use_5min_entries:
