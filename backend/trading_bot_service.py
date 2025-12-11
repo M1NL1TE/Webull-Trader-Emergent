@@ -1038,32 +1038,21 @@ async def run_trading_bot(wb, settings):
                     orb_signal, orb_message = check_orb_breakout(wb, symbol, current_time)
                     logger.info(f"ORB Check: {orb_message}")
                 
-                # ALWAYS calculate S/D zones (even with positions, for display purposes)
-                # This ensures the dashboard always shows current zones
-                if not has_position or bot_state.zones.get('supply_top', 0) == 0:
-                    try:
-                        df = await retry_api_call(lambda: wb.get_bars(symbol, stockId, interval, 250, 1))
-                        if df is not None and len(df) >= 50:
-                            # Calculate 15-min zones
-                            zones = analyze_supply_demand(df)
-                            bot_state.zones = zones
-                            
-                            # Calculate 1-hour zones
-                            try:
-                                df_1hr = await retry_api_call(lambda: wb.get_bars(symbol, stockId, 'm60', 400, 1))
-                                if df_1hr is not None and len(df_1hr) > 0:
-                                    zones_1hr_data = analyze_supply_demand_multi(df_1hr, lookback_candles=400, zone_width_pct=0.0025, num_zones=2)
-                                    bot_state.zones_1hr = {
-                                        'supply_zones': zones_1hr_data['supply_zones'],
-                                        'demand_zones': zones_1hr_data['demand_zones']
-                                    }
-                                    logger.info(f"✅ 1-Hour zones calculated: {len(zones_1hr_data['supply_zones'])} supply, {len(zones_1hr_data['demand_zones'])} demand")
-                                else:
-                                    logger.warning("Could not fetch 1-hour data for zones")
-                            except Exception as e:
-                                logger.error(f"Error calculating 1-hour zones: {e}")
-                    except Exception as e:
-                        logger.error(f"Error fetching price data for zones: {e}")
+                # ALWAYS calculate 1-hour zones (even with positions, for display purposes)
+                # 1-hour zones are for longer-term structure, always show on dashboard
+                try:
+                    df_1hr = await retry_api_call(lambda: wb.get_bars(symbol, stockId, 'm60', 400, 1))
+                    if df_1hr is not None and len(df_1hr) > 0:
+                        zones_1hr_data = analyze_supply_demand_multi(df_1hr, lookback_candles=400, zone_width_pct=0.0025, num_zones=2)
+                        bot_state.zones_1hr = {
+                            'supply_zones': zones_1hr_data['supply_zones'],
+                            'demand_zones': zones_1hr_data['demand_zones']
+                        }
+                        logger.info(f"✅ 1-Hour zones calculated: {len(zones_1hr_data['supply_zones'])} supply, {len(zones_1hr_data['demand_zones'])} demand")
+                    else:
+                        logger.warning("Could not fetch 1-hour data for zones")
+                except Exception as e:
+                    logger.error(f"Error calculating 1-hour zones: {e}")
                 
                 if not has_position and not has_open_orders:
                     # Look for entry signals
