@@ -254,6 +254,7 @@ class BotState:
         self.last_zone_notification = None  # Track last zone notification to prevent spam
         self.consecutive_candles_in_demand = 0  # Track consecutive 5-min candles in demand zone
         self.consecutive_candles_in_supply = 0  # Track consecutive 5-min candles in supply zone
+        self.is_paper_account = True  # Track account type for notifications
         
 bot_state = BotState()
 
