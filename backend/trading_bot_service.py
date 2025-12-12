@@ -290,54 +290,107 @@ def initialize_notifications():
         logger.info("Email notifications not configured")
 
 def send_email(subject: str, body: str):
-    """Send email notification via Gmail SMTP"""
+    """Send email notification via Gmail SMTP with fallback to secondary account"""
     if not smtp_enabled or not notification_email:
         logger.warning("Email notifications not enabled")
         return
         
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    
+    # Primary account credentials
+    mail_username = os.getenv('MAIL_USERNAME')
+    mail_password = os.getenv('MAIL_PASSWORD')
+    mail_from = os.getenv('MAIL_FROM', mail_username)
+    
+    # Secondary account credentials (fallback)
+    mail_username_secondary = os.getenv('MAIL_USERNAME_SECONDARY')
+    mail_password_secondary = os.getenv('MAIL_PASSWORD_SECONDARY')
+    mail_from_secondary = os.getenv('MAIL_FROM_SECONDARY', mail_username_secondary)
+    
+    mail_server = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+    mail_port = int(os.getenv('MAIL_PORT', '587'))
+    
+    if not mail_username or not mail_password:
+        logger.error("Gmail SMTP credentials not configured")
+        return
+    
+    # Create message
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['To'] = notification_email
+    
+    # Attach body
+    msg.attach(MIMEText(body, 'plain'))
+    
+    # Try primary account first
     try:
-        import smtplib
-        from email.mime.text import MIMEText
-        from email.mime.multipart import MIMEMultipart
-        
-        # Get SMTP credentials from environment
-        mail_username = os.getenv('MAIL_USERNAME')
-        mail_password = os.getenv('MAIL_PASSWORD')
-        mail_server = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
-        mail_port = int(os.getenv('MAIL_PORT', '587'))
-        mail_from = os.getenv('MAIL_FROM', mail_username)
-        
-        if not mail_username or not mail_password:
-            logger.error("Gmail SMTP credentials not configured")
-            return
-        
-        # Create message
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
         msg['From'] = mail_from
-        msg['To'] = notification_email
         
-        # Attach body
-        msg.attach(MIMEText(body, 'plain'))
-        
-        # Connect and send
         with smtplib.SMTP(mail_server, mail_port, timeout=10) as server:
-            server.starttls()  # Upgrade connection to TLS
+            server.starttls()
             server.login(mail_username, mail_password)
             server.sendmail(mail_from, [notification_email], msg.as_string())
         
-        logger.info(f"✅ Email sent successfully: {subject}")
-        logger.info(f"   To: {notification_email}")
+        logger.info(f"✅ Email sent (PRIMARY): {subject}")
+        logger.info(f"   From: {mail_from} → To: {notification_email}")
         
-        # Also log to file as backup
+        # Log to file
         log_file = '/app/notifications.log'
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         with open(log_file, 'a') as f:
             f.write(f"\n{'='*60}\n")
-            f.write(f"[{timestamp}] EMAIL SENT TO: {notification_email}\n")
+            f.write(f"[{timestamp}] EMAIL SENT (PRIMARY) TO: {notification_email}\n")
+            f.write(f"FROM: {mail_from}\n")
             f.write(f"SUBJECT: {subject}\n")
             f.write(f"{'='*60}\n")
             f.write(f"{body}\n")
+        
+        return  # Success, exit
+        
+    except smtplib.SMTPDataError as e:
+        # Check if it's a daily limit error
+        if e.smtp_code == 550 and b'Daily' in e.smtp_error:
+            logger.warning(f"⚠️ Primary Gmail hit daily limit: {mail_from}")
+            
+            # Try secondary account if configured
+            if mail_username_secondary and mail_password_secondary:
+                logger.info(f"🔄 Attempting fallback to secondary account: {mail_from_secondary}")
+                
+                try:
+                    # Update From header for secondary
+                    msg.replace_header('From', mail_from_secondary)
+                    
+                    with smtplib.SMTP(mail_server, mail_port, timeout=10) as server:
+                        server.starttls()
+                        server.login(mail_username_secondary, mail_password_secondary)
+                        server.sendmail(mail_from_secondary, [notification_email], msg.as_string())
+                    
+                    logger.info(f"✅ Email sent (SECONDARY): {subject}")
+                    logger.info(f"   From: {mail_from_secondary} → To: {notification_email}")
+                    
+                    # Log to file
+                    log_file = '/app/notifications.log'
+                    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    with open(log_file, 'a') as f:
+                        f.write(f"\n{'='*60}\n")
+                        f.write(f"[{timestamp}] EMAIL SENT (SECONDARY FALLBACK) TO: {notification_email}\n")
+                        f.write(f"FROM: {mail_from_secondary}\n")
+                        f.write(f"SUBJECT: {subject}\n")
+                        f.write(f"{'='*60}\n")
+                        f.write(f"{body}\n")
+                    
+                    return  # Success via fallback
+                    
+                except Exception as fallback_error:
+                    logger.error(f"❌ Secondary email also failed: {fallback_error}")
+                    raise  # Re-raise to log below
+            else:
+                logger.error("❌ Secondary Gmail not configured, cannot fallback")
+                raise  # Re-raise original error
+        else:
+            raise  # Not a daily limit error, re-raise
             f.write(f"{'='*60}\n")
             
     except smtplib.SMTPAuthenticationError:
