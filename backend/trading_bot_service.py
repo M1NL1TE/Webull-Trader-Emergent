@@ -1079,11 +1079,20 @@ async def run_trading_bot(wb, settings):
                     continue
                 
                 # Detect account type (paper vs live) for notifications
-                account_members = account_info.get('accountMembers', [])
-                if account_members:
-                    first_account = account_members[0]
-                    bot_state.is_paper_account = (first_account.get('key') == 'paperAccountHoldings')
-                    logger.debug(f"Account type: {'Paper' if bot_state.is_paper_account else 'Live'}")
+                # Use the session's is_paper flag which was set during login
+                # DO NOT use accountMembers key - both paper and live use 'totalMarketValue'
+                try:
+                    session = await db.sessions.find_one({})
+                    if session:
+                        bot_state.is_paper_account = session.get('is_paper', False)
+                        logger.info(f"✅ Account type detected: {'Paper' if bot_state.is_paper_account else 'Live'}")
+                    else:
+                        # Fallback: assume paper if can't find session
+                        bot_state.is_paper_account = True
+                        logger.warning("No session found, defaulting to Paper for notifications")
+                except Exception as e:
+                    logger.error(f"Error detecting account type: {e}")
+                    bot_state.is_paper_account = True  # Default to paper to be safe
                 
                 # Check for positions and orders
                 has_position = bool(account_info.get('positions'))
