@@ -565,8 +565,12 @@ async def get_positions():
         # Enrich option positions with full symbol
         # 1. First try from entry_signals database (fast, for bot trades)
         # 2. If not found, fetch from Webull API (for manual trades)
+        # 3. For paper trading, fix optionSymbol field (it returns just ticker instead of full symbol)
         for pos in positions:
-            if pos.get('assetType') == 'OPTION' and pos.get('tickerId'):
+            # Paper trading uses 'tickerType', live uses 'assetType'
+            is_option = (pos.get('assetType') == 'OPTION' or pos.get('tickerType') == 'OPTION')
+            
+            if is_option and pos.get('tickerId'):
                 try:
                     option_id = str(pos['tickerId'])
                     enriched = False
