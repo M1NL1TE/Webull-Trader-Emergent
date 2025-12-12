@@ -566,9 +566,26 @@ async def get_positions():
         # 1. First try from entry_signals database (fast, for bot trades)
         # 2. If not found, fetch from Webull API (for manual trades)
         # 3. For paper trading, fix optionSymbol field (it returns just ticker instead of full symbol)
+        
+        is_paper = session.get('is_paper', True)
+        
         for pos in positions:
             # Paper trading uses 'tickerType', live uses 'assetType'
             is_option = (pos.get('assetType') == 'OPTION' or pos.get('tickerType') == 'OPTION')
+            
+            # PAPER TRADING FIX: Paper API returns symbol/optionSymbol swapped
+            # Paper: symbol="SPY251212P00687000", optionSymbol="SPY"
+            # Live: symbol="SPY", optionSymbol="SPY251212P00687000"
+            if is_paper and is_option and 'ticker' in pos:
+                ticker = pos['ticker']
+                symbol = ticker.get('symbol', '')
+                option_symbol = ticker.get('optionSymbol', '')
+                
+                # If symbol looks like full option symbol but optionSymbol doesn't, swap them
+                if len(symbol) > 10 and len(option_symbol) <= 5:
+                    ticker['optionSymbol'] = symbol  # Use full symbol
+                    ticker['symbol'] = option_symbol  # Use short ticker
+                    logger.debug(f"Paper trading: Fixed optionSymbol for {pos.get('tickerId')}: {symbol}")
             
             if is_option and pos.get('tickerId'):
                 try:
