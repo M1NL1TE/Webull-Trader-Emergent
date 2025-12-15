@@ -1631,6 +1631,57 @@ async def run_trading_bot(wb, settings):
                     logger.info(f"Position P/L: {pnl_pct:.2f}% ({dte}DTE, {phase} phase, Target: +{profit_target_pct*100}%, Stop: -{stop_loss_pct*100}%)")
                     bot_state.current_signal = f"Monitoring {dte}DTE position ({phase}): P/L {pnl_pct:.2f}%"
                     
+                    # CHECK PROFIT MILESTONES (50% and 100%)
+                    # Send one-time notifications independent of actual profit-taking
+                    try:
+                        milestone_50_sent = tracking.get('milestone_50_sent', False)
+                        milestone_100_sent = tracking.get('milestone_100_sent', False)
+                        
+                        # Check for 50% profit milestone
+                        if pnl_pct >= 50.0 and not milestone_50_sent:
+                            option_symbol = position['ticker'].get('optionSymbol', current_ticker)
+                            send_notification(
+                                f"🎯 50% Profit Milestone!\n\n"
+                                f"Position has reached 50% profit!\n\n"
+                                f"Symbol: {option_symbol}\n"
+                                f"Entry: ${cost_price:.2f}\n"
+                                f"Current: ${current_price:.2f}\n"
+                                f"P/L: +{pnl_pct:.2f}%\n"
+                                f"Quantity: {quantity} contracts\n"
+                                f"Profit: ${(current_price - cost_price) * quantity * 100:.2f}\n\n"
+                                f"Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}"
+                            )
+                            # Mark milestone as sent
+                            await db.position_tracking.update_one(
+                                {'ticker_id': str(ticker_id)},
+                                {'$set': {'milestone_50_sent': True}}
+                            )
+                            logger.info(f"📧 50% profit milestone notification sent for {option_symbol}")
+                        
+                        # Check for 100% profit milestone
+                        if pnl_pct >= 100.0 and not milestone_100_sent:
+                            option_symbol = position['ticker'].get('optionSymbol', current_ticker)
+                            send_notification(
+                                f"🚀 100% Profit Milestone!\n\n"
+                                f"Position has DOUBLED in value!\n\n"
+                                f"Symbol: {option_symbol}\n"
+                                f"Entry: ${cost_price:.2f}\n"
+                                f"Current: ${current_price:.2f}\n"
+                                f"P/L: +{pnl_pct:.2f}%\n"
+                                f"Quantity: {quantity} contracts\n"
+                                f"Profit: ${(current_price - cost_price) * quantity * 100:.2f}\n\n"
+                                f"Time: {datetime.now(pytz.timezone('US/Eastern')).strftime('%I:%M %p EST')}"
+                            )
+                            # Mark milestone as sent
+                            await db.position_tracking.update_one(
+                                {'ticker_id': str(ticker_id)},
+                                {'$set': {'milestone_100_sent': True}}
+                            )
+                            logger.info(f"📧 100% profit milestone notification sent for {option_symbol}")
+                    
+                    except Exception as e:
+                        logger.error(f"Error checking profit milestones: {e}")
+                    
                     # CHECK FOR ZONE EXIT (if enabled)
                     zone_exit_enabled = settings.get('zone_exit_enabled', False)
                     if zone_exit_enabled and bot_state.last_entry_signal and bot_state.last_entry_signal.get('zones'):
