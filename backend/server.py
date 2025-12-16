@@ -500,6 +500,64 @@ async def logout():
         logger.error(f"Logout error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.get("/debug/playwright-status")
+async def get_playwright_status():
+    """Check Playwright browser installation status and debug info"""
+    import os
+    from pathlib import Path
+    import glob
+    
+    debug_info = {
+        "playwright_browsers_path": os.environ.get('PLAYWRIGHT_BROWSERS_PATH', 'NOT SET'),
+        "browsers_installed": [],
+        "browser_path_exists": False,
+        "debug_screenshots": [],
+        "recent_errors": []
+    }
+    
+    # Check browser installation
+    pw_path = Path(os.environ.get('PLAYWRIGHT_BROWSERS_PATH', '/pw-browsers'))
+    debug_info["browser_path_exists"] = pw_path.exists()
+    
+    if pw_path.exists():
+        debug_info["browsers_installed"] = [d.name for d in pw_path.iterdir() if d.is_dir()]
+    
+    # Check for chromium specifically
+    chromium_1187 = pw_path / "chromium_headless_shell-1187" / "chrome-linux" / "headless_shell"
+    debug_info["chromium_1187_exists"] = chromium_1187.exists()
+    
+    # List debug screenshots
+    screenshot_dir = Path("/tmp/webull_debug")
+    if screenshot_dir.exists():
+        screenshots = sorted(screenshot_dir.glob("*.png"), key=lambda x: x.stat().st_mtime, reverse=True)[:10]
+        debug_info["debug_screenshots"] = [str(s) for s in screenshots]
+    
+    # Try to import playwright and check version
+    try:
+        import playwright
+        debug_info["playwright_version"] = playwright.__version__
+    except Exception as e:
+        debug_info["playwright_import_error"] = str(e)
+    
+    return debug_info
+
+@api_router.get("/debug/screenshot/{filename}")
+async def get_debug_screenshot(filename: str):
+    """Retrieve a debug screenshot by filename"""
+    from fastapi.responses import FileResponse
+    import os
+    
+    # Security: only allow alphanumeric, underscore, dash, and .png extension
+    import re
+    if not re.match(r'^[\w\-]+\.png$', filename):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    
+    screenshot_path = f"/tmp/webull_debug/{filename}"
+    if not os.path.exists(screenshot_path):
+        raise HTTPException(status_code=404, detail="Screenshot not found")
+    
+    return FileResponse(screenshot_path, media_type="image/png")
+
 @api_router.get("/account")
 async def get_account():
     """Get account information"""
