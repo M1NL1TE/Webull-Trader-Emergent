@@ -121,6 +121,9 @@ class WebullPlaywrightAuth:
             
             # Wait a bit for page to stabilize
             await self.page.wait_for_timeout(2000)
+            
+            # DEBUG: Take screenshot after page load
+            await self._save_debug_screenshot("01_page_loaded")
 
             # Click "Email Login" if present
             try:
@@ -129,6 +132,9 @@ class WebullPlaywrightAuth:
                 await self.page.wait_for_timeout(1000)
             except PlaywrightTimeout:
                 logger.info("Email Login button not found, continuing...")
+
+            # DEBUG: Take screenshot before filling credentials
+            await self._save_debug_screenshot("02_before_credentials")
 
             # Fill username
             logger.info("Filling username...")
@@ -142,20 +148,40 @@ class WebullPlaywrightAuth:
             await self.page.fill('input[type="password"]', self.password)
             await self.page.wait_for_timeout(500)
 
+            # DEBUG: Take screenshot after filling credentials (before clicking login)
+            await self._save_debug_screenshot("03_credentials_filled")
+
             # Click login button
             logger.info("Clicking login button...")
             await self.page.click('button:has-text("Log In")')
+            
+            # Wait a bit for response
+            await self.page.wait_for_timeout(3000)
+            
+            # DEBUG: Take screenshot right after clicking login
+            await self._save_debug_screenshot("04_after_login_click")
 
             # Wait for redirect to trading page or center
             logger.info("Waiting for successful login redirect...")
             try:
                 await self.page.wait_for_url("**/center", timeout=timeout)
                 logger.info("Login successful - redirected to center page")
+                await self._save_debug_screenshot("05_login_success")
                 return True
             except PlaywrightTimeout:
                 # Check if we're on trade page instead
                 current_url = self.page.url
                 logger.info(f"Checking current URL: {current_url}")
+                
+                # DEBUG: Capture page content for error analysis
+                page_content = await self.page.content()
+                if "captcha" in page_content.lower() or "verify" in page_content.lower():
+                    logger.error("⚠️ CAPTCHA or verification detected on page!")
+                if "error" in page_content.lower() or "invalid" in page_content.lower():
+                    logger.error("⚠️ Error message detected on page!")
+                
+                await self._save_debug_screenshot("05_redirect_timeout")
+                
                 if "app.webull.com" in current_url or "webull.com/center" in current_url:
                     logger.info("Login successful - on Webull page")
                     return True
@@ -165,10 +191,26 @@ class WebullPlaywrightAuth:
 
         except PlaywrightTimeout as e:
             logger.error(f"Timeout during login: {e}")
+            await self._save_debug_screenshot("error_timeout")
             return False
         except Exception as e:
             logger.error(f"Login error: {e}")
+            await self._save_debug_screenshot("error_exception")
             return False
+    
+    async def _save_debug_screenshot(self, name: str):
+        """Save a debug screenshot to /tmp for troubleshooting"""
+        try:
+            import os
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            screenshot_dir = "/tmp/webull_debug"
+            os.makedirs(screenshot_dir, exist_ok=True)
+            screenshot_path = f"{screenshot_dir}/{timestamp}_{name}.png"
+            await self.page.screenshot(path=screenshot_path, full_page=True)
+            logger.info(f"📸 Debug screenshot saved: {screenshot_path}")
+        except Exception as e:
+            logger.warning(f"Could not save debug screenshot: {e}")
 
     async def capture_tokens(self, timeout: int = 60):
         """
