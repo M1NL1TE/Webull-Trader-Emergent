@@ -6,147 +6,129 @@ Key features and requirements include:
 - A web UI for login, account overview, bot status, live positions, order history, and settings.
 - Dynamic DTE (Days to Expiry) Strategy.
 - A two-phase trailing stop-loss system for profit-taking.
-- All bot orders must be placed as Limit (LMT) orders for the live account.
 - Smart email notifications for bot status, executed trades, and when price enters S/D zones.
 - The Order History must show the signal/reason for each trade.
-- A recurring environmental issue where Playwright browsers are deleted on container restart needs a permanent solution.
-- The P/L by Symbol widget needed to be consolidated to show total P/L per ticker.
-- The stop-loss logic needs to be updated to trigger only if a candle on a lower timeframe closes outside the zone.
+- P/L by Symbol widget should show total P/L per ticker.
 - Capital allocation for trades should be doubled for accounts with a balance under ,000.
-- Addition of 1-hour S/D zones (last 60 days, top 2 supply, bottom 2 demand) with email notifications and UI tabs.
+- Addition of 1-hour S/D zones with email notifications and UI tabs.
 - The entry timing for S/D trades should be configurable (15-min vs 5-min candles).
+- One-time profit milestone notifications for when a position hits 50% and 100% gain.
 
 **User's preferred language**: English
 
 **what currently exists?**
-The application is a full-stack web app with a React frontend and a FastAPI backend. It connects to the Webull API to perform automated options trading. The dashboard displays account info, bot status, positions, and various widgets for S/D zones, ORB status, and technicals. The bot sends email notifications for trade executions and zone entries.
+The application is a full-stack trading bot with a React frontend and a FastAPI backend using an unofficial Webull API. The dashboard displays account info, bot status, positions, and widgets for S/D zones and ORB status. The bot sends email notifications for various events.
 
-Recent additions include a 1-hour S/D zone calculation (alongside the existing 15-min zones), UI tabs to display them, and a configurable setting to use 5-minute candles for faster trade entries. A live SPY price widget was also added. However, the backend is currently crashed due to a syntax error, making the application non-functional.
+Recent work focused on fixing a critical backend crash, resolving login issues, and addressing a severe and recurring session caching bug that causes the system to misidentify live vs. paper accounts. A fallback email system was implemented to handle Gmail's daily sending limits. A new feature for profit milestone notifications (50%/100%) was also added. However, the core session identification issue persists, posing a significant risk of unintended live trading.
 
 **Last working item**:
-    - **Last item agent was working:** The user reported being unable to log in. The agent investigated and found a  on line 1201 of , which has crashed the backend service. The agent identified the error but has not yet applied the fix.
-    - **Status:** IN PROGRESS
+    - **Last item agent was working:** The agent implemented a user request to add one-time email notifications for when an open position reaches 50% and 100% profit milestones. This logic was added to the position monitoring loop in .
+    - **Status:** USER VERIFICATION PENDING
     - **Agent Testing Done:** N
-    - **Which testing method agent to use?** main agent to test via curl on the login endpoint after fixing the syntax error and restarting the backend.
+    - **Which testing method agent to use?** This feature can only be tested by the user during trading, by observing if a position hitting these profit targets triggers the new emails correctly.
     - **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
-  - **Issue 1:** (P0) Backend crashed due to a syntax error, blocking user login.
-  - **Issue 2:** (P1) The live SPY price widget on the dashboard is stale, displaying a time from 946s ago.
-  - **Issue 3:** (P2) Sell orders (stop-loss/profit-taking) for the live account are consistently failing. This is a critical blocker for automated trading.
-  - **Issue 4:** (P3) The P/L by symbol widget and the History tab are not showing any data for the live account.
-  - **Issue 5:** (P4) The Sell at Market button on the frontend is non-functional for live positions.
-  - **Issue 6:** (P5) Playwright browsers are periodically deleted on container restarts, causing intermittent login failures.
+  - **Issue 1:** (P0) CRITICAL: Session caching issue causes incorrect account identification.
+  - **Issue 2:** (P1) CALL orders are failing on the live account, while PUTs are working.
+  - **Issue 3:** (P2) The P/L by symbol widget and the History tab are empty for the live account.
+  - **Issue 4:** (P3) All automated and manual SELL orders from the dashboard fail on the live account.
+  - **Issue 5:** (P4) Email system is fragile and relies on a secondary Gmail account as a fallback.
 
 **Issues Detail:**
-  - **Issue 1:** Backend crashed due to a syntax error.
-     - **Attempted fixes:** None yet. The agent identified the syntax error on line 1201 of .
+  - **Issue 1:** CRITICAL: Session caching issue causes incorrect account identification.
+     - **Attempted fixes:** The agent first tried restarting the backend to clear the in-memory session. When that failed, it cleared the session from the MongoDB database. Most recently, the agent modified the account detection logic in  to rely on the  flag set during login, instead of inspecting the API response keys. **This fix has failed**, as confirmed by the user's latest message where paper trading activity generated emails labeled LIVE. This bug is extremely dangerous as it can lead to unintended trades on the user's live account.
      - **Next debug checklist:**
-        1. Correct the string formatting syntax error in  at line 1201.
-        2. Restart the backend service using backend: stopped
-backend: started.
-        3. Verify the backend logs for a successful start.
-        4. Ask the user to attempt login again.
-     - **Why fix this issue and what will be achieved with the fix?** This is a critical, application-breaking bug. Fixing it will restore all functionality, including user login.
+        1. In , inside the  loop, force-read the session from MongoDB () on every iteration instead of relying on any in-memory state passed to the function.
+        2. Log the  flag from the DB session at the start of every loop and right before sending any email.
+        3. Re-examine the login flow in  to ensure the session document in MongoDB is being updated correctly and atomically upon login, especially when switching between account types.
+     - **Why fix this issue and what will be achieved with the fix?** This is the highest priority issue. Fixing it will prevent dangerous, unintended trades on the user's live account and ensure notifications reflect the correct trading environment.
      - **Status:** IN PROGRESS
-     - **Is recurring issue?** N
+     - **Is recurring issue?** Y
      - **Should Test frontend/backend/both after fix?** Backend
      - **Blocked on other issue:** None
 
-  - **Issue 2:** Live SPY price widget is stale.
-     - **Attempted fixes:** The agent added more robust error handling and a force-refresh mechanism to the  component.
+  - **Issue 2:** CALL orders are failing on the live account, while PUTs are working.
+     - **Attempted fixes:** The agent confirmed the code logic for placing CALL and PUT orders is identical in . To capture the specific error, the agent added detailed email notifications that are sent upon any trade attempt and on failure, including the raw API response. The user has not yet reported a new CALL failure with the enhanced logging.
      - **Next debug checklist:**
-        1. After fixing the backend crash (Issue 1), verify if the stale price issue is resolved.
-        2. If it persists, manually test the  endpoint with  to ensure it's responsive.
-        3. Check the browser's network tab to see if the frontend is making requests and what response it receives.
-     - **Why fix this issue and what will be achieved with the fix?** Provides the user with an accurate, real-time market price on the dashboard.
-     - **Status:** IN PROGRESS
-     - **Is recurring issue?** N
-     - **Should Test frontend/backend/both after fix?** Frontend
-     - **Blocked on other issue:** Issue 1
-
-  - **Issue 3:** Live account sell orders are failing.
-     - **Attempted fixes:** The agent has tried multiple strategies: switching from MKT to LMT orders, using  vs , and recently updating the entire order payload in  to match a successful manual sell order captured by the user. However, the user revealed that manual sells require a 2FA mobile app verification, which the bot's API calls cannot perform.
-     - **Next debug checklist:** This is likely an unfixable limitation of the unofficial Webull API for live accounts. The new payload has been implemented, but it will likely still fail due to the 2FA requirement. The agent should confirm this with the user and focus on workarounds.
-     - **Why fix this issue and what will be achieved with the fix?** This is the core blocker preventing the bot from being a fully automated, profitable system.
-     - **Status:** BLOCKED
+        1. Wait for the user to experience another failed CALL order.
+        2. Analyze the error message that will be sent via the newly added failure notification email.
+        3. Compare the request payload for the failed CALL against a working PUT.
+     - **Why fix this issue and what will be achieved with the fix?** Enables the bot to trade both sides of the market on the live account, fulfilling a core requirement.
+     - **Status:** BLOCKED (Waiting for error to recur)
      - **Is recurring issue?** Y
      - **Should Test frontend/backend/both after fix?** Backend
-     - **Blocked on other issue:** Webull API limitations (2FA on sell orders).
+     - **Blocked on other issue:** None
 
-  - **Issue 4:** P/L and History tabs are empty.
-     - **Attempted fixes:** None in this session. This is a carry-over issue.
+  - **Issue 3:** The P/L by symbol widget and the History tab are empty for the live account.
+     - **Attempted fixes:** The agent investigated the  endpoint and found that the underlying  call returns an empty list for the live account, even though it works for paper. This appears to be a limitation of the unofficial Webull API.
      - **Next debug checklist:**
-        1. Examine the  endpoint in .
-        2. Test the  call with different parameters (e.g., status, date ranges) to see if the live API has different requirements.
-        3. Check the P/L calculation logic that feeds the widget.
-     - **Why fix this issue and what will be achieved with the fix?** Allows the user to track trading performance and history directly from the dashboard.
-     - **Status:** NOT STARTED
+        1. Confirm with the user that this is an acceptable limitation for now.
+        2. Explore if other API calls, like , could provide the necessary data, though initial checks were also unsuccessful.
+     - **Why fix this issue and what will be achieved with the fix?** Allows the user to track trading performance directly from the dashboard for their live account.
+     - **Status:** BLOCKED (Webull API limitation)
      - **Is recurring issue?** Y
      - **Should Test frontend/backend/both after fix?** Both
      - **Blocked on other issue:** None
 
-  - **Issue 5:** The Sell at Market button is non-functional.
-     - **Attempted fixes:** The agent updated the backing endpoint  to use the new order payload.
-     - **Next debug checklist:** This is blocked by the same 2FA issue as the automated sell orders. It will not work until that is resolved.
-     - **Why fix this issue and what will be achieved with the fix?** Provides manual override control from the dashboard.
-     - **Status:** BLOCKED
+  - **Issue 4:** All automated and manual SELL orders from the dashboard fail on the live account.
+     - **Attempted fixes:** The agent determined this is due to Webull requiring 2FA (mobile app confirmation) for sell-side orders on live accounts via the API. This is a hard blocker from the API provider.
+     - **Next debug checklist:** This issue is considered unfixable with the current Webull API. The focus should be on migrating to a broker with a proper API.
+     - **Why fix this issue and what will be achieved with the fix?** This would enable fully automated trading, including profit-taking and stop-losses.
+     - **Status:** BLOCKED (Webull API limitation)
      - **Is recurring issue?** Y
      - **Should Test frontend/backend/both after fix?** Backend
-     - **Blocked on other issue:** Issue 3
+     - **Blocked on other issue:** None
 
-  - **Issue 6:** Playwright browsers are periodically deleted.
-     - **Attempted fixes:** A startup script  in  reinstalls the correct browser version on every backend start.
-     - **Next debug checklist:** This is an environmental issue. The current workaround is the only viable solution within the agent's control.
-     - **Why fix this issue and what will be achieved with the fix?** Improves application stability and prevents login failures after environment restarts.
-     - **Status:** IN PROGRESS
+  - **Issue 5:** Email system is fragile and relies on a secondary Gmail account as a fallback.
+     - **Attempted fixes:** Agent implemented a fallback mechanism in  to switch to a secondary SMTP server if the primary one fails (due to Gmail's daily limit).
+     - **Next debug checklist:** Implement a more robust solution as originally suggested.
+        1. Research and present the user with options for a transactional email service (e.g., SendGrid, AWS SES).
+        2. Implement proper rate-limiting within the  function to prevent spamming the email server during rapid events (like stop-loss retries).
+     - **Why fix this issue and what will be achieved with the fix?** Provides a scalable and reliable notification system that won't be subject to consumer email provider limits.
+     - **Status:** NOT STARTED
      - **Is recurring issue?** Y
-     - **Should Test frontend/backend/both after fix?** N/A
+     - **Should Test frontend/backend/both after fix?** Backend
      - **Blocked on other issue:** None
 
 **In progress Task List**:
-  - **Task 1:** Finalize implementation of 1-Hour Supply/Demand zones.
-     - **Where to resume:** The user requested adding timestamps for each zone displayed in the UI. The agent has added this to the backend and frontend code in . The final step is to verify this is working correctly after the login issue is resolved.
-     - **What will be achieved with this?** The user will have an additional, longer-term market structure view with clear timestamps for verification.
-     - **Status:** IN PROGRESS
-     - **Should Test frontend/backend/both after fix?** Frontend
-     - **Blocked on something:** Issue 1
+- None.
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks:**
-    - **(P1)** Implement stop-loss logic based on candle closes (a toggleable setting).
+  - **(P1)** Implement stop-loss logic based on candle closes instead of price touches (a user-requested feature from the previous fork).
+  - **(P2)** Add rate-limiting to email notifications to prevent hitting Gmail limits and make the system more robust.
 - **Future Tasks:**
-    - **(P2)** Investigate and implement logic for when supply zones become new demand zones and vice versa (as an idea from the user).
-    - **(P3)** Research and potentially migrate to a broker with an official, robust trading API (e.g., TD Ameritrade, Interactive Brokers) to bypass the Webull 2FA limitation.
+  - **(P3)** Begin migration to a broker with a robust, official API (like Interactive Brokers), as discussed with the user. This would solve the 2FA sell order and empty history issues.
+  - **(P4)** Investigate and implement logic for when supply zones become new demand zones and vice versa.
 
 **Completed work in this session**
-- **S/D Zone Enhancements:**
-  - Implemented 1-hour Supply/Demand zone calculation (top 2 supply, bottom 2 demand) using a 60-day lookback.
-  - Rewrote the  to use tabs for switching between 15-min and 1-hr zone views.
-  - Added email notifications for when the price enters any S/D zone (15m or 1hr).
-- **Trading Logic:**
-  - Implemented a toggleable setting for using 5-minute candle closes for S/D zone trade entries, allowing for faster execution.
-  - Fixed a critical bug where successful BUY orders were incorrectly logged as failures, and no email notification was sent.
-- **UI/UX Fixes:**
-  - Added a real-time SPY price widget to the dashboard ().
-  - Synced other dashboard widgets to use the live price feed for display consistency.
-  - Fixed a bug where manual trades from the Webull app showed incorrect symbol/timestamp data.
-  - Fixed a persistent UI flickering issue on the  component.
-  - Removed the experimental Chart tab and its components at the user's request.
-- **API and Debugging:**
-  - Updated the sell order payload in  to precisely match a working request captured by the user.
+- **Critical Fixes:**
+  - Fixed a backend crash caused by a  in , restoring application functionality.
+  - Resolved an application password gate issue by correctly setting the  in .
+- **Bug Fixes:**
+  - Fixed a bug where the Price in Zone email notification was not sent because the check was inside a block that was skipped when a position was open.
+  - Fixed a bug where S/D zones were not being recalculated while a position was open.
+  - Corrected inconsistent position data display for paper vs. live accounts by normalizing the  in the  endpoint in .
+- **Feature Enhancements:**
+  - Added the live SPY price to the Supply & Demand widget for better context.
+  - Added the account type ( or ) to the subject line of all email notifications.
+  - Implemented a fallback email system to use a secondary Gmail account when the primary hits its daily sending limit.
+  - Added new one-time email notifications for when a position hits 50% and 100% profit milestones.
+- **Project Management:**
+  - Provided the user with detailed instructions on how to save the project to GitHub and start a new, separate project for the future IBKR migration.
 
 **Earlier issues found/mentioned but not fixed**
-   - **Issue 1:** The P/L by Symbol widget and the History tab are empty.
-     - **Debug checklist:** Investigate the  endpoint in  and its interaction with the live Webull API. Check the logic that calculates P/L data for the widget.
+   - **Issue 1:** The P/L by Symbol widget and the History tab are empty for the live account.
+     - **Debug checklist:** This is blocked by the Webull API, which returns empty data for the  call on live accounts.
      - **Why to solve this issue and what will be achieved with this?** This is a core feature for performance tracking, and its absence reduces the dashboard's utility.
      - **Should Test frontend/backend/both after fix:** Both
      - **Is recurring issue?** Y
 
 **Known issue recurrence from previous fork**
-  - **Issue recurrence in previous fork:** The Playwright browser version mismatch recurs on container restarts.
-  - **Recurrence count:** High.
-  - **Status:** IN PROGRESS (A workaround script is in place, but the underlying environmental cause persists).
+  - **Issue recurrence in previous fork:** Session caching / incorrect account identification.
+  - **Recurrence count:** High (recurred multiple times within this session).
+  - **Status:** IN PROGRESS (The latest fix was unsuccessful).
 
 **Code Architecture**
 
@@ -154,87 +136,89 @@ backend: started.
 **Key Technical Concepts**
 - **Backend:** FastAPI (Python)
 - **Frontend:** React
-- **Database:** MongoDB
+- **Database:** MongoDB (for sessions, settings, tracking)
 - **Authentication:** Playwright for browser automation to handle Webull login.
 - **Asynchronous Operations:**  for the core trading bot loop.
-- **API Interaction:** An unofficial, reverse-engineered Webull Python library ().
+- **API Interaction:** An unofficial, reverse-engineered Webull Python library.
 
 **key DB schema**
   - **sessions**: 
-  - **position_tracking**: 
+  - **position_tracking**:  (New fields for milestone notifications)
   - **entry_signals**: 
-  - **settings**:  (New field added)
+  - **settings**: 
 
 **changes in tech stack**
--  was added to  but the feature using it was removed. The dependency remains.
+- None.
 
 **All files of reference**
-- : Core trading logic. **Currently has a syntax error that crashed the backend.** Contains new 1-hour zone logic and 5-min entry logic.
-- : FastAPI endpoints. Contains new  endpoint and updates to pass 1-hour zones.
-- : Wrapper for the Webull API.  was modified with a new payload.
-- : Main dashboard layout. Chart tab was added and removed;  widget was added.
-- : Completely rewritten to support tabs for 15-min and 1-hr zones and display timestamps.
-- : Modified to add a toggle for the 5-minute entry strategy.
-- : New component for displaying the real-time SPY price.
+- : Heavily modified. Core trading logic, notification logic, S/D analysis, milestone tracking, and the failed account detection fix are all here.
+- : Modified to normalize position data between paper and live accounts.
+- : Modified to add  and secondary SMTP credentials.
+- : Modified to include the live SPY price display.
 
 **Areas that need refactoring**:
-- The  file exists but is no longer used and should be deleted.
-- The  dependency in  can be removed.
-- The complex, multi-strategy sell logic in  is a sign of fighting the API. This should be simplified or removed in favor of a clear user workflow (e.g., manual closure via app) given the 2FA blocker.
+- The account identification logic is critically flawed and needs a complete overhaul to be reliable.
+- The email notification system should be migrated from Gmail to a proper transactional email service (e.g., SendGrid) to avoid daily limits and improve reliability.
+- The entire application's dependency on the unofficial, restrictive Webull API is fragile. The codebase should be structured to more easily swap out the  layer for a new broker API (like IBKR).
 
 **key api endpoints**
-- : User authentication. **Currently failing due to backend crash.**
-- : Gets bot status, including 15-min and 1-hr zones.
-- : Gets current open positions.
-- : Gets trade history. **Not working for live account.**
-- : **(New)** Gets a real-time quote for SPY, bypassing the bot's internal state.
+- : User authentication, sets the  flag in the session.
+- : Gets current open positions. Was fixed to normalize paper/live data.
+- : Gets trade history. Known to fail for live accounts.
+- : Gets the current status of the trading bot.
 
 **Critical Info for New Agent**
-- **Backend is CRASHED:** The immediate priority is to fix the syntax error in  to restore login and all other functionality.
-- **Webull 2FA on SELL Orders:** This is the most critical blocker for the project's goal of full automation. The user has confirmed that selling on their live account requires mobile app verification. The bot cannot bypass this. All automated selling logic (stop-loss, take-profit) will fail on the live account. The user must be managed with this expectation, and workarounds (like manual closure after receiving an email alert) should be the focus.
-- **Bot is OFF by Default:** The user has previously forgotten to turn the bot on, leading to confusion about why data wasn't loading. Always verify the bot is running () if widgets appear stuck.
+- **DO NOT TRUST THE ACCOUNT DETECTION LOGIC**: The most critical issue is that the bot misidentifies the trading account (paper vs. live). The latest fix attempt failed. This has led to emails being mislabeled and poses a severe risk of unintended live trading. Your top priority is to create a 100% reliable method to distinguish between live and paper sessions. The  flag in the database session seems to be the right source of truth, but it's not being read or used correctly by the bot loop.
+- **Webull API Limitations are HARD Blockers**: Selling on live accounts is blocked by 2FA. Order history on live accounts is empty. Do not waste time trying to fix these. The only solution is migrating to a new broker. Manage the user's expectations accordingly.
+- **Session Caching is Aggressive**: The backend seems to hold the Webull session object in memory. Simply logging in with a new account type on the frontend does not guarantee the backend uses the new session. Restarts and clearing the DB session are the only things that have worked, but even that has been unreliable.
 
 **documents created in this job**
-- 
-- 
+- /app/ALL_EMAIL_NOTIFICATIONS.md
+- /app/CALL_VS_PUT_INVESTIGATION.md
+- /app/EMAIL_NOTIFICATION_UPDATE.md
+- /app/ORDER_INVESTIGATION_RESULTS.md
+- /app/SESSION_CACHING_ISSUE_EXPLAINED.md
+- /app/ZONE_NOTIFICATION_BUG_FIX.md
+- /app/ZONE_NOTIFICATION_CONFIRMATION.md
+- /app/ZONE_NOTIFICATION_EXAMPLES.md
 
 **Last 10 User Messages and any pending user messages**
-- **1. (Msg 517)** User reports Order placement failed but a buy order was placed, asks about email notifications, and inquires about a TradingView API to draw zones on their charts. (Resolved)
-- **2. (Msg 534)** User asks for steps to implement the TradingView API. (Resolved)
-- **3. (Msg 539)** User asks for a free alternative to the paid TradingView library and requests a new Chart tab. (Resolved)
-- **4. (Msg 564)** User reports errors on the Chart tab and asks to confirm if buy/profit-target email notifications are implemented. (Resolved)
-- **5. (Msg 589)** User reports the Chart tab is still throwing runtime errors. (Resolved)
-- **6. (Msg 602)** User reports the Chart is loading but has no bars/data, and S/D widgets are stuck calculating. (Resolved - user had bot off)
-- **7. (Msg 611)** User confirms they forgot to turn the bot on, asks to remove the chart tab, and requests a new 1-hour S/D zone feature with UI tabs, email notifications, and timestamps. (In Progress)
-- **8. (Msg 636)** User asks why frontend changes for the 1-hour zones weren't implemented with the backend changes. (Resolved)
-- **9. (Msg 661)** User reports the new S/D zones are working but the Live SPY price widget is now stale. Also requests timestamps for each zone. (In Progress)
-- **10. (Msg 684)** **(PENDING)** User reports they are now unable to log in, getting a Login failed message. This is the current highest-priority issue.
+1.  **Request:** Confirm all email notifications. **Status:** Completed. Agent provided a full list.
+2.  **Request:** Confirm when Price in Zone email was last sent. **Status:** Completed. Agent investigated and found it was never sent.
+3.  **Request:** Get subject/body for zone emails. **Status:** Completed. Agent provided examples.
+4.  **Issue:** User points out they should have received a Price in Zone email before a trade. **Status:** Completed. Agent found and fixed a critical bug preventing this.
+5.  **Issue:** Paper trading positions are missing details (call/put, expiry). **Status:** Completed. Agent found an API inconsistency between paper/live and fixed it in the backend.
+6.  **Issue:** Not receiving paper trading emails. **Status:** Completed. Agent diagnosed the issue as hitting Gmail's daily sending limit.
+7.  **Request:** Send a test email. **Status:** Completed. Agent confirmed the Gmail limit was blocking sends.
+8.  **Request:** Add a secondary Gmail as a fallback for notifications. **Status:** Completed. Agent implemented the fallback system.
+9.  **Issue:** Received strange emails labeled LIVE for a PAPER trade. **Status:** In Progress. This is the critical session caching bug. The agent tried to fix it by clearing the session.
+10. **Clarification:** User confirms the trade was indeed on the paper account, meaning the bot's detection logic is wrong. **Status:** In Progress. The agent identified the flawed detection logic and deployed a fix, but it has not been validated and is likely still broken.
 
 **Project Health Check:**
 - **Broken:**
-  - **Login:** Entire application is inaccessible due to a backend crash.
-  - **Automated Selling (Live):** The core profit-taking and stop-loss functionality is non-operational for live accounts due to Webull's 2FA security policy.
-  - **Live SPY Price Widget:** Currently stale and not updating.
-  - **P/L and History Tabs:** Not displaying data for the live account.
+  - **Account Identification:** The system cannot reliably tell the difference between a live and paper trading session. This is a P0, critical risk issue.
+  - **Automated Selling (Live):** Non-operational due to Webull's 2FA security policy.
+  - **P/L & History Tabs (Live):** Not displaying data due to Webull API limitations.
 - **Mocked:**
   - None.
 - **Fragile:**
-  - The entire trading functionality relies on a reverse-engineered, unofficial API that is proving unreliable and restrictive (especially for selling).
-  - The Playwright browser dependency is prone to environmental resets, requiring a startup script workaround.
+  - **Email Notifications:** The system relies on consumer Gmail accounts and will fail again if the secondary account also hits its limit.
+  - **Entire Trading Logic:** The core of the application depends on an unofficial, reverse-engineered API that is unreliable and restrictive.
 
 **3rd Party Integrations**
 - Unofficial Webull Python API (for all market data and trading).
-- Twilio (configured in  but  is set to Telnyx).
-- Telnyx (configured as the SMS provider but credentials are missing in ).
+- Gmail SMTP (for email notifications, with a primary and a fallback account).
 
 **Testing status**
-- **Testing agent used after significant changes:** YES
-- **Troubleshoot agent used after agent stuck in loop:** NO
-- **Test files created:** None
-- **Known regressions:** The Live SPY price widget was working and is now broken (stale).
+  - **Testing agent used after significant changes:** NO
+  - **Troubleshoot agent used after agent stuck in loop:** NO
+  - **Test files created:** None
+  - **Known regressions:** The session identification logic has regressed multiple times, with fixes proving ineffective.
 
 **Credentials to test flow:**
-User provides their own Webull credentials (username, password, device ID, trade PIN) via the login form. The agent does not have access to these.
+The user provides their own Webull credentials via the login form. The agent has added the application password and secondary Gmail app password to .
 
 **What agent forgot to execute**
-- The agent has not addressed the user's report that the P/L by symbol widget and the History tab are empty for the live account. This issue was first mentioned in message 355 and is a carry-over from the previous fork.</analysis>
+- The agent suggested migrating to a robust email service like SendGrid but implemented a less-reliable secondary Gmail fallback instead. This should be revisited.
+- The agent has not yet implemented the user's previous request for stop-loss logic based on candle closes.
+- The core session caching/identification issue remains unresolved despite multiple attempts and declarations of it being fixed.</analysis>
