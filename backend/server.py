@@ -323,6 +323,16 @@ async def auth_health():
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
+@api_router.post("/auth/test-post")
+async def test_post():
+    """Test if POST requests reach the backend"""
+    logger.info("🟢 TEST POST REQUEST RECEIVED")
+    return {
+        "status": "ok",
+        "message": "POST request reached backend successfully",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
 @api_router.post("/auth/login", response_model=LoginResponse)
 async def login(request: LoginRequest):
     """Login to Webull using Playwright automation"""
