@@ -588,6 +588,74 @@ async def get_recent_logs():
     except Exception as e:
         return {"error": str(e)}
 
+@api_router.post("/debug/reset-playwright")
+async def reset_playwright():
+    """
+    Reset Playwright environment - kills zombie processes and reinstalls browsers.
+    Use this instead of redeploying when login stops working.
+    """
+    import subprocess
+    import shutil
+    
+    results = {
+        "steps": [],
+        "success": True
+    }
+    
+    try:
+        # Step 1: Kill any zombie chromium/playwright processes
+        try:
+            kill_result = subprocess.run(
+                ["pkill", "-f", "chromium"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            results["steps"].append(f"Killed chromium processes: {kill_result.returncode == 0 or 'no process' in kill_result.stderr.lower()}")
+        except Exception as e:
+            results["steps"].append(f"Kill chromium: {str(e)}")
+        
+        # Step 2: Clear debug screenshots
+        try:
+            shutil.rmtree("/tmp/webull_debug", ignore_errors=True)
+            results["steps"].append("Cleared debug screenshots: True")
+        except Exception as e:
+            results["steps"].append(f"Clear screenshots: {str(e)}")
+        
+        # Step 3: Force reinstall Playwright browsers
+        try:
+            import sys
+            install_result = subprocess.run(
+                [sys.executable, '-m', 'playwright', 'install', 'chromium', '--force'],
+                capture_output=True,
+                text=True,
+                timeout=300
+            )
+            results["steps"].append(f"Reinstall browsers: {install_result.returncode == 0}")
+            if install_result.returncode != 0:
+                results["browser_install_error"] = install_result.stderr[:500]
+                results["success"] = False
+        except Exception as e:
+            results["steps"].append(f"Reinstall browsers: {str(e)}")
+            results["success"] = False
+        
+        # Step 4: Verify installation
+        from pathlib import Path
+        chromium_path = Path("/pw-browsers/chromium_headless_shell-1187/chrome-linux/headless_shell")
+        results["chromium_exists_after_reset"] = chromium_path.exists()
+        
+        if results["chromium_exists_after_reset"]:
+            results["message"] = "✅ Playwright reset complete. Try logging in again."
+        else:
+            results["message"] = "⚠️ Reset completed but browser verification failed. May need redeploy."
+            results["success"] = False
+            
+    except Exception as e:
+        results["error"] = str(e)
+        results["success"] = False
+    
+    return results
+
 @api_router.get("/account")
 async def get_account():
     """Get account information"""
