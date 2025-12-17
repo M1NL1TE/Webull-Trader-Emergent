@@ -312,12 +312,28 @@ async def verify_app_password(request: AppPasswordRequest):
         logger.error(f"App password verification error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.get("/auth/health")
+async def auth_health():
+    """Simple health check for auth endpoint - helps diagnose routing issues"""
+    import sys
+    return {
+        "status": "ok",
+        "message": "Auth endpoint is reachable",
+        "python_version": sys.version,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
 @api_router.post("/auth/login", response_model=LoginResponse)
 async def login(request: LoginRequest):
     """Login to Webull using Playwright automation"""
+    # Log immediately to stdout for debugging
+    print(f"🔵 LOGIN REQUEST RECEIVED - user: {request.username[:3]}***, is_paper: {request.is_paper}", flush=True)
+    logger.info(f"🔵 LOGIN REQUEST RECEIVED at {datetime.now(timezone.utc).isoformat()}")
+    
     try:
         # Validate Device ID
         if not request.device_id or len(request.device_id) != 32:
+            logger.error(f"❌ Invalid Device ID length: {len(request.device_id) if request.device_id else 'None'}")
             raise HTTPException(
                 status_code=400,
                 detail="Valid Device ID (32-character hex string) is required. See instructions on login page."
