@@ -559,6 +559,35 @@ async def get_debug_screenshot(filename: str):
     
     return FileResponse(screenshot_path, media_type="image/png")
 
+@api_router.get("/debug/logs")
+async def get_recent_logs():
+    """Get recent backend logs for debugging"""
+    import subprocess
+    
+    try:
+        # Get last 100 lines of backend error log
+        result = subprocess.run(
+            ["tail", "-100", "/var/log/supervisor/backend.err.log"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        # Filter for relevant log entries (login, playwright, error)
+        lines = result.stdout.split('\n')
+        relevant_lines = [
+            line for line in lines 
+            if any(kw in line.lower() for kw in ['login', 'playwright', 'error', 'failed', 'token', 'captcha', 'timeout'])
+        ]
+        
+        return {
+            "total_lines": len(lines),
+            "relevant_lines": relevant_lines[-50:],  # Last 50 relevant lines
+            "full_log_tail": lines[-30:]  # Last 30 lines regardless of content
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 @api_router.get("/account")
 async def get_account():
     """Get account information"""
