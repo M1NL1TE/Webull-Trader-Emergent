@@ -45,17 +45,30 @@ class WebullPlaywrightAuth:
     async def start_browser(self):
         """Start Playwright browser with DID cookie set"""
         try:
+            logger.info("🚀 Starting Playwright...")
             self.playwright = await async_playwright().start()
+            logger.info("✅ Playwright started, launching Chromium...")
+            
+            # Kill any zombie chromium processes first
+            try:
+                import subprocess
+                subprocess.run(["pkill", "-f", "chromium"], capture_output=True, timeout=5)
+                logger.info("Cleaned up any existing chromium processes")
+            except Exception:
+                pass  # Ignore if no processes to kill
             
             # Use full chromium - let Playwright find the correct path
             self.browser = await self.playwright.chromium.launch(
-                headless=True
+                headless=True,
+                args=['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu']  # Better container compatibility
             )
+            logger.info("✅ Chromium launched, creating context...")
             
             self.context = await self.browser.new_context(
                 user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
             )
             self.page = await self.context.new_page()
+            logger.info("✅ Browser context and page created")
             
             # Set DID cookie BEFORE navigating to login - this bypasses CAPTCHA
             await self.page.context.add_cookies([{
@@ -67,11 +80,15 @@ class WebullPlaywrightAuth:
                 'secure': True
             }])
             
-            logger.info("Playwright browser started with DID cookie")
+            logger.info("✅ Playwright browser started with DID cookie")
             return True
         except Exception as e:
             error_msg = str(e)
-            logger.error(f"Failed to start browser: {error_msg}")
+            logger.error(f"❌ Failed to start browser: {error_msg}")
+            
+            # Log detailed error info
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             
             # Check if it's a browser executable error
             if "Executable doesn't exist" in error_msg or "browser" in error_msg.lower():
