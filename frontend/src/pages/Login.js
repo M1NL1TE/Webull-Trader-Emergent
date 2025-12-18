@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { TrendingUp, Lock, User, Key } from 'lucide-react';
+import { TrendingUp, Lock, User, Key, RefreshCw } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -20,6 +20,42 @@ function Login({ setIsAuthenticated }) {
     device_id: ''
   });
   const [loading, setLoading] = useState(false);
+  const [sessionStatus, setSessionStatus] = useState(null);
+  const [restoringSession, setRestoringSession] = useState(false);
+
+  // Check if there's an existing session on mount
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const response = await axios.get(`${API}/auth/session-status`);
+        if (response.data.has_session) {
+          setSessionStatus(response.data);
+        }
+      } catch (error) {
+        // No session or error - that's fine, user can login normally
+        console.log('No existing session found');
+      }
+    };
+    checkSession();
+  }, []);
+
+  // Handle session restore (bypasses Playwright)
+  const handleRestoreSession = async () => {
+    setRestoringSession(true);
+    try {
+      const response = await axios.post(`${API}/auth/restore`);
+      if (response.data.success) {
+        toast.success(`Session restored! Trading mode: ${response.data.is_paper ? 'PAPER' : 'LIVE'}`);
+        setIsAuthenticated(true);
+      }
+    } catch (error) {
+      const message = error.response?.data?.detail || 'Failed to restore session';
+      toast.error(message);
+      setSessionStatus(null); // Clear session status so user knows to do full login
+    } finally {
+      setRestoringSession(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
