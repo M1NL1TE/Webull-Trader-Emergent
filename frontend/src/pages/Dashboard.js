@@ -113,11 +113,24 @@ function Dashboard({ setIsAuthenticated }) {
   };
 
   const handleLogout = async () => {
+    // Show confirmation warning about Playwright login issues
+    const confirmed = window.confirm(
+      '⚠️ WARNING: After logging out, you will need to do a full Playwright login to get back in.\n\n' +
+      'If you just want to close the app for the day, click CANCEL and simply close this browser tab instead. ' +
+      'Your session will be saved and you can use "Quick Restore" tomorrow.\n\n' +
+      'Click OK to logout anyway, or CANCEL to keep your session.'
+    );
+    
+    if (!confirmed) {
+      toast.info('Session kept. You can safely close this tab.');
+      return;
+    }
+    
     try {
       // Call backend to clear session
       await axios.post(`${API}/auth/logout`);
       setIsAuthenticated(false);
-      toast.success('Logged out successfully');
+      toast.success('Logged out successfully. Full login required next time.');
     } catch (error) {
       console.error('Logout error:', error);
       // Still log out on frontend even if backend fails
