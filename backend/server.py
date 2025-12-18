@@ -482,13 +482,41 @@ async def login(request: LoginRequest):
         
         raise HTTPException(status_code=500, detail=f"Login failed: {error_msg}")
 
-@api_router.post("/auth/restore")
-async def restore_session():
-    """Restore session from database"""
+@api_router.get("/auth/session-status")
+async def check_session_status():
+    """Check if there's an active session that can be restored (no Playwright needed)"""
     try:
         session = await get_session()
         if not session:
-            raise HTTPException(status_code=404, detail="No session found")
+            return {
+                "has_session": False,
+                "message": "No active session found. Full login required."
+            }
+        
+        # Check if session has required fields
+        has_tokens = bool(session.get('access_token') and session.get('refresh_token'))
+        has_trade_token = bool(session.get('trade_token'))
+        is_paper = session.get('is_paper', True)
+        updated_at = session.get('updated_at', 'Unknown')
+        
+        return {
+            "has_session": has_tokens,
+            "is_paper": is_paper,
+            "has_trade_token": has_trade_token,
+            "last_updated": updated_at,
+            "message": "Active session found! You can restore without re-login." if has_tokens else "Session incomplete. Full login required."
+        }
+    except Exception as e:
+        logger.error(f"Session status check error: {e}")
+        return {"has_session": False, "error": str(e)}
+
+@api_router.post("/auth/restore")
+async def restore_session():
+    """Restore session from database - bypasses Playwright entirely"""
+    try:
+        session = await get_session()
+        if not session:
+            raise HTTPException(status_code=404, detail="No session found. Please login with full credentials.")
         
         wb = get_webull_instance(session.get('is_paper', True))
         
@@ -510,7 +538,13 @@ async def restore_session():
         else:
             logger.warning("⚠️ No trade token in session - orders will fail!")
         
-        return {"success": True, "is_paper": session.get('is_paper', True)}
+        return {
+            "success": True, 
+            "is_paper": session.get('is_paper', True),
+            "message": "Session restored successfully! No Playwright needed."
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Restore session error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
