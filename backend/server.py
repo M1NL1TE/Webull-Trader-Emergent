@@ -549,6 +549,81 @@ async def restore_session():
         logger.error(f"Restore session error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+class ManualSessionRequest(BaseModel):
+    """Request model for manual session import"""
+    access_token: str
+    refresh_token: str
+    uuid: str
+    device_id: str
+    trade_token: str
+    is_paper: bool = True
+    token_expire: str = "2099-01-01T00:00:00.000+0000"
+
+@api_router.post("/auth/import-session")
+async def import_session(request: ManualSessionRequest):
+    """
+    Import a session manually - use this when Playwright login is broken.
+    Get tokens from a working preview environment or browser dev tools.
+    """
+    try:
+        logger.info(f"📥 Importing manual session (is_paper: {request.is_paper})")
+        
+        # Validate tokens by trying to use them
+        wb = get_webull_instance(request.is_paper)
+        wb._set_did(request.device_id)
+        
+        wb.api_login(
+            access_token=request.access_token,
+            refresh_token=request.refresh_token,
+            uuid=request.uuid,
+            token_expire=request.token_expire
+        )
+        
+        # Set trade token
+        wb._trade_token = request.trade_token
+        
+        # Try to get account to verify tokens work
+        if request.is_paper:
+            account_id = wb.get_account_id()
+            if not account_id:
+                raise HTTPException(status_code=400, detail="Invalid tokens - could not get account ID")
+        
+        # Save the session
+        session_data = {
+            'session_type': 'webull',
+            'access_token': request.access_token,
+            'refresh_token': request.refresh_token,
+            'token_expire': request.token_expire,
+            'uuid': request.uuid,
+            'account_id': wb._account_id,
+            'is_paper': request.is_paper,
+            'device_id': request.device_id,
+            'trade_token': request.trade_token,
+            'updated_at': datetime.now(timezone.utc).isoformat(),
+            'import_method': 'manual'
+        }
+        
+        await db.sessions.update_one(
+            {'session_type': 'webull'},
+            {'$set': session_data},
+            upsert=True
+        )
+        
+        logger.info(f"✅ Manual session imported successfully (is_paper: {request.is_paper})")
+        
+        return {
+            "success": True,
+            "message": "Session imported successfully! You can now use Quick Restore.",
+            "is_paper": request.is_paper,
+            "account_id": wb._account_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Manual session import error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to import session: {str(e)}")
+
 @api_router.post("/auth/logout")
 async def logout():
     """Logout and clear session"""
