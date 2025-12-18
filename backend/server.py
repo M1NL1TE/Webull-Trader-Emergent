@@ -636,6 +636,29 @@ async def logout():
         logger.error(f"Logout error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.get("/debug/config")
+async def get_debug_config():
+    """Check current deployment configuration - useful for verifying URLs"""
+    import os
+    from fastapi import Request
+    
+    return {
+        "environment": {
+            "MONGO_URL": "***" + os.environ.get('MONGO_URL', 'NOT SET')[-20:] if os.environ.get('MONGO_URL') else 'NOT SET',
+            "DB_NAME": os.environ.get('DB_NAME', 'NOT SET'),
+            "PLAYWRIGHT_BROWSERS_PATH": os.environ.get('PLAYWRIGHT_BROWSERS_PATH', 'NOT SET'),
+        },
+        "server_info": {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "python_version": __import__('sys').version,
+        },
+        "session_status": {
+            "has_active_session": wb_instance is not None,
+            "is_paper_trading": is_paper_trading,
+        },
+        "note": "Frontend REACT_APP_BACKEND_URL is set at build time - check browser Network tab to see actual URL being called"
+    }
+
 @api_router.get("/debug/playwright-status")
 async def get_playwright_status():
     """Check Playwright browser installation status and debug info"""
