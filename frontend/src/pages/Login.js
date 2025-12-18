@@ -131,6 +131,33 @@ function Login({ setIsAuthenticated }) {
         </CardHeader>
         
         <CardContent>
+          {/* Show session restore option if active session exists */}
+          {sessionStatus?.has_session && (
+            <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-green-900/50 to-cyan-900/50 border border-green-700/50">
+              <div className="flex items-center gap-2 mb-2">
+                <RefreshCw className="w-5 h-5 text-green-400" />
+                <span className="text-green-400 font-semibold">Active Session Found!</span>
+              </div>
+              <p className="text-sm text-slate-300 mb-3">
+                Mode: <span className={sessionStatus.is_paper ? 'text-yellow-400' : 'text-red-400'}>
+                  {sessionStatus.is_paper ? 'PAPER' : 'LIVE'}
+                </span>
+                {sessionStatus.has_trade_token ? ' ✓ Trade token valid' : ' ⚠️ No trade token'}
+              </p>
+              <Button
+                type="button"
+                onClick={handleRestoreSession}
+                disabled={restoringSession}
+                className="w-full bg-gradient-to-r from-green-600 to-cyan-600 hover:from-green-500 hover:to-cyan-500"
+              >
+                {restoringSession ? 'Restoring...' : 'Quick Restore Session (No Login Required)'}
+              </Button>
+              <p className="text-xs text-slate-400 mt-2 text-center">
+                Bypass browser automation - use your existing session
+              </p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username" className="text-slate-200 flex items-center gap-2">
