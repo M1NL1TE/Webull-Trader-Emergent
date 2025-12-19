@@ -8,7 +8,8 @@ import PasswordGate from '@/components/PasswordGate';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+// Use environment variable with fallback to production URL
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://autotrade-spy.emergent.host';
 const API = `${BACKEND_URL}/api`;
 
 function App() {
