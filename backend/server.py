@@ -524,12 +524,20 @@ async def restore_session():
         if 'device_id' in session:
             wb._set_did(session['device_id'])
         
-        wb.api_login(
-            access_token=session['access_token'],
-            refresh_token=session['refresh_token'],
-            token_expire=session['token_expire'],
-            uuid=session['uuid']
-        )
+        # Set tokens directly without calling API to validate
+        wb._access_token = session['access_token']
+        wb._refresh_token = session['refresh_token']
+        wb._token_expire = session['token_expire']
+        wb._uuid = session['uuid']
+        
+        # Try to get account ID, but don't fail if it errors
+        try:
+            wb._account_id = wb.get_account_id()
+        except Exception as e:
+            logger.warning(f"Could not get account ID during restore: {e}")
+            # Use cached account_id if available
+            if 'account_id' in session:
+                wb._account_id = session['account_id']
         
         # CRITICAL: Restore trade token for order placement
         if 'trade_token' in session and session['trade_token']:
@@ -547,6 +555,40 @@ async def restore_session():
         raise
     except Exception as e:
         logger.error(f"Restore session error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/auth/force-login")
+async def force_login():
+    """
+    EMERGENCY: Force login by just marking as authenticated.
+    Use this when session restore fails but bot is still working.
+    This lets you access the dashboard without validating tokens.
+    """
+    try:
+        session = await get_session()
+        if not session:
+            # Create a minimal session just to access dashboard
+            session = {
+                'session_type': 'webull',
+                'is_paper': True,
+                'force_login': True,
+                'updated_at': datetime.now(timezone.utc).isoformat()
+            }
+            await db.sessions.update_one(
+                {'session_type': 'webull'},
+                {'$set': session},
+                upsert=True
+            )
+            logger.info("Created minimal session for force login")
+        
+        return {
+            "success": True,
+            "is_paper": session.get('is_paper', True),
+            "message": "Force login successful. Dashboard access granted.",
+            "warning": "Some features may not work if Webull tokens are invalid."
+        }
+    except Exception as e:
+        logger.error(f"Force login error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 class ManualSessionRequest(BaseModel):
