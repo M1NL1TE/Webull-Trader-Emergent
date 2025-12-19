@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Save } from 'lucide-react';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://autotrade-spy.emergent.host';
 const API = `${BACKEND_URL}/api`;
 
 function Settings() {

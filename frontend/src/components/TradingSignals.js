@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { RefreshCw, TrendingUp, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://autotrade-spy.emergent.host';
 const API = `${BACKEND_URL}/api`;
 
 function TradingSignals() {

@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
 import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://autotrade-spy.emergent.host';
 const API = `${BACKEND_URL}/api`;
 
 function LiveSpyPrice() {
