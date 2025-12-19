@@ -1682,6 +1682,18 @@ class my_paper_webull(my_webull):
         if response.status_code != 200:
             raise Exception('place_option_order failed', response.status_code, response.reason)
         
+        # Return the response data so caller knows order succeeded
+        try:
+            result = response.json()
+            # Paper trading API returns order data on success
+            if result:
+                return result
+            # If no JSON body but status 200, order succeeded
+            return {'success': True, 'orderId': 'paper-' + data['serialId']}
+        except:
+            # Status 200 but no JSON - still success for paper trading
+            return {'success': True, 'orderId': 'paper-' + data['serialId']}
+        
     def modify_order_option(self, order=None, lmtPrice=None, stpPrice=None, enforce=None, quant=0):
         '''
         order: dict from get_current_orders
