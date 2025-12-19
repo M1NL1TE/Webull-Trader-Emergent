@@ -778,6 +778,7 @@ def check_orb_breakout(wb, symbol, current_time):
     
     ORB levels persist throughout the trading day once calculated.
     If calculated after 9:45 AM, fetches historical data from 9:30-9:45 AM window.
+    Also checks for breakouts that already happened before bot started.
     """
     try:
         from pytz import timezone as pytz_timezone
@@ -787,8 +788,27 @@ def check_orb_breakout(wb, symbol, current_time):
         market_open = now_eastern.replace(hour=9, minute=30, second=0, microsecond=0)
         orb_end = market_open + timedelta(minutes=15)
         
-        # If we already have ORB levels for today, return None but keep levels
+        # If we already have ORB levels for today, check current price for NEW breakouts
         if bot_state.orb_status.get('high', 0) > 0:
+            # Get current price to check for breakouts
+            stockId = wb.get_ticker(symbol)
+            df_current = wb.get_bars(symbol, stockId, 'm1', 5, 1)
+            if df_current is not None and len(df_current) > 0:
+                current_price = df_current['close'].iloc[-1]
+                orb_high = bot_state.orb_status['high']
+                orb_low = bot_state.orb_status['low']
+                
+                # Check for NEW breakout (not already flagged)
+                if current_price > orb_high and not bot_state.orb_status.get('upside_broken', False):
+                    bot_state.orb_status['upside_broken'] = True
+                    bot_state.orb_status['upside_time'] = now_eastern.isoformat()
+                    return 'call', f"ORB upside breakout: ${current_price:.2f} > ${orb_high:.2f}"
+                
+                elif current_price < orb_low and not bot_state.orb_status.get('downside_broken', False):
+                    bot_state.orb_status['downside_broken'] = True
+                    bot_state.orb_status['downside_time'] = now_eastern.isoformat()
+                    return 'put', f"ORB downside breakout: ${current_price:.2f} < ${orb_low:.2f}"
+            
             return None, f"ORB calculated. Levels: ${bot_state.orb_status['low']:.2f} - ${bot_state.orb_status['high']:.2f}"
         
         # If we're before market open, no ORB yet
@@ -821,17 +841,52 @@ def check_orb_breakout(wb, symbol, current_time):
         
         logger.info(f"✅ ORB Levels Calculated: High=${orb_high:.2f}, Low=${orb_low:.2f}")
         
-        # Check current price for breakout status (only if we have current data)
-        if now_eastern <= orb_end and len(df_1m) > 0:
-            current_price = df_1m['close'].iloc[-1]
+        # Get current price to check if breakout already happened
+        df_current = wb.get_bars(symbol, stockId, 'm1', 5, 1)
+        if df_current is not None and len(df_current) > 0:
+            current_price = df_current['close'].iloc[-1]
             
-            # Check for breakout
-            if current_price > orb_high and not bot_state.orb_status['upside_broken']:
+            # Check if breakout ALREADY happened (bot started late)
+            if now_eastern > orb_end:
+                if current_price > orb_high and not bot_state.orb_status.get('upside_broken', False):
+                    bot_state.orb_status['upside_broken'] = True
+                    bot_state.orb_status['upside_time'] = now_eastern.isoformat()
+                    # Send notification about historical breakout (but don't return signal for trade)
+                    send_notification(
+                        f"📊 ORB Upside Breakout Detected (Historical)\n\n"
+                        f"Price broke above ORB high BEFORE bot started.\n\n"
+                        f"ORB High: ${orb_high:.2f}\n"
+                        f"Current Price: ${current_price:.2f}\n"
+                        f"Time: {now_eastern.strftime('%I:%M %p')} EST\n\n"
+                        f"⚠️ No trade placed - breakout already occurred.\n"
+                        f"Monitor for potential entry on pullback to ORB high."
+                    )
+                    logger.info(f"📧 Sent ORB historical upside breakout notification")
+                    return None, f"ORB upside already broken (historical): ${current_price:.2f} > ${orb_high:.2f}"
+                
+                elif current_price < orb_low and not bot_state.orb_status.get('downside_broken', False):
+                    bot_state.orb_status['downside_broken'] = True
+                    bot_state.orb_status['downside_time'] = now_eastern.isoformat()
+                    # Send notification about historical breakout (but don't return signal for trade)
+                    send_notification(
+                        f"📊 ORB Downside Breakout Detected (Historical)\n\n"
+                        f"Price broke below ORB low BEFORE bot started.\n\n"
+                        f"ORB Low: ${orb_low:.2f}\n"
+                        f"Current Price: ${current_price:.2f}\n"
+                        f"Time: {now_eastern.strftime('%I:%M %p')} EST\n\n"
+                        f"⚠️ No trade placed - breakout already occurred.\n"
+                        f"Monitor for potential entry on pullback to ORB low."
+                    )
+                    logger.info(f"📧 Sent ORB historical downside breakout notification")
+                    return None, f"ORB downside already broken (historical): ${current_price:.2f} < ${orb_low:.2f}"
+            
+            # Check for live breakout (during ORB window)
+            if current_price > orb_high and not bot_state.orb_status.get('upside_broken', False):
                 bot_state.orb_status['upside_broken'] = True
                 bot_state.orb_status['upside_time'] = now_eastern.isoformat()
                 return 'call', f"ORB upside breakout: ${current_price:.2f} > ${orb_high:.2f}"
             
-            elif current_price < orb_low and not bot_state.orb_status['downside_broken']:
+            elif current_price < orb_low and not bot_state.orb_status.get('downside_broken', False):
                 bot_state.orb_status['downside_broken'] = True
                 bot_state.orb_status['downside_time'] = now_eastern.isoformat()
                 return 'put', f"ORB downside breakout: ${current_price:.2f} < ${orb_low:.2f}"
