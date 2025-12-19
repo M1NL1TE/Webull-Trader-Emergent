@@ -2167,8 +2167,8 @@ def execute_call_trade(wb, symbol, trade_grade, account_info, signal_type='zone'
             )
             return False, None
         
-        # If we have orderId or comboId, order was successful
-        if isinstance(order_result, dict) and ('orderId' in order_result or 'comboId' in order_result):
+        # If we have orderId, comboId, or success=True, order was successful
+        if isinstance(order_result, dict) and ('orderId' in order_result or 'comboId' in order_result or order_result.get('success') is True):
             logger.info(f"✅ Order confirmed by Webull API: {order_result}")
             
             # Send email notification for successful trade entry
@@ -2181,7 +2181,7 @@ def execute_call_trade(wb, symbol, trade_grade, account_info, signal_type='zone'
                     f"Quantity: {order_quantity} contracts\n"
                     f"Entry Price: ${ask_price:.2f}\n"
                     f"DTE: {dte}\n"
-                    f"Order ID: {order_result.get('orderId', 'N/A')}\n"
+                    f"Order ID: {order_result.get('orderId', 'paper-trade')}\n"
                     f"Time: {datetime.now(pytz_timezone('US/Eastern')).strftime('%I:%M %p EST')}"
                 )
                 logger.info("✅ Trade entry notification sent")
@@ -2190,7 +2190,7 @@ def execute_call_trade(wb, symbol, trade_grade, account_info, signal_type='zone'
             
             return True, dte  # Return DTE for position tracking
         
-        # Unknown response format
+        # Unknown response format - log details but assume success if no explicit error
         logger.warning(f"⚠️ Order result unclear: {order_result}. Assuming success.")
         return True, dte
         
