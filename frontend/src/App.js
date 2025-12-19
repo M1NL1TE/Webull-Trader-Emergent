@@ -36,14 +36,31 @@ function App() {
         const statusResponse = await axios.get(`${API}/auth/session-status`);
         
         if (statusResponse.data.has_session) {
-          // Session exists - restore it automatically
+          // Session exists - try to restore it
           console.log('🔄 Auto-restoring existing session...');
-          const restoreResponse = await axios.post(`${API}/auth/restore`);
-          
-          if (restoreResponse.data.success) {
-            console.log('✅ Session auto-restored successfully');
-            setIsAuthenticated(true);
-            toast.success(`Session restored! Mode: ${restoreResponse.data.is_paper ? 'PAPER' : 'LIVE'}`);
+          try {
+            const restoreResponse = await axios.post(`${API}/auth/restore`);
+            
+            if (restoreResponse.data.success) {
+              console.log('✅ Session auto-restored successfully');
+              setIsAuthenticated(true);
+              toast.success(`Session restored! Mode: ${restoreResponse.data.is_paper ? 'PAPER' : 'LIVE'}`);
+              return;
+            }
+          } catch (restoreError) {
+            console.log('Normal restore failed, trying force-login...', restoreError.message);
+            // Try force login as fallback
+            try {
+              const forceResponse = await axios.post(`${API}/auth/force-login`);
+              if (forceResponse.data.success) {
+                console.log('✅ Force login successful');
+                setIsAuthenticated(true);
+                toast.success('Dashboard access granted (force login)');
+                return;
+              }
+            } catch (forceError) {
+              console.log('Force login also failed:', forceError.message);
+            }
           }
         } else {
           console.log('No session found - login required');
