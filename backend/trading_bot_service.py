@@ -1259,6 +1259,22 @@ async def run_trading_bot(wb, settings):
                         bot_state.current_signal = f"ORB {orb_signal} breakout!"
                         bot_state.no_trade_reason = f"Executing ORB {orb_signal} trade"
                         
+                        # Send LIVE breakout notification (separate from trade notification)
+                        orb_high = bot_state.orb_status.get('high', 0)
+                        orb_low = bot_state.orb_status.get('low', 0)
+                        breakout_direction = "UPSIDE 📈" if orb_signal == 'call' else "DOWNSIDE 📉"
+                        breakout_level = orb_high if orb_signal == 'call' else orb_low
+                        send_notification(
+                            f"🚨 ORB {breakout_direction} BREAKOUT!\n\n"
+                            f"SPY broke {'above' if orb_signal == 'call' else 'below'} the Opening Range!\n\n"
+                            f"ORB Range: ${orb_low:.2f} - ${orb_high:.2f}\n"
+                            f"Breakout Level: ${breakout_level:.2f}\n"
+                            f"Current Price: ${current_price:.2f}\n"
+                            f"Time: {datetime.now(pytz_timezone('US/Eastern')).strftime('%I:%M %p')} EST\n\n"
+                            f"Attempting to place {orb_signal.upper()} trade..."
+                        )
+                        logger.info(f"📧 Sent live ORB breakout notification")
+                        
                         # Execute ORB trade
                         try:
                             if orb_signal == 'call':
