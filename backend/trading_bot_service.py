@@ -834,12 +834,28 @@ def check_orb_breakout(wb, symbol, current_time):
         # Calculate opening range (first 10 minutes of 1-min bars)
         orb_high = df_1m['high'][:10].max()
         orb_low = df_1m['low'][:10].min()
+        orb_range = orb_high - orb_low
         
         # Store ORB levels (persist throughout day)
         bot_state.orb_status['high'] = orb_high
         bot_state.orb_status['low'] = orb_low
         
         logger.info(f"✅ ORB Levels Calculated: High=${orb_high:.2f}, Low=${orb_low:.2f}")
+        
+        # Send notification that ORB levels are set for the day
+        calculated_time = "historical (9:30-9:40 AM)" if now_eastern > orb_end else now_eastern.strftime('%I:%M %p')
+        send_notification(
+            f"📐 ORB Levels Set for Today\n\n"
+            f"Opening Range (first 10 min) calculated:\n\n"
+            f"🔺 ORB High: ${orb_high:.2f}\n"
+            f"🔻 ORB Low: ${orb_low:.2f}\n"
+            f"📏 Range: ${orb_range:.2f} ({(orb_range/orb_low)*100:.2f}%)\n\n"
+            f"Calculated at: {calculated_time} EST\n\n"
+            f"Watching for breakouts:\n"
+            f"• CALL signal if price > ${orb_high:.2f}\n"
+            f"• PUT signal if price < ${orb_low:.2f}"
+        )
+        logger.info(f"📧 Sent ORB levels calculated notification")
         
         # Get current price to check if breakout already happened
         df_current = wb.get_bars(symbol, stockId, 'm1', 5, 1)
