@@ -6,6 +6,7 @@ import Dashboard from '@/pages/Dashboard';
 import Login from '@/pages/Login';
 import PasswordGate from '@/components/PasswordGate';
 import { Toaster } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -14,7 +15,6 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasAppAccess, setHasAppAccess] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [attemptedRestore, setAttemptedRestore] = useState(false);
 
   useEffect(() => {
     // Check if user has app access token
@@ -23,34 +23,41 @@ function App() {
       setHasAppAccess(true);
     }
     
-    // Try to restore Webull session ONLY ONCE
-    const restoreSession = async () => {
-      // Only attempt restore if we're NOT explicitly on the login page
-      // and haven't attempted restore yet
-      if (!attemptedRestore && window.location.pathname !== '/login') {
-        setAttemptedRestore(true);
-        try {
-          const response = await axios.post(`${API}/auth/restore`);
-          if (response.data.success) {
+    // ALWAYS try to auto-restore session on app load
+    const autoRestoreSession = async () => {
+      if (!appAccessToken) {
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        // First check if a session exists
+        const statusResponse = await axios.get(`${API}/auth/session-status`);
+        
+        if (statusResponse.data.has_session) {
+          // Session exists - restore it automatically
+          console.log('🔄 Auto-restoring existing session...');
+          const restoreResponse = await axios.post(`${API}/auth/restore`);
+          
+          if (restoreResponse.data.success) {
+            console.log('✅ Session auto-restored successfully');
             setIsAuthenticated(true);
+            toast.success(`Session restored! Mode: ${restoreResponse.data.is_paper ? 'PAPER' : 'LIVE'}`);
           }
-        } catch (error) {
-          console.log('No previous session found');
+        } else {
+          console.log('No session found - login required');
           setIsAuthenticated(false);
-        } finally {
-          setLoading(false);
         }
-      } else {
+      } catch (error) {
+        console.log('Session restore check failed:', error.message);
+        setIsAuthenticated(false);
+      } finally {
         setLoading(false);
       }
     };
     
-    if (appAccessToken) {
-      restoreSession();
-    } else {
-      setLoading(false);
-    }
-  }, [attemptedRestore]);
+    autoRestoreSession();
+  }, []);
 
   // Show password gate first
   if (!hasAppAccess) {
