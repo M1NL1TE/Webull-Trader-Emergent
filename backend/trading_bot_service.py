@@ -2294,7 +2294,8 @@ def execute_put_trade(wb, symbol, trade_grade, account_info, signal_type='zone')
         
         # Validate order was actually placed
         # Webull returns {'orderId': '...', 'comboId': '...'} on success
-        if not order_result:
+        # Paper trading may return {'success': True} or the order data
+        if order_result is None:
             logger.error(f"❌ Order placement failed: No response from API")
             from pytz import timezone as pytz_timezone
             send_notification(
@@ -2305,8 +2306,8 @@ def execute_put_trade(wb, symbol, trade_grade, account_info, signal_type='zone')
             )
             return False, None
         
-        # Check if response indicates failure
-        if isinstance(order_result, dict) and order_result.get('success') == False:
+        # Check if response indicates failure (explicit False, not just missing key)
+        if isinstance(order_result, dict) and order_result.get('success') is False:
             logger.error(f"❌ Order placement failed: {order_result}")
             from pytz import timezone as pytz_timezone
             send_notification(
