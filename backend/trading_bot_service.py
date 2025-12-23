@@ -666,24 +666,50 @@ def analyze_supply_demand(df):
     
     Settings:
     - Uses 15-minute candles for stronger levels
-    - 3 trading days lookback (195 candles × 15-min = ~48.75 hours)
+    - 30 trading days lookback (780 candles × 15-min during market hours)
+    - MARKET HOURS ONLY: 9:30 AM - 4:00 PM ET (no pre-market/after-hours)
     - Requires 3 candles on each side for stronger pivots
     - Returns separate timestamp information for supply and demand zones
     """
     try:
-        highs = df['high'].values
-        lows = df['low'].values
-        opens = df['open'].values
-        closes = df['close'].values
-        timestamps = df.index  # Get timestamps from dataframe index
+        from pytz import timezone as pytz_timezone
+        eastern = pytz_timezone('US/Eastern')
         
-        # Look at last 195 candles (~3 trading days with 15-min candles)
-        lookback = min(195, len(df))
+        # Filter to MARKET HOURS ONLY (9:30 AM - 4:00 PM ET)
+        # Convert index to Eastern time if needed
+        df_filtered = df.copy()
+        if df_filtered.index.tz is None:
+            # Assume UTC if no timezone, convert to Eastern
+            df_filtered.index = df_filtered.index.tz_localize('UTC').tz_convert(eastern)
+        else:
+            df_filtered.index = df_filtered.index.tz_convert(eastern)
+        
+        # Filter to market hours: 9:30 AM (9.5 hours) to 4:00 PM (16 hours)
+        market_hours_mask = (df_filtered.index.hour * 60 + df_filtered.index.minute >= 9 * 60 + 30) & \
+                           (df_filtered.index.hour * 60 + df_filtered.index.minute < 16 * 60)
+        df_market = df_filtered[market_hours_mask]
+        
+        if len(df_market) < 10:
+            logger.warning(f"Not enough market hours data after filtering: {len(df_market)} candles")
+            df_market = df_filtered  # Fallback to all data if filtering leaves too few
+        
+        logger.info(f"📊 Filtered to market hours: {len(df_market)} of {len(df_filtered)} candles")
+        
+        highs = df_market['high'].values
+        lows = df_market['low'].values
+        opens = df_market['open'].values
+        closes = df_market['close'].values
+        timestamps = df_market.index  # Get timestamps from dataframe index
+        
+        # Look at last 780 candles (~30 trading days with 15-min candles, 26 candles/day)
+        lookback = min(780, len(df_market))
         recent_highs = highs[-lookback:]
         recent_lows = lows[-lookback:]
         recent_opens = opens[-lookback:]
         recent_closes = closes[-lookback:]
         recent_timestamps = timestamps[-lookback:]
+        
+        logger.info(f"📊 Analyzing {lookback} market-hours candles for S/D zones (30-day lookback)")
         
         # Find swing highs and lows with TIGHTER detection (3 candles on each side)
         # Track price, timestamp index, AND candle body info for each swing
