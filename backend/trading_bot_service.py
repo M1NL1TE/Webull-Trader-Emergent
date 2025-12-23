@@ -643,16 +643,23 @@ def analyze_supply_demand_multi(df, lookback_candles=195, zone_width_pct=0.0025,
 def analyze_supply_demand(df):
     """Analyze supply and demand zones from price data using proper swing detection
     
-    Improvements:
+    Zone Calculation (Professional Method):
+    - Supply Zone: Top = Candle HIGH (wick rejection), Bottom = min(OPEN, CLOSE) of swing candle
+    - Demand Zone: Top = max(OPEN, CLOSE) of swing candle, Bottom = Candle LOW (wick rejection)
+    
+    This creates zones based on actual candle structure rather than fixed percentages,
+    resulting in more precise zones that align with real price action.
+    
+    Settings:
     - Uses 15-minute candles for stronger levels
     - 3 trading days lookback (195 candles × 15-min = ~48.75 hours)
-    - Tighter 0.25% zone width for precision
     - Requires 3 candles on each side for stronger pivots
     - Returns separate timestamp information for supply and demand zones
     """
     try:
         highs = df['high'].values
         lows = df['low'].values
+        opens = df['open'].values
         closes = df['close'].values
         timestamps = df.index  # Get timestamps from dataframe index
         
@@ -660,15 +667,20 @@ def analyze_supply_demand(df):
         lookback = min(195, len(df))
         recent_highs = highs[-lookback:]
         recent_lows = lows[-lookback:]
+        recent_opens = opens[-lookback:]
         recent_closes = closes[-lookback:]
         recent_timestamps = timestamps[-lookback:]
         
         # Find swing highs and lows with TIGHTER detection (3 candles on each side)
-        # Track both price and timestamp for each swing
-        swing_highs = []  # (price, timestamp_index)
-        swing_lows = []   # (price, timestamp_index)
+        # Track price, timestamp index, AND candle body info for each swing
+        swing_highs = []  # (high_price, index, body_low, body_high)
+        swing_lows = []   # (low_price, index, body_low, body_high)
         
         for i in range(3, lookback - 3):
+            # Calculate body boundaries for this candle
+            body_low = min(recent_opens[i], recent_closes[i])
+            body_high = max(recent_opens[i], recent_closes[i])
+            
             # Check for swing high (3 candles on each side)
             if (recent_highs[i] > recent_highs[i-1] and 
                 recent_highs[i] > recent_highs[i-2] and
@@ -676,7 +688,7 @@ def analyze_supply_demand(df):
                 recent_highs[i] > recent_highs[i+1] and 
                 recent_highs[i] > recent_highs[i+2] and
                 recent_highs[i] > recent_highs[i+3]):
-                swing_highs.append((recent_highs[i], i))
+                swing_highs.append((recent_highs[i], i, body_low, body_high))
             
             # Check for swing low (3 candles on each side)
             if (recent_lows[i] < recent_lows[i-1] and 
@@ -685,54 +697,61 @@ def analyze_supply_demand(df):
                 recent_lows[i] < recent_lows[i+1] and 
                 recent_lows[i] < recent_lows[i+2] and
                 recent_lows[i] < recent_lows[i+3]):
-                swing_lows.append((recent_lows[i], i))
+                swing_lows.append((recent_lows[i], i, body_low, body_high))
         
-        # Find the supply level and its timestamp
+        # Find the supply level using candle structure
         supply_timestamp = None
+        supply_top = 0
+        supply_bottom = 0
+        
         if len(swing_highs) > 0:
             # Log all detected swing highs for debugging
             logger.info(f"📊 Found {len(swing_highs)} swing highs:")
-            for idx, (price, ts_idx) in enumerate(swing_highs):
-                logger.info(f"  Swing High #{idx+1}: ${price:.2f} at {recent_timestamps[ts_idx]}")
+            for idx, (price, ts_idx, b_low, b_high) in enumerate(swing_highs):
+                logger.info(f"  Swing High #{idx+1}: HIGH=${price:.2f}, Body=${b_low:.2f}-${b_high:.2f} at {recent_timestamps[ts_idx]}")
             
             # Use the ABSOLUTE HIGHEST swing high from the entire list
             supply_swing = max(swing_highs, key=lambda x: x[0])
-            supply_level = supply_swing[0]
+            supply_top = supply_swing[0]  # Candle HIGH (wick rejection point)
+            supply_bottom = supply_swing[2]  # Body LOW = min(open, close)
             supply_timestamp = recent_timestamps[supply_swing[1]].isoformat()
-            logger.info(f"✅ Selected Supply Level (ABSOLUTE HIGHEST): ${supply_level:.2f} at {supply_timestamp}")
+            
+            zone_width = supply_top - supply_bottom
+            logger.info(f"✅ Supply Zone (Candle-Based): ${supply_bottom:.2f} - ${supply_top:.2f} (width: ${zone_width:.2f}) at {supply_timestamp}")
         else:
-            # Fallback to simple max
+            # Fallback to simple max with percentage-based zone
             max_idx = np.argmax(recent_highs)
-            supply_level = recent_highs[max_idx]
+            supply_top = recent_highs[max_idx]
+            supply_bottom = min(recent_opens[max_idx], recent_closes[max_idx])
             supply_timestamp = recent_timestamps[max_idx].isoformat()
-            logger.info(f"⚠️ No swing highs found - using absolute max: ${supply_level:.2f} at {supply_timestamp}")
+            logger.info(f"⚠️ No swing highs found - using absolute max: ${supply_bottom:.2f} - ${supply_top:.2f}")
         
-        # Find the demand level and its timestamp
+        # Find the demand level using candle structure
         demand_timestamp = None
+        demand_top = 0
+        demand_bottom = 0
+        
         if len(swing_lows) > 0:
             # Log all detected swing lows for debugging
             logger.info(f"📊 Found {len(swing_lows)} swing lows:")
-            for idx, (price, ts_idx) in enumerate(swing_lows):
-                logger.info(f"  Swing Low #{idx+1}: ${price:.2f} at {recent_timestamps[ts_idx]}")
+            for idx, (price, ts_idx, b_low, b_high) in enumerate(swing_lows):
+                logger.info(f"  Swing Low #{idx+1}: LOW=${price:.2f}, Body=${b_low:.2f}-${b_high:.2f} at {recent_timestamps[ts_idx]}")
             
             # Use the ABSOLUTE LOWEST swing low from the entire list
             demand_swing = min(swing_lows, key=lambda x: x[0])
-            demand_level = demand_swing[0]
+            demand_bottom = demand_swing[0]  # Candle LOW (wick rejection point)
+            demand_top = demand_swing[3]  # Body HIGH = max(open, close)
             demand_timestamp = recent_timestamps[demand_swing[1]].isoformat()
-            logger.info(f"✅ Selected Demand Level (ABSOLUTE LOWEST): ${demand_level:.2f} at {demand_timestamp}")
+            
+            zone_width = demand_top - demand_bottom
+            logger.info(f"✅ Demand Zone (Candle-Based): ${demand_bottom:.2f} - ${demand_top:.2f} (width: ${zone_width:.2f}) at {demand_timestamp}")
         else:
-            # Fallback to simple min
+            # Fallback to simple min with percentage-based zone
             min_idx = np.argmin(recent_lows)
-            demand_level = recent_lows[min_idx]
+            demand_bottom = recent_lows[min_idx]
+            demand_top = max(recent_opens[min_idx], recent_closes[min_idx])
             demand_timestamp = recent_timestamps[min_idx].isoformat()
-            logger.info(f"⚠️ No swing lows found - using absolute min: ${demand_level:.2f} at {demand_timestamp}")
-        
-        # Create zones with 0.25% width (more precise for intraday SPY)
-        supply_top = supply_level
-        supply_bottom = supply_level * 0.9975  # 0.25% below high
-        
-        demand_bottom = demand_level  
-        demand_top = demand_level * 1.0025  # 0.25% above low
+            logger.info(f"⚠️ No swing lows found - using absolute min: ${demand_bottom:.2f} - ${demand_top:.2f}")
         
         # CRITICAL: Ensure zones don't overlap
         # If demand top is above supply bottom, there's an issue
@@ -741,6 +760,7 @@ def analyze_supply_demand(df):
             midpoint = (supply_bottom + demand_top) / 2
             supply_bottom = midpoint + 0.5  # At least $0.50 gap
             demand_top = midpoint - 0.5
+            logger.warning(f"⚠️ Zones overlapped - adjusted to maintain gap")
         
         # Calculate overall timestamp range
         first_timestamp = recent_timestamps[0].isoformat() if len(recent_timestamps) > 0 else None
