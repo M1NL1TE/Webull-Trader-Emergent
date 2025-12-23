@@ -529,33 +529,45 @@ def get_candle_grade(df):
     return 'D'
 
 
-def analyze_supply_demand_multi(df, lookback_candles=195, zone_width_pct=0.0025, num_zones=1):
-    """Analyze supply and demand zones - supports multiple zones
+def analyze_supply_demand_multi(df, lookback_candles=195, num_zones=1):
+    """Analyze supply and demand zones using actual candle structure - supports multiple zones
+    
+    Zone Calculation (Professional Method):
+    - Supply Zone: Top = Candle HIGH (wick rejection), Bottom = min(OPEN, CLOSE) of swing candle
+    - Demand Zone: Top = max(OPEN, CLOSE) of swing candle, Bottom = Candle LOW (wick rejection)
     
     Args:
         df: DataFrame with OHLC data
         lookback_candles: Number of candles to analyze
-        zone_width_pct: Zone width as percentage (0.0025 = 0.25%)
         num_zones: Number of supply/demand zones to return (1 or 2)
     
     Returns:
-        Dict with supply and demand zones (can return multiple zones)
+        Dict with supply and demand zones based on actual candle bodies
     """
     try:
         highs = df['high'].values
         lows = df['low'].values
+        opens = df['open'].values
+        closes = df['close'].values
         timestamps = df.index
         
         lookback = min(lookback_candles, len(df))
         recent_highs = highs[-lookback:]
         recent_lows = lows[-lookback:]
+        recent_opens = opens[-lookback:]
+        recent_closes = closes[-lookback:]
         recent_timestamps = timestamps[-lookback:]
         
         # Find swing highs and lows with 3 candles on each side
+        # Track: (wick_price, index, body_low, body_high)
         swing_highs = []
         swing_lows = []
         
         for i in range(3, lookback - 3):
+            # Calculate body boundaries for this candle
+            body_low = min(recent_opens[i], recent_closes[i])
+            body_high = max(recent_opens[i], recent_closes[i])
+            
             # Swing high detection
             if (recent_highs[i] > recent_highs[i-1] and 
                 recent_highs[i] > recent_highs[i-2] and
@@ -563,7 +575,7 @@ def analyze_supply_demand_multi(df, lookback_candles=195, zone_width_pct=0.0025,
                 recent_highs[i] > recent_highs[i+1] and 
                 recent_highs[i] > recent_highs[i+2] and
                 recent_highs[i] > recent_highs[i+3]):
-                swing_highs.append((recent_highs[i], i))
+                swing_highs.append((recent_highs[i], i, body_low, body_high))
             
             # Swing low detection
             if (recent_lows[i] < recent_lows[i-1] and 
@@ -572,61 +584,63 @@ def analyze_supply_demand_multi(df, lookback_candles=195, zone_width_pct=0.0025,
                 recent_lows[i] < recent_lows[i+1] and 
                 recent_lows[i] < recent_lows[i+2] and
                 recent_lows[i] < recent_lows[i+3]):
-                swing_lows.append((recent_lows[i], i))
+                swing_lows.append((recent_lows[i], i, body_low, body_high))
         
-        # Get top N supply zones (highest swing highs)
+        # Get top N supply zones (highest swing highs) using candle structure
         supply_zones = []
         if len(swing_highs) >= num_zones:
             # Sort by price descending, take top N
             top_swings = sorted(swing_highs, key=lambda x: x[0], reverse=True)[:num_zones]
-            for price, ts_idx in top_swings:
+            for high_price, ts_idx, body_low, body_high in top_swings:
                 supply_zones.append({
-                    'top': price,
-                    'bottom': price * (1 - zone_width_pct),
+                    'top': high_price,      # Candle HIGH (wick rejection)
+                    'bottom': body_low,     # min(open, close) - body low
                     'timestamp': recent_timestamps[ts_idx].isoformat()
                 })
         elif len(swing_highs) > 0:
             # Less zones available, return what we have
-            for price, ts_idx in swing_highs:
+            for high_price, ts_idx, body_low, body_high in swing_highs:
                 supply_zones.append({
-                    'top': price,
-                    'bottom': price * (1 - zone_width_pct),
+                    'top': high_price,
+                    'bottom': body_low,
                     'timestamp': recent_timestamps[ts_idx].isoformat()
                 })
         else:
-            # Fallback: use absolute max
+            # Fallback: use absolute max with its candle body
             max_idx = np.argmax(recent_highs)
+            body_low = min(recent_opens[max_idx], recent_closes[max_idx])
             supply_zones.append({
                 'top': recent_highs[max_idx],
-                'bottom': recent_highs[max_idx] * (1 - zone_width_pct),
+                'bottom': body_low,
                 'timestamp': recent_timestamps[max_idx].isoformat()
             })
         
-        # Get bottom N demand zones (lowest swing lows)
+        # Get bottom N demand zones (lowest swing lows) using candle structure
         demand_zones = []
         if len(swing_lows) >= num_zones:
             # Sort by price ascending, take bottom N
             bottom_swings = sorted(swing_lows, key=lambda x: x[0])[:num_zones]
-            for price, ts_idx in bottom_swings:
+            for low_price, ts_idx, body_low, body_high in bottom_swings:
                 demand_zones.append({
-                    'bottom': price,
-                    'top': price * (1 + zone_width_pct),
+                    'bottom': low_price,    # Candle LOW (wick rejection)
+                    'top': body_high,       # max(open, close) - body high
                     'timestamp': recent_timestamps[ts_idx].isoformat()
                 })
         elif len(swing_lows) > 0:
             # Less zones available, return what we have
-            for price, ts_idx in swing_lows:
+            for low_price, ts_idx, body_low, body_high in swing_lows:
                 demand_zones.append({
-                    'bottom': price,
-                    'top': price * (1 + zone_width_pct),
+                    'bottom': low_price,
+                    'top': body_high,
                     'timestamp': recent_timestamps[ts_idx].isoformat()
                 })
         else:
-            # Fallback: use absolute min
+            # Fallback: use absolute min with its candle body
             min_idx = np.argmin(recent_lows)
+            body_high = max(recent_opens[min_idx], recent_closes[min_idx])
             demand_zones.append({
                 'bottom': recent_lows[min_idx],
-                'top': recent_lows[min_idx] * (1 + zone_width_pct),
+                'top': body_high,
                 'timestamp': recent_timestamps[min_idx].isoformat()
             })
         
