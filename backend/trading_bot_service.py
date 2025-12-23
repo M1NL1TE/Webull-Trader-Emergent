@@ -536,6 +536,9 @@ def analyze_supply_demand_multi(df, lookback_candles=195, num_zones=1):
     - Supply Zone: Top = Candle HIGH (wick rejection), Bottom = min(OPEN, CLOSE) of swing candle
     - Demand Zone: Top = max(OPEN, CLOSE) of swing candle, Bottom = Candle LOW (wick rejection)
     
+    Settings:
+    - MARKET HOURS ONLY: 9:30 AM - 4:00 PM ET (no pre-market/after-hours)
+    
     Args:
         df: DataFrame with OHLC data
         lookback_candles: Number of candles to analyze
@@ -545,13 +548,32 @@ def analyze_supply_demand_multi(df, lookback_candles=195, num_zones=1):
         Dict with supply and demand zones based on actual candle bodies
     """
     try:
-        highs = df['high'].values
-        lows = df['low'].values
-        opens = df['open'].values
-        closes = df['close'].values
-        timestamps = df.index
+        from pytz import timezone as pytz_timezone
+        eastern = pytz_timezone('US/Eastern')
         
-        lookback = min(lookback_candles, len(df))
+        # Filter to MARKET HOURS ONLY (9:30 AM - 4:00 PM ET)
+        df_filtered = df.copy()
+        if df_filtered.index.tz is None:
+            df_filtered.index = df_filtered.index.tz_localize('UTC').tz_convert(eastern)
+        else:
+            df_filtered.index = df_filtered.index.tz_convert(eastern)
+        
+        # Filter to market hours
+        market_hours_mask = (df_filtered.index.hour * 60 + df_filtered.index.minute >= 9 * 60 + 30) & \
+                           (df_filtered.index.hour * 60 + df_filtered.index.minute < 16 * 60)
+        df_market = df_filtered[market_hours_mask]
+        
+        if len(df_market) < 10:
+            logger.warning(f"Not enough market hours data for 1hr zones: {len(df_market)} candles")
+            df_market = df_filtered  # Fallback to all data
+        
+        highs = df_market['high'].values
+        lows = df_market['low'].values
+        opens = df_market['open'].values
+        closes = df_market['close'].values
+        timestamps = df_market.index
+        
+        lookback = min(lookback_candles, len(df_market))
         recent_highs = highs[-lookback:]
         recent_lows = lows[-lookback:]
         recent_opens = opens[-lookback:]
