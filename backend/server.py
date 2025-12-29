@@ -1901,15 +1901,24 @@ async def get_trading_bot_status():
                     logger.info("🚀 Auto-starting bot (auto_trading=ON, session exists, bot stopped)")
                     
                     wb = get_webull_instance(session.get('is_paper', True))
-                    wb.api_login(
-                        access_token=session['access_token'],
-                        refresh_token=session['refresh_token'],
-                        token_expire=session['token_expire'],
-                        uuid=session['uuid']
-                    )
                     
-                    if session.get('is_paper', True):
-                        wb.get_account_id()
+                    # Set tokens directly without validation call
+                    wb._access_token = session['access_token']
+                    wb._refresh_token = session['refresh_token']
+                    wb._token_expire = session['token_expire']
+                    wb._uuid = session['uuid']
+                    
+                    try:
+                        if session.get('is_paper', True):
+                            wb.get_account_id()
+                    except Exception as acc_err:
+                        logger.warning(f"Could not get account ID during auto-start: {acc_err}")
+                        if 'account_id' in session:
+                            wb._account_id = session['account_id']
+                    
+                    # Restore trade token if available
+                    if 'trade_token' in session and session['trade_token']:
+                        wb._trade_token = session['trade_token']
                     
                     # Start bot
                     trading_bot_task = asyncio.create_task(run_trading_bot(wb, settings))
@@ -1918,7 +1927,75 @@ async def get_trading_bot_status():
     except Exception as e:
         logger.error(f"Error in bot status auto-start: {e}")
     
-    return get_bot_status()
+    # If zones are empty and we have a session, try to calculate them on-demand
+    status = get_bot_status()
+    
+    if status.get('zones', {}).get('supply_top', 0) == 0:
+        try:
+            session = await get_session()
+            if session:
+                zones_data = await calculate_zones_on_demand(session)
+                if zones_data:
+                    status['zones'] = zones_data.get('zones_15m', status['zones'])
+                    status['zones_1hr'] = zones_data.get('zones_1hr', status['zones_1hr'])
+        except Exception as zone_err:
+            logger.warning(f"Could not calculate zones on-demand: {zone_err}")
+    
+    return status
+
+async def calculate_zones_on_demand(session):
+    """Calculate supply/demand zones without running the full bot"""
+    try:
+        from trading_bot_service import analyze_supply_demand, analyze_supply_demand_multi
+        
+        wb = get_webull_instance(session.get('is_paper', True))
+        wb._access_token = session['access_token']
+        wb._refresh_token = session['refresh_token']
+        wb._token_expire = session['token_expire']
+        wb._uuid = session['uuid']
+        
+        symbol = 'SPY'
+        stockId = wb.get_ticker(symbol)
+        
+        # Get 15-minute data for zones (need more bars for 30-day lookback)
+        df_15m = wb.get_bars(symbol, stockId, 'm15', 1000, 1)
+        
+        zones_15m = {}
+        if df_15m is not None and len(df_15m) > 10:
+            zones_15m = analyze_supply_demand(df_15m)
+            logger.info(f"📊 On-demand 15m zones calculated: Supply ${zones_15m.get('supply_bottom', 0):.2f}-${zones_15m.get('supply_top', 0):.2f}")
+        
+        # Get 1-hour data for structure zones
+        df_1hr = wb.get_bars(symbol, stockId, 'm60', 500, 1)
+        
+        zones_1hr = {'supply_zones': [], 'demand_zones': []}
+        if df_1hr is not None and len(df_1hr) > 10:
+            zones_1hr_data = analyze_supply_demand_multi(df_1hr, lookback_candles=400, num_zones=2)
+            zones_1hr = zones_1hr_data
+            logger.info(f"📊 On-demand 1hr zones calculated")
+        
+        # Update bot_state so subsequent calls have the data
+        bot_state.zones = zones_15m
+        if zones_1hr.get('supply_zones'):
+            top_supply = zones_1hr['supply_zones'][0]
+            top_demand = zones_1hr['demand_zones'][0] if zones_1hr['demand_zones'] else {'top': 0, 'bottom': 0}
+            bot_state.zones_1hr = {
+                'supply_top': top_supply.get('top', 0),
+                'supply_bottom': top_supply.get('bottom', 0),
+                'demand_top': top_demand.get('top', 0),
+                'demand_bottom': top_demand.get('bottom', 0),
+                'supply_zones': zones_1hr.get('supply_zones', []),
+                'demand_zones': zones_1hr.get('demand_zones', [])
+            }
+        
+        return {
+            'zones_15m': zones_15m,
+            'zones_1hr': bot_state.zones_1hr
+        }
+        
+    except Exception as e:
+        logger.error(f"Error calculating zones on-demand: {e}")
+        return None
 
 @api_router.get("/bot/heartbeat")
 async def get_bot_heartbeat():
