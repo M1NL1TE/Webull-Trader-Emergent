@@ -1719,30 +1719,61 @@ async def sell_position_at_market(request: SellPositionRequest):
 
 @api_router.get("/quote/spy")
 async def get_spy_quote():
-    """Get real-time SPY quote directly from Webull (bypasses bot state)"""
+    """Get real-time SPY quote - uses bot's active connection if available"""
     try:
+        # First, try to use the bot's already-authenticated Webull instance
+        from trading_bot_service import bot_state
+        
+        # If bot has a recent price (within last 60 seconds), use it - it's from the active connection
+        if bot_state.current_price > 0 and bot_state.last_check_time:
+            from datetime import datetime, timezone, timedelta
+            last_check = datetime.fromisoformat(bot_state.last_check_time.replace('Z', '+00:00')) if isinstance(bot_state.last_check_time, str) else bot_state.last_check_time
+            if datetime.now(timezone.utc) - last_check < timedelta(seconds=60):
+                return {
+                    "symbol": "SPY",
+                    "price": bot_state.current_price,
+                    "change": 0,
+                    "changeRatio": 0,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "source": "bot_realtime"
+                }
+        
+        # Otherwise, try to fetch fresh quote via session
         session = await get_session()
         if not session:
-            raise HTTPException(status_code=401, detail="Not authenticated")
+            # No session - use bot state fallback
+            return {
+                "symbol": "SPY",
+                "price": bot_state.current_price,
+                "change": 0,
+                "changeRatio": 0,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "fallback": True
+            }
         
         wb = get_webull_instance(session.get('is_paper', True))
-        wb.api_login(
-            access_token=session['access_token'],
-            refresh_token=session['refresh_token'],
-            token_expire=session['token_expire'],
-            uuid=session['uuid']
-        )
         
-        # Direct quote fetch - no caching, always fresh
+        # Try setting tokens directly without calling api_login (which validates)
+        wb._access_token = session.get('access_token')
+        wb._refresh_token = session.get('refresh_token')
+        wb._token_expire = session.get('token_expire')
+        wb._uuid = session.get('uuid')
+        
+        # Direct quote fetch
         quote = wb.get_quote(stock='SPY')
         
-        return {
-            "symbol": "SPY",
-            "price": float(quote.get('close', 0)),
-            "change": float(quote.get('change', 0)),
-            "changeRatio": float(quote.get('changeRatio', 0)),
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+        if quote and 'close' in quote:
+            return {
+                "symbol": "SPY",
+                "price": float(quote.get('close', 0)),
+                "change": float(quote.get('change', 0)),
+                "changeRatio": float(quote.get('changeRatio', 0)),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "source": "webull_api"
+            }
+        else:
+            raise Exception("Invalid quote response")
+            
     except Exception as e:
         logger.error(f"Get SPY quote error: {e}")
         # Return last known price from bot state as fallback
