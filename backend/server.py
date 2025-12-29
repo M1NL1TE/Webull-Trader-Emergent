@@ -1720,23 +1720,27 @@ async def sell_position_at_market(request: SellPositionRequest):
 @api_router.get("/quote/spy")
 async def get_spy_quote():
     """Get real-time SPY quote - uses bot's active connection if available"""
+    from datetime import datetime, timezone as dt_timezone, timedelta
+    
     try:
         # First, try to use the bot's already-authenticated Webull instance
         from trading_bot_service import bot_state
         
         # If bot has a recent price (within last 60 seconds), use it - it's from the active connection
         if bot_state.current_price > 0 and bot_state.last_check_time:
-            from datetime import datetime, timezone, timedelta
-            last_check = datetime.fromisoformat(bot_state.last_check_time.replace('Z', '+00:00')) if isinstance(bot_state.last_check_time, str) else bot_state.last_check_time
-            if datetime.now(timezone.utc) - last_check < timedelta(seconds=60):
-                return {
-                    "symbol": "SPY",
-                    "price": bot_state.current_price,
-                    "change": 0,
-                    "changeRatio": 0,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "source": "bot_realtime"
-                }
+            try:
+                last_check = datetime.fromisoformat(bot_state.last_check_time.replace('Z', '+00:00')) if isinstance(bot_state.last_check_time, str) else bot_state.last_check_time
+                if datetime.now(dt_timezone.utc) - last_check < timedelta(seconds=60):
+                    return {
+                        "symbol": "SPY",
+                        "price": bot_state.current_price,
+                        "change": 0,
+                        "changeRatio": 0,
+                        "timestamp": datetime.now(dt_timezone.utc).isoformat(),
+                        "source": "bot_realtime"
+                    }
+            except Exception as time_err:
+                logger.warning(f"Time comparison error: {time_err}")
         
         # Otherwise, try to fetch fresh quote via session
         session = await get_session()
@@ -1747,7 +1751,7 @@ async def get_spy_quote():
                 "price": bot_state.current_price,
                 "change": 0,
                 "changeRatio": 0,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(dt_timezone.utc).isoformat(),
                 "fallback": True
             }
         
@@ -1768,7 +1772,7 @@ async def get_spy_quote():
                 "price": float(quote.get('close', 0)),
                 "change": float(quote.get('change', 0)),
                 "changeRatio": float(quote.get('changeRatio', 0)),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(dt_timezone.utc).isoformat(),
                 "source": "webull_api"
             }
         else:
@@ -1783,7 +1787,7 @@ async def get_spy_quote():
             "price": bot_state.current_price,
             "change": 0,
             "changeRatio": 0,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(dt_timezone.utc).isoformat(),
             "fallback": True
         }
 
