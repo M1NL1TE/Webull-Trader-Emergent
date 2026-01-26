@@ -866,9 +866,21 @@ def check_orb_breakout(wb, symbol, current_time):
         from pytz import timezone as pytz_timezone
         eastern = pytz_timezone('US/Eastern')
         now_eastern = datetime.now(eastern)
+        today_date = now_eastern.date()
         
         market_open = now_eastern.replace(hour=9, minute=30, second=0, microsecond=0)
         orb_end = market_open + timedelta(minutes=15)
+        
+        # Check if ORB is from a PREVIOUS day and needs reset
+        orb_date_str = bot_state.orb_status.get('date')
+        if orb_date_str:
+            try:
+                orb_date = datetime.fromisoformat(orb_date_str).date() if isinstance(orb_date_str, str) else orb_date_str
+                if orb_date != today_date:
+                    logger.info(f"🔄 ORB from previous day ({orb_date}) - resetting for today ({today_date})")
+                    bot_state.orb_status = {'high': 0, 'low': 0, 'upside_broken': False, 'downside_broken': False}
+            except Exception as e:
+                logger.warning(f"Could not parse ORB date: {e}")
         
         # If we already have ORB levels for today, check current price for NEW breakouts
         if bot_state.orb_status.get('high', 0) > 0:
