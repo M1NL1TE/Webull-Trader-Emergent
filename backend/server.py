@@ -1882,6 +1882,34 @@ async def update_settings(settings: SettingsUpdate):
         logger.error(f"Update settings error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.post("/bot/reset-orb")
+async def reset_orb():
+    """Force reset ORB levels - use this if ORB is showing stale/incorrect data"""
+    try:
+        old_orb = {
+            'high': bot_state.orb_status.get('high', 0),
+            'low': bot_state.orb_status.get('low', 0)
+        }
+        
+        # Reset ORB status
+        bot_state.orb_status = {
+            'high': 0, 
+            'low': 0, 
+            'upside_broken': False, 
+            'downside_broken': False
+        }
+        
+        logger.info(f"🔄 ORB manually reset. Old values: ${old_orb['low']:.2f} - ${old_orb['high']:.2f}")
+        
+        return {
+            "success": True,
+            "message": "ORB levels reset. New ORB will be calculated on next bot cycle.",
+            "old_orb": old_orb
+        }
+    except Exception as e:
+        logger.error(f"Reset ORB error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.get("/bot/status")
 async def get_trading_bot_status():
     """Get current trading bot status and auto-start if needed"""
