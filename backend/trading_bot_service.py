@@ -930,11 +930,12 @@ def check_orb_breakout(wb, symbol, current_time):
         orb_low = df_1m['low'][:10].min()
         orb_range = orb_high - orb_low
         
-        # Store ORB levels (persist throughout day)
+        # Store ORB levels (persist throughout day) with today's date
         bot_state.orb_status['high'] = orb_high
         bot_state.orb_status['low'] = orb_low
+        bot_state.orb_status['date'] = today_date.isoformat()  # Track which day this ORB belongs to
         
-        logger.info(f"✅ ORB Levels Calculated: High=${orb_high:.2f}, Low=${orb_low:.2f}")
+        logger.info(f"✅ ORB Levels Calculated: High=${orb_high:.2f}, Low=${orb_low:.2f} for {today_date}")
         
         # Send notification that ORB levels are set for the day
         calculated_time = "historical (9:30-9:40 AM)" if now_eastern > orb_end else now_eastern.strftime('%I:%M %p')
