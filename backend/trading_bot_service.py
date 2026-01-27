@@ -912,18 +912,49 @@ def check_orb_breakout(wb, symbol, current_time):
         # Calculate ORB levels (works both during and after the window)
         stockId = wb.get_ticker(symbol)
         
-        # If we're past the ORB window, get historical data from 9:30-9:45 AM today
-        if now_eastern > orb_end:
-            # Calculate timestamp for 9:45 AM today
-            orb_end_timestamp = int(orb_end.timestamp())
-            df_1m = wb.get_bars(symbol, stockId, 'm1', 15, 1, timeStamp=orb_end_timestamp)
-            logger.info(f"📊 Calculating ORB from historical data (9:30-9:45 AM)")
+        # ORB window is 9:30-9:40 AM (first 10 minutes ONLY)
+        orb_calculation_end = market_open + timedelta(minutes=10)  # 9:40 AM
+        
+        # If we're past the ORB window, get historical data from 9:30-9:40 AM today
+        if now_eastern > orb_calculation_end:
+            # Get 10 one-minute bars starting from 9:40 AM going backwards
+            orb_calc_timestamp = int(orb_calculation_end.timestamp())
+            df_1m = wb.get_bars(symbol, stockId, 'm1', 10, 1, timeStamp=orb_calc_timestamp)
+            logger.info(f"📊 Fetching ORB historical data for 9:30-9:40 AM (timestamp: {orb_calculation_end})")
         else:
             # We're in the ORB window - get current data
             df_1m = wb.get_bars(symbol, stockId, 'm1', 20, 1)
         
         if df_1m is None or len(df_1m) < 10:
+            logger.warning(f"⚠️ Insufficient ORB data: got {len(df_1m) if df_1m is not None else 0} candles")
             return None, "Insufficient data for ORB calculation"
+        
+        # Log the candles being used for debugging
+        logger.info(f"📊 ORB candle data received: {len(df_1m)} candles")
+        logger.info(f"   First candle: {df_1m.index[0]} - O:{df_1m['open'].iloc[0]:.2f} H:{df_1m['high'].iloc[0]:.2f} L:{df_1m['low'].iloc[0]:.2f} C:{df_1m['close'].iloc[0]:.2f}")
+        logger.info(f"   Last candle:  {df_1m.index[-1]} - O:{df_1m['open'].iloc[-1]:.2f} H:{df_1m['high'].iloc[-1]:.2f} L:{df_1m['low'].iloc[-1]:.2f} C:{df_1m['close'].iloc[-1]:.2f}")
+        
+        # CRITICAL: Filter to ONLY market hours (9:30 AM - 4:00 PM ET)
+        # This ensures we don't include pre-market candles
+        try:
+            if df_1m.index.tz is None:
+                df_1m.index = df_1m.index.tz_localize('UTC').tz_convert(eastern)
+            else:
+                df_1m.index = df_1m.index.tz_convert(eastern)
+            
+            # Filter to regular trading hours only
+            market_hours_mask = (df_1m.index.hour * 60 + df_1m.index.minute >= 9 * 60 + 30) & \
+                               (df_1m.index.hour * 60 + df_1m.index.minute < 16 * 60)
+            df_market = df_1m[market_hours_mask]
+            
+            if len(df_market) < 10:
+                logger.warning(f"⚠️ After market hours filter: only {len(df_market)} candles")
+                df_market = df_1m  # Fallback if filtering removes too many
+            else:
+                logger.info(f"✅ Filtered to {len(df_market)} market-hours candles")
+                df_1m = df_market
+        except Exception as tz_err:
+            logger.warning(f"Timezone conversion error: {tz_err}")
         
         # Calculate opening range (first 10 minutes of 1-min bars)
         orb_high = df_1m['high'][:10].max()
