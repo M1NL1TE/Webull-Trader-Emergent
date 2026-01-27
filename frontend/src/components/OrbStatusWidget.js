@@ -68,7 +68,7 @@ function OrbStatusWidget() {
           Opening Range Breakout (ORB)
         </CardTitle>
         <p className="text-xs text-slate-400 mt-1">
-          9:30-9:45 AM EST • First 10 minutes
+          9:30-9:40 AM EST • First 10 minutes
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
