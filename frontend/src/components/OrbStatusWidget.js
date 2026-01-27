@@ -78,7 +78,7 @@ function OrbStatusWidget() {
               ⏱️ ORB Levels Not Yet Calculated
             </p>
             <p className="text-xs text-slate-500">
-              ORB is calculated during 9:30-9:45 AM EST and persists throughout the trading day.
+              ORB is calculated using the first 10 minutes (9:30-9:40 AM EST) and persists throughout the trading day.
             </p>
             <p className="text-xs text-slate-500 mt-2">
               {new Date().getHours() < 9 || (new Date().getHours() === 9 && new Date().getMinutes() < 30) 
