@@ -727,6 +727,48 @@ async def import_session(request: ManualSessionRequest):
         logger.error(f"Manual session import error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to import session: {str(e)}")
 
+@api_router.get("/auth/export-session")
+async def export_session():
+    """
+    Export current session tokens for importing to another environment.
+    Use this on preview to get tokens, then import to production.
+    """
+    try:
+        session = await get_session()
+        if not session:
+            raise HTTPException(status_code=404, detail="No session found to export")
+        
+        # Check if it's a placeholder session
+        if session.get('is_placeholder', False):
+            raise HTTPException(status_code=400, detail="Cannot export placeholder session. Login first.")
+        
+        # Return session data (excluding MongoDB _id)
+        export_data = {
+            "access_token": session.get('access_token', ''),
+            "refresh_token": session.get('refresh_token', ''),
+            "uuid": session.get('uuid', ''),
+            "device_id": session.get('device_id', ''),
+            "trade_token": session.get('trade_token', ''),
+            "is_paper": session.get('is_paper', True),
+            "token_expire": session.get('token_expire', '2099-01-01T00:00:00.000+0000'),
+            "account_id": session.get('account_id', ''),
+            "updated_at": session.get('updated_at', '')
+        }
+        
+        logger.info("📤 Session exported for transfer to another environment")
+        
+        return {
+            "success": True,
+            "message": "Copy this data and use /api/auth/import-session on the target environment",
+            "session_data": export_data
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Export session error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.post("/auth/logout")
 async def logout():
     """Logout and clear session"""
