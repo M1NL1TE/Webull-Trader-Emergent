@@ -114,12 +114,11 @@ function Dashboard({ sessionStatus }) {
   };
 
   const handleLogout = async () => {
-    // Show confirmation warning about Playwright login issues
+    // Changed: Now just clears app access and Webull session
     const confirmed = window.confirm(
-      '⚠️ WARNING: After logging out, you will need to do a full Playwright login to get back in.\n\n' +
-      'If you just want to close the app for the day, click CANCEL and simply close this browser tab instead. ' +
-      'Your session will be saved and you can use "Quick Restore" tomorrow.\n\n' +
-      'Click OK to logout anyway, or CANCEL to keep your session.'
+      '⚠️ This will clear your session and require the app password again.\n\n' +
+      'If you just want to close the app, click CANCEL and simply close this browser tab.\n\n' +
+      'Click OK to logout, or CANCEL to stay.'
     );
     
     if (!confirmed) {
@@ -128,16 +127,16 @@ function Dashboard({ sessionStatus }) {
     }
     
     try {
-      // Call backend to clear session
+      // Clear Webull session on backend
       await axios.post(`${API}/auth/logout`);
-      setIsAuthenticated(false);
-      toast.success('Logged out successfully. Full login required next time.');
     } catch (error) {
       console.error('Logout error:', error);
-      // Still log out on frontend even if backend fails
-      setIsAuthenticated(false);
-      toast.success('Logged out');
     }
+    
+    // Clear app access token - this will show password gate again
+    localStorage.removeItem('app_access_token');
+    toast.success('Logged out');
+    window.location.reload();
   };
 
   if (loading) {
