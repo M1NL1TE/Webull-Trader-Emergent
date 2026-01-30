@@ -3,7 +3,6 @@ import '@/App.css';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import Dashboard from '@/pages/Dashboard';
-import Login from '@/pages/Login';
 import PasswordGate from '@/components/PasswordGate';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
@@ -13,9 +12,9 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://autotrade-spy.
 const API = `${BACKEND_URL}/api`;
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasAppAccess, setHasAppAccess] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sessionStatus, setSessionStatus] = useState(null);
 
   useEffect(() => {
     // Check if user has app access token
@@ -24,57 +23,47 @@ function App() {
       setHasAppAccess(true);
     }
     
-    // ALWAYS try to auto-restore session on app load
-    const autoRestoreSession = async () => {
+    // Try to initialize session on app load
+    const initializeSession = async () => {
       if (!appAccessToken) {
         setLoading(false);
         return;
       }
       
       try {
-        // First check if a session exists
+        // Check session status
         const statusResponse = await axios.get(`${API}/auth/session-status`);
+        setSessionStatus(statusResponse.data);
         
         if (statusResponse.data.has_session) {
-          // Session exists - try to restore it
-          console.log('🔄 Auto-restoring existing session...');
+          // Try to restore session silently
           try {
             const restoreResponse = await axios.post(`${API}/auth/restore`);
-            
             if (restoreResponse.data.success) {
-              console.log('✅ Session auto-restored successfully');
-              setIsAuthenticated(true);
-              toast.success(`Session restored! Mode: ${restoreResponse.data.is_paper ? 'PAPER' : 'LIVE'}`);
-              return;
+              console.log('✅ Session restored');
+              toast.success(`Connected! Mode: ${restoreResponse.data.is_paper ? 'PAPER' : 'LIVE'}`);
             }
           } catch (restoreError) {
-            console.log('Normal restore failed, trying force-login...', restoreError.message);
+            console.log('Session restore info:', restoreError.message);
             // Try force login as fallback
             try {
-              const forceResponse = await axios.post(`${API}/auth/force-login`);
-              if (forceResponse.data.success) {
-                console.log('✅ Force login successful');
-                setIsAuthenticated(true);
-                toast.success('Dashboard access granted (force login)');
-                return;
-              }
+              await axios.post(`${API}/auth/force-login`);
+              toast.info('Dashboard access granted');
             } catch (forceError) {
-              console.log('Force login also failed:', forceError.message);
+              console.log('Force login info:', forceError.message);
             }
           }
         } else {
-          console.log('No session found - login required');
-          setIsAuthenticated(false);
+          toast.info('No Webull session - some features may be limited');
         }
       } catch (error) {
-        console.log('Session restore check failed:', error.message);
-        setIsAuthenticated(false);
+        console.log('Session check:', error.message);
       } finally {
         setLoading(false);
       }
     };
     
-    autoRestoreSession();
+    initializeSession();
   }, []);
 
   // Show password gate first
@@ -95,30 +84,17 @@ function App() {
     );
   }
 
+  // Go directly to dashboard - no login page needed
   return (
     <div className="App">
       <BrowserRouter>
         <Routes>
           <Route
-            path="/login"
-            element={
-              isAuthenticated ? (
-                <Navigate to="/" replace />
-              ) : (
-                <Login setIsAuthenticated={setIsAuthenticated} />
-              )
-            }
-          />
-          <Route
             path="/"
-            element={
-              isAuthenticated ? (
-                <Dashboard setIsAuthenticated={setIsAuthenticated} />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
+            element={<Dashboard sessionStatus={sessionStatus} />}
           />
+          {/* Redirect any other routes to dashboard */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
       <Toaster position="top-right" />
