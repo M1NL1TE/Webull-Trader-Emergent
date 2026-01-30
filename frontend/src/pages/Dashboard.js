@@ -171,6 +171,35 @@ function Dashboard({ sessionStatus }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-4 md:p-6" data-testid="dashboard">
+      {/* Placeholder Session Warning Banner */}
+      {isPlaceholderSession && (
+        <div className="max-w-7xl mx-auto mb-4">
+          <div className="bg-amber-900/30 border border-amber-700 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <span className="text-amber-500 text-xl">⚠️</span>
+              <div>
+                <h3 className="text-amber-400 font-semibold mb-1">Limited Functionality Mode</h3>
+                <p className="text-amber-300/80 text-sm mb-2">
+                  No valid Webull session found. Dashboard is visible but trading features are disabled.
+                </p>
+                <p className="text-amber-300/80 text-sm mb-3">
+                  <strong>To enable full functionality:</strong> Login on the preview environment, then export and import your session.
+                </p>
+                <details className="text-xs text-amber-400/70">
+                  <summary className="cursor-pointer hover:text-amber-400">How to import a session</summary>
+                  <ol className="mt-2 ml-4 list-decimal space-y-1">
+                    <li>Open the preview environment and login with your Webull credentials</li>
+                    <li>After successful login, open browser DevTools (F12) → Network tab</li>
+                    <li>Look for session data in the requests or use /api/auth/session-status</li>
+                    <li>Use /api/auth/import-session endpoint to import tokens to production</li>
+                  </ol>
+                </details>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
