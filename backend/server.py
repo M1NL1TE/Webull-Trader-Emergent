@@ -538,6 +538,7 @@ async def check_session_status():
         if not session:
             return {
                 "has_session": False,
+                "is_placeholder": False,
                 "message": "No active session found. Full login required."
             }
         
@@ -545,11 +546,23 @@ async def check_session_status():
         has_tokens = bool(session.get('access_token') and session.get('refresh_token'))
         has_trade_token = bool(session.get('trade_token'))
         is_paper = session.get('is_paper', True)
+        is_placeholder = session.get('is_placeholder', False)
         updated_at = session.get('updated_at', 'Unknown')
+        
+        if is_placeholder:
+            return {
+                "has_session": True,
+                "is_paper": is_paper,
+                "is_placeholder": True,
+                "has_trade_token": False,
+                "last_updated": updated_at,
+                "message": "⚠️ Placeholder session active. Dashboard visible but trading disabled. Import a real session from preview for full functionality."
+            }
         
         return {
             "has_session": has_tokens,
             "is_paper": is_paper,
+            "is_placeholder": False,
             "has_trade_token": has_trade_token,
             "last_updated": updated_at,
             "message": "Active session found! You can restore without re-login." if has_tokens else "Session incomplete. Full login required."
