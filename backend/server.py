@@ -128,8 +128,56 @@ async def startup_event():
     initialize_notifications()
     logger.info("Application startup complete")
     
+    # CRITICAL: Ensure a session exists for dashboard access
+    asyncio.create_task(ensure_session_exists())
+    
     # Check if auto-trading is enabled and start bot
     asyncio.create_task(check_and_start_bot())
+
+async def ensure_session_exists():
+    """
+    Ensure a minimal session exists in the database so the dashboard can load.
+    This is a workaround since the login page was removed.
+    If no session exists, create a placeholder that allows dashboard viewing.
+    """
+    await asyncio.sleep(2)  # Wait for DB connection
+    
+    try:
+        existing_session = await db.sessions.find_one({'session_type': 'webull'})
+        
+        if not existing_session:
+            logger.warning("⚠️ No Webull session found! Creating placeholder session for dashboard access...")
+            
+            # Create a minimal placeholder session
+            # This allows the dashboard to load but trading won't work until real session is imported
+            placeholder_session = {
+                'session_type': 'webull',
+                'is_paper': True,
+                'is_placeholder': True,  # Flag to indicate this is not a real session
+                'access_token': 'PLACEHOLDER_TOKEN_IMPORT_REAL_SESSION',
+                'refresh_token': 'PLACEHOLDER_REFRESH',
+                'token_expire': '2099-01-01T00:00:00.000+0000',
+                'uuid': 'placeholder-uuid',
+                'updated_at': datetime.now(timezone.utc).isoformat(),
+                'message': 'This is a placeholder session. Import a real session from preview environment for full functionality.'
+            }
+            
+            await db.sessions.update_one(
+                {'session_type': 'webull'},
+                {'$set': placeholder_session},
+                upsert=True
+            )
+            
+            logger.info("✅ Placeholder session created. Dashboard will load but API calls may fail.")
+            logger.info("📋 To enable full functionality, import a real session using /api/auth/import-session")
+        else:
+            is_placeholder = existing_session.get('is_placeholder', False)
+            if is_placeholder:
+                logger.info("📌 Placeholder session exists. Import real session for full functionality.")
+            else:
+                logger.info("✅ Valid Webull session found in database.")
+    except Exception as e:
+        logger.error(f"Error ensuring session exists: {e}")
 
 async def check_and_start_bot():
     """Check if auto-trading is enabled and start bot if needed"""
