@@ -18,7 +18,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
 
 # Get backend URL from frontend .env
-BACKEND_URL = "https://auto-spy-trading.preview.emergentagent.com/api"
+BACKEND_URL = "https://webulltrader.preview.emergentagent.com/api"
 APP_PASSWORD = "WebullTrader2024!Secure"
 
 # MongoDB connection for direct testing
