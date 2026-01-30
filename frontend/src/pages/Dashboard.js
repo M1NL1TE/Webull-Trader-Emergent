@@ -42,6 +42,24 @@ function Dashboard({ sessionStatus }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isPlaceholderSession, setIsPlaceholderSession] = useState(false);
+  const [sessionMessage, setSessionMessage] = useState('');
+
+  // Check session status on mount
+  useEffect(() => {
+    const checkSessionStatus = async () => {
+      try {
+        const response = await axios.get(`${API}/auth/session-status`);
+        if (response.data.is_placeholder) {
+          setIsPlaceholderSession(true);
+          setSessionMessage(response.data.message);
+        }
+      } catch (error) {
+        console.error('Session status check error:', error);
+      }
+    };
+    checkSessionStatus();
+  }, []);
 
   const fetchData = async () => {
     try {
@@ -56,7 +74,8 @@ function Dashboard({ sessionStatus }) {
       setOrders(ordersRes.data.orders || []);
     } catch (error) {
       console.error('Error fetching data:', error);
-      if (error.response?.status === 401) {
+      // Don't show error toast for placeholder sessions - expected behavior
+      if (error.response?.status === 401 && !isPlaceholderSession) {
         toast.error('Session expired. Please login again.');
         setIsAuthenticated(false);
       }
