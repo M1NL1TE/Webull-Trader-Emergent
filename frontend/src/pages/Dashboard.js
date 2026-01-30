@@ -36,7 +36,7 @@ import LiveChart from '@/components/LiveChart';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://autotrade-spy.emergent.host';
 const API = `${BACKEND_URL}/api`;
 
-function Dashboard({ setIsAuthenticated }) {
+function Dashboard({ sessionStatus }) {
   const [account, setAccount] = useState(null);
   const [positions, setPositions] = useState([]);
   const [orders, setOrders] = useState([]);
