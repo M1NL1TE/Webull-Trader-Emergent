@@ -45,5 +45,12 @@ A full-stack web application for automated SPY options trading using the Webull 
 - Choose trade grade (A+ to D) based on confidence
 - System automatically finds best options and executes
 
+## 📚 Local Setup & Documentation
+
+If you are setting up this app locally for the first time, refer to the guides in the `docs/` folder:
+
+- [🛠️ Complete Local Setup Guide](docs/Webull Trader Shutdown and Ports Guide.pdf)
+- [❓ Troubleshooting & Q&A](docs/Webull Trader Verbatim Guide Fixed.pdf)
+
 ## ⚠️ Disclaimer
 **This is for educational purposes only. Trading options involves significant risk. Only trade with capital you can afford to lose. Always test in paper trading mode first!**
